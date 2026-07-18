@@ -8,7 +8,7 @@ sidebar_position: 1
 
 **Version:** 1.1 (beta)  
 **Last updated:** 2026-06-19  
-**Source of truth:** `/workspace` codebase — see [`docs/archive/snapshots/CODEBASE_CONTEXT.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/CODEBASE_CONTEXT.md) for a consolidated snapshot and [`docs/planning/ROADMAP.md`](../roadmap.md) for release index
+**Source of truth:** `/workspace` codebase — see [`docs/archive/snapshots/CODEBASE_CONTEXT.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/CODEBASE_CONTEXT.md) for a consolidated snapshot and [`docs/planning/ROADMAP.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/planning/ROADMAP.md) for release index
 
 ---
 

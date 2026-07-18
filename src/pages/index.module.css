@@ -33,7 +33,7 @@
 }
 
 .dispatch span:first-child {
-  color: var(--brf-amber);
+  color: var(--brf-accent);
 }
 
 .dispatch span:last-child {
@@ -42,7 +42,7 @@
 
 .masthead {
   font-family: var(--brf-font-display);
-  font-weight: 460;
+  font-weight: 400;
   font-size: clamp(3rem, 8vw, 5.6rem);
   line-height: 1.04;
   letter-spacing: -0.015em;
@@ -52,7 +52,7 @@
 }
 
 .tick {
-  color: var(--brf-amber);
+  color: var(--brf-accent);
 }
 
 .sub {
@@ -79,15 +79,15 @@
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--brf-ink);
-  background: var(--brf-amber);
+  color: #ffffff; /* product --text-on-accent */
+  background: var(--brf-accent);
   padding: 12px 26px;
   transition: background 150ms ease-out, transform 150ms ease-out;
 }
 
 .ctaPrimary:hover {
-  background: var(--brf-amber-bright);
-  color: var(--brf-ink);
+  background: var(--brf-accent-strong);
+  color: #ffffff;
   text-decoration: none;
   transform: translateY(-1px);
 }
@@ -104,7 +104,7 @@
 }
 
 .ctaGhost:hover {
-  border-color: var(--brf-amber);
+  border-color: var(--brf-accent);
   color: var(--brf-bright);
   text-decoration: none;
   transform: translateY(-1px);
@@ -121,7 +121,7 @@
 }
 
 .ctaPlain:hover {
-  color: var(--brf-amber-bright);
+  color: var(--brf-accent-strong);
   text-decoration: none;
 }
 
@@ -216,12 +216,12 @@
   font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.18em;
-  color: var(--brf-amber);
+  color: var(--brf-accent);
 }
 
 .cardTitle {
   font-family: var(--brf-font-display);
-  font-weight: 500;
+  font-weight: 400;
   font-size: 1.65rem;
   letter-spacing: -0.01em;
   margin: 14px 0 0;
@@ -232,7 +232,7 @@
 }
 
 .cardTitle a:hover {
-  color: var(--brf-amber-bright);
+  color: var(--brf-accent-strong);
   text-decoration: none;
 }
 
@@ -270,7 +270,7 @@
 }
 
 .chapters a:hover {
-  color: var(--brf-amber-bright);
+  color: var(--brf-accent-strong);
   text-decoration: none;
 }
 
@@ -311,7 +311,7 @@
   font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.14em;
-  color: var(--brf-amber);
+  color: var(--brf-accent);
   border: 1px solid var(--brf-hairline-2);
   padding: 4px 8px;
   flex-shrink: 0;
@@ -365,12 +365,12 @@
 .projectTitle {
   font-family: var(--brf-font-display);
   font-size: 1.3rem;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--brf-bright);
 }
 
 .projectRow:hover .projectTitle {
-  color: var(--brf-amber-bright);
+  color: var(--brf-accent-strong);
 }
 
 .projectDesc {
@@ -386,7 +386,7 @@
 
 .refCard:hover .rowArrow,
 .projectRow:hover .rowArrow {
-  color: var(--brf-amber-bright);
+  color: var(--brf-accent-strong);
   transform: translateX(3px);
 }
 

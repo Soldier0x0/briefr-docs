@@ -19,7 +19,9 @@ const FILES = [
   ['SYSTEM_DESIGN.md', 'developer-guide/system-design.md', 'System design', 1],
   ['ONBOARDING.md', 'developer-guide/onboarding.md', 'Contributor onboarding', 2],
   ['API_REFERENCE.md', 'api-reference.md', 'API Reference', 5],
-  ['planning/ROADMAP.md', 'roadmap.md', 'Roadmap', 7],
+  // planning/ROADMAP.md is deliberately NOT migrated: it's an internal
+  // planning index (version bookkeeping, spec links, phasing labels). The
+  // portal ships a curated public docs/roadmap.md instead.
 ];
 
 // Guides reference diagrams as relative `assets/...` paths; mirror the SVGs

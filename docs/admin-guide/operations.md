@@ -239,7 +239,7 @@ non-zero. Opt out with `BRIEFR_SKIP_SMOKE=1` (skip entirely) or
 ## Pre-release checklist (J4)
 
 Run before tagging or deploying a release to production. Encodes the
-[`ROADMAP.md`](../roadmap.md) compatibility promise — each release should be a small,
+[`ROADMAP.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/planning/ROADMAP.md) compatibility promise — each release should be a small,
 independent phase.
 
 | Step | Check |
@@ -398,7 +398,7 @@ archives until the box is verified stable for 24h.
 ## Intel snapshot import and upgrade runbook
 
 **Purpose:** bootstrap or refresh **intel-only** data from a published
-`briefr-intel-YYYY-MM.pgdump.gz` bundle (open-core monthly snapshot). This is
+`briefr-intel-YYYY-MM.pgdump.gz` bundle (published monthly intel snapshot). This is
 **not** a substitute for the [production restore runbook](#production-restore-runbook-j5)
 — operator backups include `.env`, users, watchlist, and webhooks.
 
@@ -557,7 +557,7 @@ To scale API concurrency:
 
 | Document | Role |
 |----------|------|
-| [`ROADMAP.md`](../roadmap.md) | Release index |
+| [`ROADMAP.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/planning/ROADMAP.md) | Release index |
 | [`archive/THREAT_MODEL.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/THREAT_MODEL.md) | Security |
 | [`POSTGRES.md`](./postgres.md) | PostgreSQL production guide |
 | [`ONBOARDING.md`](../developer-guide/onboarding.md) | Deploy scripts |
