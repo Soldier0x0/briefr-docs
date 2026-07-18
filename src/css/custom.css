@@ -89,10 +89,11 @@
   --ifm-scrollbar-thumb-background-color: var(--brf-hairline-2);
   --ifm-scrollbar-thumb-hover-background-color: #3d3d38;
 
-  /* Docs layout fills large screens instead of pooling margins
-     (default xl container is 1320px — dead space at 1920+). */
-  --ifm-container-width: 1440px;
-  --ifm-container-width-xl: 1720px;
+  /* Docs layout fills large screens instead of pooling margins (default xl
+     container is 1320px — dead space at 1920+). rem so the cap follows the
+     user's browser font-size setting. */
+  --ifm-container-width: 90rem; /* 1440px at 16px base */
+  --ifm-container-width-xl: 107.5rem; /* 1720px at 16px base */
 }
 
 html {

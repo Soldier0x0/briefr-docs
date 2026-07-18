@@ -1,11 +1,12 @@
 /* Landing page — briefing cover sheet over a console. */
 
 .main {
-  /* Fill wide viewports with normal gutters (project density rule);
-     the cap only reins in extreme ultrawide. */
-  max-width: 1760px;
+  /* Fill wide viewports with normal gutters (project density rule); the cap
+     only reins in extreme ultrawide. rem, not px: the readable-line-length
+     ceiling scales with the user's browser font-size setting. */
+  max-width: 110rem; /* 1760px at 16px base */
   margin: 0 auto;
-  padding: 0 32px 96px;
+  padding: 0 2rem 6rem;
   /* main is a flex item in the theme wrapper: without this, any child's
      min-content width (flex min-width:auto) can push past the viewport. */
   min-width: 0;
@@ -429,7 +430,9 @@
 
 /* ---------- Responsive ---------- */
 
-@media (max-width: 996px) {
+/* Breakpoints in em: they track the browser's default font size, so users
+   with larger fonts get the stacked layout proportionally earlier. */
+@media (max-width: 62.25em) {
   .guideGrid,
   .refGrid {
     grid-template-columns: 1fr;
@@ -444,7 +447,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 40em) {
   .hero {
     padding-top: 40px;
   }
