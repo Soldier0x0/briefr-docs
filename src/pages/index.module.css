@@ -1,9 +1,14 @@
 /* Landing page — briefing cover sheet over a console. */
 
 .main {
-  max-width: 1200px;
+  /* Fill wide viewports with normal gutters (project density rule);
+     the cap only reins in extreme ultrawide. */
+  max-width: 1760px;
   margin: 0 auto;
-  padding: 0 28px 96px;
+  padding: 0 32px 96px;
+  /* main is a flex item in the theme wrapper: without this, any child's
+     min-content width (flex min-width:auto) can push past the viewport. */
+  min-width: 0;
 }
 
 /* ---------- Hero ---------- */
@@ -322,6 +327,7 @@
   flex-direction: column;
   gap: 6px;
   flex: 1;
+  min-width: 0; /* let text wrap instead of setting the card's width floor */
 }
 
 .refTitle {

@@ -88,6 +88,11 @@
   --ifm-scrollbar-track-background-color: var(--brf-ink);
   --ifm-scrollbar-thumb-background-color: var(--brf-hairline-2);
   --ifm-scrollbar-thumb-hover-background-color: #3d3d38;
+
+  /* Docs layout fills large screens instead of pooling margins
+     (default xl container is 1320px — dead space at 1920+). */
+  --ifm-container-width: 1440px;
+  --ifm-container-width-xl: 1720px;
 }
 
 html {

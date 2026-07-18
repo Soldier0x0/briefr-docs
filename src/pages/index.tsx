@@ -195,7 +195,8 @@ export default function Home(): ReactNode {
                 <span className={styles.refBody}>
                   <span className={styles.refTitle}>
                     {r.title}
-                    {r.draft && <DraftMark />}
+                    {/* breakable space so the badge can wrap on tiny screens */}
+                    {r.draft && <>{' '}<DraftMark /></>}
                   </span>
                   <span className={styles.refDesc}>{r.desc}</span>
                 </span>
@@ -216,7 +217,7 @@ export default function Home(): ReactNode {
                 <Link to={p.to} className={styles.projectRow}>
                   <span className={styles.projectTitle}>
                     {p.title}
-                    {p.draft && <DraftMark />}
+                    {p.draft && <>{' '}<DraftMark /></>}
                   </span>
                   <span className={styles.projectDesc}>{p.desc}</span>
                   <span className={styles.rowArrow} aria-hidden="true">
