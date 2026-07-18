@@ -570,7 +570,7 @@ Sub-objects match the shapes returned by `GET /api/cves/{cve_id}/sentences`, `/e
 
 ### GET /api/cves/{cve_id}/related
 
-**Description:** Related CVEs. Default: shared-product heuristic (last 30 days). When `EMBEDDINGS_ENABLED=1` and both the target and candidates have stored vectors, returns semantically similar CVEs instead (NumPy brute-force cosine over `cve_embeddings` vectors). Vectors are written by the `embeddings_backfill` scheduler job and, when `EMBEDDINGS_AUTO_ON_INGEST=1`, incrementally after NVD sync (#438).
+**Description:** Related CVEs. Default: shared-product heuristic (last 30 days). When `EMBEDDINGS_ENABLED=1` and the target has a stored vector, returns semantically similar CVEs: prefers **pgvector ANN** (or SQLite BLOB cosine) on the multi-entity `embeddings` table, then legacy `cve_embeddings` NumPy scan. Vectors are written by `embeddings_backfill` / auto-on-ingest (E2 dual-write).
 
 | Param | Type | Default | Description |
 |---|---|---|---|
@@ -578,10 +578,102 @@ Sub-objects match the shapes returned by `GET /api/cves/{cve_id}/sentences`, `/e
 
 **Response:** `{"data": [ related CVE summaries ], "meta": {"method": "product_heuristic" | "embeddings"}}`
 
-**Notes (additive — added in V1.3):**
+**Notes (additive — added in V1.3; E3 upgraded retrieval):**
 
 - `meta.method` reports which path produced the results. Embeddings disabled/absent, target CVE not yet embedded, or zero semantic hits → automatic fallback to `product_heuristic` (the pre-V1.3 response shape, plus `meta`).
 - When `meta.method` is `"embeddings"`, each item additionally carries `similarity` (cosine, 0–1, higher = closer). Heuristic items have no `similarity` field.
+- Related never runs model inference on the request path — only stored vectors.
+
+---
+
+### GET /api/search/semantic
+
+**Description (E3/E6/E7/E8):** One-box CVE (+ technique + campaign) search — hybrid (default), keyword, or semantic. Keyword uses CVE-id exact / description+summary substring match, plus ATT&CK technique and correlation-campaign label/adversary/malware/tags. Semantic/hybrid may use stored vectors (ANN) when `EMBEDDINGS_ENABLED=1`; free-text semantic embeds the query once (design §7.1). Cold index / disabled embeddings → keyword fallback. Honest `meta.method` reports the path used. Optional filters (`stack` / `severity` / `kev_only`) keep hybrid usable with My Stack / severity chips.
+
+| Param | Type | Default | Description |
+|---|---|---|---|
+| `q` | str | `""` | Query text (max 500) |
+| `mode` | str | `hybrid` | `hybrid` \| `keyword` \| `semantic` |
+| `limit` | int | 20 | 1–50 |
+| `stack` | str | `null` | Comma-separated stack terms (same matching as `/api/cves`) — narrows **CVE** hits |
+| `severity` | str | `null` | Exact severity match on CVE hits (e.g. `CRITICAL`) |
+| `kev_only` | bool | `false` | Only KEV CVE hits |
+
+**Query-shape (hybrid):** CVE-id → keyword-first; 1–2 tokens → keyword-heavy RRF; longer natural language → vector-heavier RRF.
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "entity_type": "cve",
+      "entity_id": "CVE-2024-0001",
+      "cve_id": "CVE-2024-0001",
+      "score": 0.012345,
+      "match_reasons": ["keyword", "vector"],
+      "description": "...",
+      "severity": "CRITICAL"
+    },
+    {
+      "entity_type": "technique",
+      "entity_id": "T1566.001",
+      "technique_id": "T1566.001",
+      "name": "Spearphishing Attachment",
+      "tactic": "initial-access",
+      "match_reasons": ["keyword"],
+      "score": 0.01
+    },
+    {
+      "entity_type": "campaign",
+      "entity_id": "camp_ab12cd34ef56",
+      "campaign_id": "camp_ab12cd34ef56",
+      "label": "APT29 cloud spearphish",
+      "adversary": "APT29",
+      "lifecycle": "active",
+      "member_count": 3,
+      "confidence": "high",
+      "match_reasons": ["keyword"],
+      "score": 0.01
+    }
+  ],
+  "meta": {
+    "method": "hybrid",
+    "mode_requested": "hybrid",
+    "query_shape": "long",
+    "includes_techniques": true,
+    "includes_campaigns": true,
+    "stack_terms": ["nginx"],
+    "severity": null,
+    "kev_only": false
+  }
+}
+```
+
+`meta.method` values: `hybrid` \| `keyword` \| `keyword_first` \| `semantic` \| `keyword_fallback`.
+Technique hits (E6) appear when keyword/vector matches ATT&CK catalog rows.
+Campaign hits (E8) appear for non-retracted `correlation_campaigns` (keyword + ANN).
+`stack` / `severity` / `kev_only` filter **CVE** hits only (techniques/campaigns remain typed hits).
+
+**Auth:** Analyst session **or** search service token (`Authorization: Bearer briefr_search_…` — E5).
+
+---
+
+### Search service tokens (E5)
+
+Admin-managed tokens for agent/script retrieval. Plaintext shown **once** at create; bcrypt hash at rest.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/admin/search-tokens` | List tokens (prefix, scopes, last_used; never plaintext) |
+| `POST` | `/api/admin/search-tokens` | Create — body `{ "name": "…" }`; response includes `token` once |
+| `DELETE` | `/api/admin/search-tokens/{id}` | Soft-revoke |
+
+**Bearer allowlist:** `GET /api/search/semantic`, `GET /api/cves/{cve_id}`, `GET /api/cves/{cve_id}/related`, `GET /api/cves/{cve_id}/drawer`. All other routes → 403 for search tokens.
+
+**Rate limit:** `RATE_LIMIT_SEARCH_TOKEN_PER_MINUTE` (default 30), dedicated bucket.
+
+**Transport:** `Authorization: Bearer briefr_search_<secret>`
 
 ---
 
@@ -924,12 +1016,17 @@ depending on scope. Writes `correlation.feedback.delete` to `audit_log`.
       "member_count": 3,
       "stack_member_count": 2,
       "watchlisted_member_count": 1,
+      "members": ["CVE-2024-0001", "CVE-2024-0002", "CVE-2024-0003"],
       "members_on_stack": ["CVE-2024-0001", "CVE-2024-0002"],
       "watchlisted_members": ["CVE-2024-0002"]
     }
   ]
 }
 ```
+
+`members` is the full campaign CVE list (ordered). `members_on_stack` /
+`watchlisted_members` are subsets for ranking and UI priority when opening a
+representative CVE in the drawer.
 
 Clusters rank by stack overlap, then watchlisted members, then size and lifecycle.
 
