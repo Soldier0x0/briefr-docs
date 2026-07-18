@@ -1,0 +1,138 @@
+import {themes as prismThemes} from 'prism-react-renderer';
+import type {Config} from '@docusaurus/types';
+import type * as Preset from '@docusaurus/preset-classic';
+
+const config: Config = {
+  title: 'BRIEFR',
+  tagline: 'Self-hosted CVE intelligence and detection engineering',
+  favicon: 'img/favicon.svg',
+
+  future: {
+    v4: true,
+    faster: true,
+  },
+
+  // GitHub Pages target; swap for docs.briefr.dev when the domain is live.
+  url: 'https://soldier0x0.github.io',
+  baseUrl: '/briefr-docs/',
+  organizationName: 'Soldier0x0',
+  projectName: 'briefr-docs',
+  trailingSlash: false,
+
+  // migrate.cjs rewrites every cross-repo link, so broken links are always a
+  // regression — fail the build rather than ship them.
+  onBrokenLinks: 'throw',
+
+  // .md files render as CommonMark (no MDX parsing) so migrated docs with
+  // literal < and { survive; .mdx files still get full MDX.
+  markdown: {
+    format: 'detect',
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
+  },
+
+  i18n: {
+    defaultLocale: 'en',
+    locales: ['en'],
+  },
+
+  presets: [
+    [
+      'classic',
+      {
+        docs: {
+          sidebarPath: './sidebars.ts',
+          editUrl: 'https://github.com/Soldier0x0/briefr-docs/tree/main/',
+        },
+        blog: false,
+        theme: {
+          customCss: './src/css/custom.css',
+        },
+      } satisfies Preset.Options,
+    ],
+  ],
+
+  themes: [
+    [
+      require.resolve('@easyops-cn/docusaurus-search-local'),
+      {
+        hashed: true,
+        indexBlog: false,
+        docsRouteBasePath: '/docs',
+        highlightSearchTermsOnTargetPage: true,
+      },
+    ],
+  ],
+
+  themeConfig: {
+    colorMode: {
+      defaultMode: 'dark',
+      disableSwitch: true,
+      respectPrefersColorScheme: false,
+    },
+    navbar: {
+      title: 'BRIEFR',
+      hideOnScroll: false,
+      items: [
+        {to: '/docs/user-guide', label: 'User', position: 'left'},
+        {to: '/docs/admin-guide', label: 'Admin', position: 'left'},
+        {to: '/docs/developer-guide', label: 'Developer', position: 'left'},
+        {to: '/docs/api-reference', label: 'API', position: 'left'},
+        {
+          href: 'https://github.com/Soldier0x0/briefr',
+          label: 'GitHub',
+          position: 'right',
+        },
+      ],
+    },
+    footer: {
+      style: 'dark',
+      links: [
+        {
+          title: 'Guides',
+          items: [
+            {label: 'User Guide', to: '/docs/user-guide'},
+            {label: 'Administrator Guide', to: '/docs/admin-guide'},
+            {label: 'Developer Guide', to: '/docs/developer-guide'},
+            {label: 'Security Guide', to: '/docs/security-guide'},
+          ],
+        },
+        {
+          title: 'Reference',
+          items: [
+            {label: 'API Reference', to: '/docs/api-reference'},
+            {label: 'Integrations', to: '/docs/integrations'},
+            {label: 'FAQ', to: '/docs/faq'},
+          ],
+        },
+        {
+          title: 'Project',
+          items: [
+            {label: 'Roadmap', to: '/docs/roadmap'},
+            {label: 'Release Notes', to: '/docs/release-notes'},
+            {label: 'GitHub', href: 'https://github.com/Soldier0x0/briefr'},
+          ],
+        },
+      ],
+      copyright: `Copyright © ${new Date().getFullYear()} Sai Harsha Vardhan · AGPL-3.0-or-later · Self-hosted — your data stays yours.`,
+    },
+    prism: {
+      theme: prismThemes.oneDark,
+      darkTheme: prismThemes.oneDark,
+      additionalLanguages: [
+        'bash',
+        'json',
+        'python',
+        'yaml',
+        'sql',
+        'toml',
+        'nginx',
+        'powershell',
+        'docker',
+      ],
+    },
+  } satisfies Preset.ThemeConfig,
+};
+
+export default config;

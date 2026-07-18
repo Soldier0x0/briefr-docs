@@ -1,0 +1,339 @@
+---
+sidebar_label: Contributor onboarding
+sidebar_position: 2
+---
+
+# BRIEFR Contributor Onboarding
+
+
+**Purpose:** Entry point for developers changing the code. If you only want to **use** or **self-host** BRIEFR, start at [`index.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/index.md) instead.
+
+---
+
+## 1. Recommended reading order
+
+| Step | Document | Why |
+|------|----------|-----|
+| 1 | [`index.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/index.md) + [`HOW_IT_WORKS.md`](../user-guide/how-it-works.md) | Quick product context (5 min) |
+| 2 | [`README.md`](https://github.com/Soldier0x0/briefr/blob/main/README.md) | Features and local quick start |
+| 3 | [`SYSTEM_DESIGN.md`](./system-design.md) | Architecture and trade-offs |
+| 4 | [`API_REFERENCE.md`](../api-reference.md) | Endpoints when you touch the API |
+| 5 | [`archive/snapshots/CODEBASE_CONTEXT.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/CODEBASE_CONTEXT.md) | Module map + AI guardrails |
+| 6 | Source + tests | `backend/tests/` and files named in [`archive/snapshots/APPLICATION_EXECUTION_MAP.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/APPLICATION_EXECUTION_MAP.md) |
+
+**Deep reference when needed:** [`archive/snapshots/FOLDER_STRUCTURE_GUIDE.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/FOLDER_STRUCTURE_GUIDE.md), [`archive/snapshots/TECHNICAL_INVENTORY.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/TECHNICAL_INVENTORY.md), [`OPERATIONS.md`](../admin-guide/operations.md), [`PRODUCT_STATUS.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/PRODUCT_STATUS.md).
+
+**Historical planning:** [`archive/`](https://github.com/Soldier0x0/briefr/tree/main/docs/archive/) (beta specs, agent notes — not required reading).
+
+**Printable architecture:** generate `SYSTEM_DESIGN.pdf` with `node scripts/generate_system_design_pdf.mjs` (not committed).
+
+---
+
+## 2. Local development
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- Git
+
+Recommended API keys for full functionality: NVD, VirusTotal, AbuseIPDB. See [Environment variables](#4-environment-variables) for the full list.
+
+### Backend
+
+```bash
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt
+cp .env.example .env    # add keys as needed
+
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+- PostgreSQL via `DATABASE_URL` in `backend/.env` (local: `docker compose -f deploy/docker-compose.postgres.yml up -d` on **:5432**, or disposable `./scripts/postgres-dev.sh start` on **:5433** for dual-DB pytest — see `docs/POSTGRES.md`)
+- Interactive API docs: http://localhost:8000/api/docs
+- Health check: http://localhost:8000/api/health
+
+**First boot:** If fewer than 10 CVEs exist, the scheduler triggers a full ingest (NVD → KEV → EPSS). With 10+ CVEs, incremental jobs maintain freshness.
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev    # http://localhost:5173 — Vite proxies /api → :8000
+```
+
+### Seed data for UI work
+
+Populate CVE rows and warm RSS caches without waiting for a full NVD sync:
+
+```bash
+# backend running on :8000 (or script opens its own DB connection)
+python3 scripts/seed_screenshot_data.py
+```
+
+Useful when testing the Incidents tab, README screenshots, or an empty local database.
+
+### Frontend UI conventions (2026-06)
+
+| Area | Behaviour |
+|------|-----------|
+| **Theme** | Dark mode only — no light toggle |
+| **Tabs** | BRIEF / FEED / IOC / Forge panels stay mounted (`hidden` attribute) so scroll and filter state persist when switching tabs |
+| **Feed filters** | Sticky toolbar: title + exports → stack bar → CVE search → quick chips. **Common vendors** scroll below the sticky block (not inside it) |
+| **CVE drawer** | Slides over full-width content; `createCveDrawerController` ignores stale fetches after close; loading overlay shows “Calculating latest metrics…” |
+| **Watchlist** | Pin only in UI; legacy snoozes cleared on load via `DELETE /api/watchlist/snoozes` |
+| **Analyst charts** | `TimeWindowPicker` — preset windows (6h–90d) or custom datetime range |
+| **Morning brief** | `action_queue` includes `description`; reason chips and metrics are color-coded |
+
+Key files: `FilterBar.jsx`, `MorningBrief.jsx`, `BriefCharts.jsx`, `TimeWindowPicker.jsx`, `utils/openCveDrawer.js`.
+
+---
+
+## 3. Running tests
+
+Backend tests use **pytest** (same as CI).
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest tests/ -v
+```
+
+CI runs `pytest tests/ -q` via [`.github/workflows/backend-tests.yml`](https://github.com/Soldier0x0/briefr/blob/main/.github/workflows/backend-tests.yml).
+
+| Test file | Covers |
+|-----------|--------|
+| `test_incident_news.py` | RSS parsing, editorial title filter, malformed cache rows |
+| `test_case_study_feed.py` | Combined RSS + ATLAS feed on single DB connection |
+| `test_ai_alerts_and_feed.py` | AI/ML alerts stat chip, combined feed endpoint |
+| `test_cve_detail_atlas.py` | ATLAS fields on CVE detail |
+| `test_cpe_matching.py` | Asset profile CPE matching |
+| `test_intelligence.py` | Template sentences |
+| `test_risk_intelligence.py` | Momentum / risk scoring |
+| `test_backup_manager.py` | Backup integrity and restore |
+| `test_backup_encryption.py` | age-encrypted archives: keygen, round-trip, auto-restore |
+| `test_investigation_summary.py` | Investigation / AI summary endpoints |
+| `test_exploit_sources.py` | PoC-in-GitHub, ExploitDB, Metasploit, Nuclei parsers + DB merge |
+| Others | OTX, EPSS, MITRE feeds, domain validation, exploit refs |
+
+There is no frontend unit test suite today; UI changes are validated manually or via Playwright scripts in `scripts/`.
+
+---
+
+## 4. Environment variables
+
+Full template: [`backend/.env.example`](https://github.com/Soldier0x0/briefr/blob/main/backend/.env.example). Copy to `backend/.env` and adjust.
+
+### API keys (enrichment)
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `NVD_API_KEY` | Recommended | NVD rate limits (50 req/30s with key) |
+| `VIRUSTOTAL_API_KEY` | Recommended | IOC lookups (500/day free) |
+| `ABUSEIPDB_API_KEY` | Recommended | IP abuse score (1000/day free) |
+| `GREYNOISE_API_KEY` | Optional | IP classification (50/week free; opt-in per lookup) |
+| `ABUSECH_AUTH_KEY` | Optional | MalwareBazaar + URLhaus |
+| `OTX_API_KEY` | Optional | OTX pulses + nightly correlation (10k/month) |
+| `GROQ_API_KEY` | Optional | PDF executive summary (primary; Groq model `llama-3.1-8b-instant`) |
+| `ANTHROPIC_API_KEY` | Optional | PDF executive summary (fallback) |
+| `GITHUB_TOKEN` | Optional | Detection rule search + PoC-in-GitHub sync rate limit (5000/hr vs 60/hr) |
+| `CIRCL_API_KEY` | Optional | vulnerability.circl.lu authenticated rate limits (free signup) |
+
+### Database and backups
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DATABASE_URL` | — | **Required.** PostgreSQL DSN (`postgresql://user:pass@host:5432/dbname`) |
+| `BRIEFR_REQUIRE_POSTGRES` | `1` | Refuse startup without a Postgres connection |
+| `DATABASE_POOL_SIZE` | `10` | asyncpg pool size |
+| `BACKUP_DIR` | `/var/lib/briefr/backups` | Integrity-checked archive directory |
+| `BACKUP_RETENTION_COUNT` | `100` | Max archives kept (~25 days at 6h intervals) |
+| `BACKUP_ENABLED` | `1` | Set `0` to disable backups and startup auto-restore |
+| `BACKUP_AGE_KEY_FILE` | `/var/lib/briefr/keys/backup-age.key` (when present) | age identity for archive encryption; must live outside `BACKUP_DIR`; `""` disables |
+| `BACKUP_LOG_MAX_BYTES` | `5242880` | Rotating backup log size |
+| `BACKUP_LOG_BACKUP_COUNT` | `5` | Gzipped backup log generations |
+| `BACKUP_INTERVAL_HOURS` | `6` | Expected backup cadence; dead-man alert fires after 2× with no successful archive |
+
+### Webhook alerts (V1.3 → V1.4 engine)
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DISCORD_WEBHOOK_URL` | — | Discord incoming webhook URL (optional) |
+| `DISCORD_WEBHOOK_ENABLED` | `1` | Enable/disable Discord destination |
+| `DISCORD_WEBHOOK_EVENTS` | all | Comma-separated: `kev_alert`, `backup_failure`, `health` |
+| `TELEGRAM_BOT_TOKEN` | — | Telegram bot token (optional; requires `TELEGRAM_CHAT_ID`) |
+| `TELEGRAM_CHAT_ID` | — | Telegram destination chat/channel ID |
+| `TELEGRAM_WEBHOOK_ENABLED` | `1` | Enable/disable Telegram destination |
+| `TELEGRAM_WEBHOOK_EVENTS` | all | Comma-separated event subscriptions |
+| `WEBHOOK_GENERIC_URL` | — | Generic HTTPS POST webhook (SSRF-protected) |
+| `WEBHOOK_GENERIC_ENABLED` | `1` | Enable/disable generic destination |
+| `WEBHOOK_GENERIC_EVENTS` | all | Comma-separated event subscriptions |
+| `WEBHOOK_GENERIC_LABEL` | `Generic HTTPS` | Admin display label |
+| `BRIEFR_STACK_TERMS` | — | Comma-separated products/CVE IDs for KEV-on-stack server matching |
+
+Configure **one or more** destinations. Alerts are scheduler-side (`kev_alert` after KEV sync; `backup_failure` from dead-man check). Per-destination enable/event subscriptions can be overridden via `PATCH /api/admin/webhooks/destinations/{id}`.
+
+### Scheduler intervals
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `NVD_SYNC_INTERVAL_HOURS` | `1` | NVD incremental cadence |
+| `KEV_SYNC_INTERVAL_MINUTES` | `15` | CISA KEV sync |
+| `EPSS_SYNC_INTERVAL_HOURS` | `6` | EPSS score refresh |
+| `INCIDENT_FEED_REFRESH_MINUTES` | `30` | Incidents & News snapshot rebuild |
+| `VULNRICHMENT_SYNC_INTERVAL_HOURS` | `6` | CISA Vulnrichment snapshot (gap-fill CVSS/CWE/CPE) |
+| `VULNRICHMENT_BRANCH` | `develop` | cisagov/vulnrichment git branch |
+| `CVELISTV5_SYNC_INTERVAL_MINUTES` | `30` | cvelistV5 incremental sync (GitHub compare deltas) |
+| `CVELISTV5_BRANCH` | `main` | CVEProject/cvelistV5 git branch |
+| `CVELISTV5_INITIAL_SINCE_DAYS` | `7` | First-run bootstrap window when no `cvelistv5_head_sha` watermark |
+| `CIRCUIT_FAILURE_THRESHOLD` | `3` | Consecutive failures before a source circuit opens |
+| `CIRCUIT_COOLDOWN_SECONDS` | `60` | Circuit-open cooldown before retrying a source |
+| `NVD_SYNC_OVERLAP_MINUTES` | `15` | Watermark overlap window |
+| `SCHEDULER_TIMEZONE` | `Asia/Kolkata` | APScheduler timezone |
+| `MITRE_REFRESH_HOUR` / `MITRE_REFRESH_MINUTE` | `2` / `0` | Weekly MITRE + ATLAS (Sunday) |
+| `CORRELATION_HOUR` / `CORRELATION_TIMEZONE` | `1` / `Asia/Kolkata` | Nightly correlation engine |
+| `OTX_CORRELATION_HOUR` / `OTX_CORRELATION_TIMEZONE` | `2` / `Asia/Kolkata` | OTX nightly job (skipped if no `OTX_API_KEY`) |
+| `CACHE_REFRESH_HOUR` / `CACHE_REFRESH_MINUTE` | `6` / `0` | Feed cache maintenance |
+
+### Ingest tuning
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `MAX_CVES_PER_FETCH` | `2000` | Cap per NVD sync batch |
+| `NVD_DAYS_BACK` | `14` | Initial lookback window |
+| `KEV_CROSS_FETCH_NVD` | `1` | Fetch missing KEV CVEs from NVD by ID |
+| `ATLAS_YAML_URL` | mitre-atlas/atlas-data | ATLAS YAML source override |
+| `MITRE_CVE_MAPPINGS_JSON_URL` | — | Custom CVE→ATT&CK JSON (optional) |
+
+### App behaviour
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `ALLOWED_ORIGINS` | localhost dev URLs | CORS origins (comma-separated) |
+| `DEFAULT_TIMEZONE` | `Asia/Kolkata` | Health / time display default |
+| `BRIEFR_ENV` | `development` | `production` disables Swagger/OpenAPI docs |
+| `RATE_LIMIT_ENABLED` | `1` | Token-bucket rate limiting on `/api/ioc/lookup` + `/api/refresh*` (429 + `Retry-After`) |
+| `RATE_LIMIT_IOC_PER_MINUTE` | `30` | Per-client-IP budget for `POST /api/ioc/lookup` |
+| `RATE_LIMIT_REFRESH_PER_MINUTE` | `10` | Per-client-IP budget shared by all `POST /api/refresh*` routes |
+| `RATE_LIMIT_WALLBOARD_PER_MINUTE` | `60` | Per-client-IP budget for `GET /api/wallboard` (kiosk poll) |
+| `WALLBOARD_TOKEN` | — | Optional read-only gate for wallboard (`X-BRIEFR-Wallboard-Token` header); unset = open |
+| `LOG_FORMAT` | `json` | `json` = structured lines with `request_id`; `plain` = legacy human-readable format |
+
+### ML assist (V1.3 — disabled by default, CPU-only, scheduler-side)
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `EMBEDDINGS_ENABLED` | `0` | Semantic "similar CVEs" on `GET /api/cves/{id}/related`. Requires the optional `fastembed` package (`pip install fastembed`). Off → shared-product heuristic; the tool is fully functional without it |
+| `EMBEDDINGS_MODEL` | `BAAI/bge-small-en-v1.5` | Local ONNX embedding model (downloaded on first scheduler run) |
+| `EMBEDDINGS_CACHE_DIR` | fastembed default | Model download/cache directory — must be writable by the service user. The production systemd unit sets `/var/lib/briefr/models` and adds it to `ReadWritePaths` (the default home-dir HuggingFace cache fails with EROFS under `ProtectSystem=strict`) |
+| `EMBEDDINGS_SYNC_INTERVAL_HOURS` | `6` | Embeddings backfill job cadence |
+| `EMBEDDINGS_MAX_PER_RUN` | `2000` | CVEs embedded per backfill run (bounds CPU per cycle) |
+| `LLM_PRODUCT_EXTRACTION_ENABLED` | `0` | Fill empty `affected_products` for NVD-unanalyzed CVEs from description text via Groq. Requires `GROQ_API_KEY`. Writes only while the field is empty, marks `affected_products_source='llm'`; official CPE supersedes |
+| `LLM_PRODUCT_EXTRACTION_INTERVAL_HOURS` | `6` | Extraction job cadence |
+| `LLM_PRODUCT_EXTRACTION_MAX_PER_RUN` | `25` | Groq calls per run (2s throttle; completed extractions negative-cached for 7 days, errors retried next run) |
+
+---
+
+## 5. Production deploy (overview)
+
+BRIEFR targets a single Debian server with **systemd + nginx**. Install path: `/opt/briefr`.
+
+| Script | Purpose |
+|--------|---------|
+| [`deploy/setup.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/setup.sh) | Initial install: Python, clone repo, venv, then production deploy |
+| [`deploy/briefr-update.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-update.sh) | Pull, build frontend, restart backend + nginx |
+| [`deploy/briefr-backup.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-backup.sh) | Manual or scheduled PostgreSQL backup (`pg_dump`) |
+| [`deploy/briefr-pg-backup.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-pg-backup.sh) | systemd entry point (`briefr-pg-backup.timer`) |
+| [`deploy/briefr-restore.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-restore.sh) | List or restore archives |
+| [`deploy/check-backend.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/check-backend.sh) | Health probe for monitoring |
+| [`deploy/smoke-intel.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/smoke-intel.sh) | Post-deploy smoke checks |
+
+**systemd units:** `briefr-backend.service`, `briefr-pg-backup.timer` (every 6h). Scheduled ingest (NVD, KEV, EPSS, MITRE+ATLAS, exploit sources, backup dead-man) runs inside the backend — no separate refresh scripts needed.
+
+**Production notes:**
+- Set `DATABASE_URL` and `BRIEFR_REQUIRE_POSTGRES=1` in `backend/.env` (see `docs/POSTGRES.md`).
+- Set `ALLOWED_ORIGINS` to your public URL (not `:5173`).
+- nginx serves `frontend/dist`; Vite dev server is not used.
+- Backups land in `/var/lib/briefr/backups` outside the git tree.
+- Install `postgresql-client-16` (or matching major) on the host for `pg_dump` / `pg_restore`.
+
+See [README.md § Backups and restore](https://github.com/Soldier0x0/briefr/blob/main/README.md) and [`docs/POSTGRES.md`](../admin-guide/postgres.md) for restore commands.
+
+---
+
+## 6. Key subsystems (where to look)
+
+| If you are working on… | Start here |
+|----------------------|------------|
+| CVE list / filters | `backend/routers/cves.py` (`_build_cve_filters`), `frontend/src/components/CVEFeed.jsx` |
+| CVE detail drawer | `frontend/src/components/DetailDrawer.jsx`, `GET /api/cves/{id}` in `routers/cves.py` |
+| IOC lookup | `backend/enrichment/ioc.py`, `frontend/src/components/IOCLookup.jsx` |
+| Incidents & News tab | `backend/feeds/case_study_feed.py`, `incident_news.py`, `CaseStudies.jsx` |
+| Risk score | `backend/scoring/risk.py`, `backend/scoring/asset_match.py`, `POST /api/cves/{id}/risk`; UI in `frontend/src/scoring/riskScore.js` |
+| Correlation | `backend/correlation/engine.py` |
+| Detection rules | `backend/detection/` |
+| Scheduled ingest | `backend/scheduler.py`, `backend/feeds/` |
+| Database schema | `backend/database.py` (`init_db`), [`archive/snapshots/TECHNICAL_INVENTORY.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/TECHNICAL_INVENTORY.md) §2 |
+| PDF export | `frontend/src/utils/pdfReport.js`, `backend/ai/summary.py` |
+| Morning brief | `frontend/src/components/MorningBrief.jsx` (unified `action_queue` list + filter chips) |
+| Analyst charts | `frontend/src/components/BriefCharts.jsx` (KEV histogram + EPSS movers table), `CveDescriptionClamp.jsx`, `chart.js` (lazy chunk for histogram only) |
+| FEED stack filter | `frontend/src/components/FilterBar.jsx` (`STACK //` row — replaces Hero stack on FEED tab) |
+| Backups | `backend/backup/manager.py`, `deploy/briefr-backup.sh` |
+
+---
+
+## 7. Troubleshooting
+
+| Symptom | Likely cause | What to do |
+|---------|--------------|------------|
+| Incidents tab slow or errors on feed load | Postgres connection pool exhausted or DB unreachable | Check `GET /api/health`; verify Docker Postgres at `/opt/infra/postgres`; review `journalctl -u briefr-backend` |
+| Empty CVE feed on first run | Ingest still running or no network | Wait for bootstrap ingest; check `GET /api/health` `cve_count` |
+| IOC lookup returns empty VT/AbuseIPDB | Missing API keys | Add keys to `.env`; restart backend |
+| CORS errors in browser | Origin not allowed | Add your URL to `ALLOWED_ORIGINS` |
+| GreyNoise always empty | No key or weekly quota exhausted | Set `GREYNOISE_API_KEY`; opt in per lookup |
+| OTX pulses missing | No `OTX_API_KEY` | Key required for nightly correlation and pulse data |
+| RSS shows contest/promo headlines | Editorial filter gap | Add pattern to `EXCLUDED_NEWS_TITLE_PATTERNS` in `incident_news.py` |
+| `pytest` import errors | Wrong working directory | Run from `backend/` (tests prepend parent to `sys.path`) |
+| Frontend `/api` 404 in dev | Backend not running | Start uvicorn on `:8000` before `npm run dev` |
+| Production 502 | Backend down or nginx misconfigured | `systemctl status briefr-backend`; `deploy/check-backend.sh` |
+| DB corruption after crash | Unclean shutdown | `briefr-restore.sh` or startup auto-restore |
+
+### Useful diagnostics
+
+```bash
+# Health and CVE count
+curl -s http://127.0.0.1:8000/api/health | python3 -m json.tool
+
+# Combined incidents feed (RSS + ATLAS)
+curl -s 'http://127.0.0.1:8000/api/case-studies/feed?atlas_limit=10' | python3 -m json.tool
+
+# PostgreSQL row counts (DATABASE_URL in backend/.env)
+psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM cves;"
+
+# Manual ingest chain
+curl -X POST http://127.0.0.1:8000/api/refresh
+```
+
+---
+
+## 8. Regenerating derived docs
+
+| Output | Command |
+|--------|---------|
+| `SYSTEM_DESIGN.pdf` | `cd frontend && npm install && node ../scripts/generate_system_design_pdf.mjs` |
+| `TECHNICAL_INVENTORY.xlsx` | `python3 scripts/generate_technical_inventory_xlsx.py` |
+| README screenshots | `python3 scripts/seed_screenshot_data.py` then `node scripts/capture_readme_screenshots.mjs` |
+
+Update the source markdown in the same PR when you change behaviour those artifacts describe.
+
+---
+
+## Related documentation
+
+- [`archive/snapshots/CODEBASE_CONTEXT.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/CODEBASE_CONTEXT.md) — consolidated codebase reference (architecture, flows, AI guardrails)
+- [`SYSTEM_DESIGN.md`](./system-design.md) — architecture deep dive
+- [`API_REFERENCE.md`](../api-reference.md) — endpoint catalog
+- [`archive/snapshots/APPLICATION_EXECUTION_MAP.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/APPLICATION_EXECUTION_MAP.md) — runtime traces
+- [`archive/snapshots/FOLDER_STRUCTURE_GUIDE.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/FOLDER_STRUCTURE_GUIDE.md) — every file in the repo

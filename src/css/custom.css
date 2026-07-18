@@ -1,0 +1,303 @@
+/**
+ * BRIEFR documentation portal — global theme.
+ * Identity: intelligence-briefing on a dark console. Serif masthead
+ * (Newsreader), IBM Plex Sans body, IBM Plex Mono for metadata/labels/code.
+ * Single amber signal accent; CVSS severity ramp reserved for the spine motif.
+ */
+
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+@import '@fontsource-variable/newsreader/opsz.css';
+@import '@fontsource-variable/newsreader/opsz-italic.css';
+
+:root,
+[data-theme='dark'] {
+  /* BRIEFR tokens */
+  --brf-ink: #0a0d13;
+  --brf-surface: #0f131b;
+  --brf-raise: #141a25;
+  --brf-hairline: #1d2431;
+  --brf-hairline-2: #2a3345;
+  --brf-text: #a9b4c4;
+  --brf-muted: #64708111;
+  --brf-dim: #647081;
+  --brf-bright: #e9eef6;
+  --brf-amber: #e2a63d;
+  --brf-amber-bright: #f0bc5e;
+  --brf-amber-dim: rgba(226, 166, 61, 0.12);
+  --sev-low: #4a7ddb;
+  --sev-med: #d9b13b;
+  --sev-high: #d07c33;
+  --sev-crit: #c4474b;
+
+  --brf-font-display: 'Newsreader Variable', 'Georgia', serif;
+  --brf-font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+
+  /* Infima overrides */
+  --ifm-color-primary: #e2a63d;
+  --ifm-color-primary-dark: #d69728;
+  --ifm-color-primary-darker: #ca8e26;
+  --ifm-color-primary-darkest: #a67520;
+  --ifm-color-primary-light: #e5af52;
+  --ifm-color-primary-lighter: #e8b45c;
+  --ifm-color-primary-lightest: #eec37e;
+
+  --ifm-background-color: var(--brf-ink);
+  --ifm-background-surface-color: var(--brf-surface);
+  --ifm-font-color-base: var(--brf-text);
+  --ifm-heading-color: var(--brf-bright);
+  --ifm-link-color: var(--brf-amber-bright);
+  --ifm-link-hover-color: #f6cc82;
+
+  --ifm-font-family-base: 'IBM Plex Sans', system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
+  --ifm-font-family-monospace: var(--brf-font-mono);
+  --ifm-code-font-size: 87.5%;
+  --ifm-line-height-base: 1.7;
+
+  --ifm-navbar-background-color: rgba(10, 13, 19, 0.82);
+  --ifm-navbar-shadow: 0 1px 0 var(--brf-hairline);
+  --ifm-toc-border-color: var(--brf-hairline);
+  --ifm-color-emphasis-100: #10151e;
+  --ifm-color-emphasis-200: var(--brf-hairline);
+  --ifm-color-emphasis-300: var(--brf-hairline-2);
+  --ifm-color-emphasis-600: var(--brf-dim);
+  --ifm-color-emphasis-700: var(--brf-text);
+  --ifm-color-emphasis-800: var(--brf-bright);
+  --ifm-hr-background-color: var(--brf-hairline);
+  --ifm-table-border-color: var(--brf-hairline);
+  --ifm-table-stripe-background: rgba(255, 255, 255, 0.015);
+  --ifm-blockquote-border-left-width: 2px;
+  --ifm-blockquote-color: var(--brf-dim);
+  --ifm-code-background: #151b27;
+  --ifm-pre-background: #0d1119;
+  --ifm-footer-background-color: #080a0f;
+  --ifm-footer-link-color: var(--brf-dim);
+  --ifm-footer-title-color: var(--brf-bright);
+  --ifm-breadcrumb-item-background-active: var(--brf-amber-dim);
+  --ifm-menu-color: var(--brf-text);
+  --ifm-menu-color-active: var(--brf-amber-bright);
+  --ifm-menu-color-background-active: var(--brf-amber-dim);
+  --ifm-menu-color-background-hover: rgba(255, 255, 255, 0.03);
+  --ifm-scrollbar-track-background-color: var(--brf-ink);
+  --ifm-scrollbar-thumb-background-color: var(--brf-hairline-2);
+  --ifm-scrollbar-thumb-hover-background-color: #38445c;
+}
+
+html {
+  background: var(--brf-ink);
+}
+
+::selection {
+  background: rgba(226, 166, 61, 0.25);
+  color: var(--brf-bright);
+}
+
+/* ---------- Navbar: wire-service masthead strip ---------- */
+
+.navbar {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.navbar__title {
+  font-family: var(--brf-font-mono);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.22em;
+  color: var(--brf-bright);
+}
+
+.navbar__brand::before {
+  content: '';
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 10px;
+  background: var(--brf-amber);
+  flex-shrink: 0;
+}
+
+.navbar__link {
+  font-family: var(--brf-font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brf-dim);
+}
+
+.navbar__link:hover,
+.navbar__link--active {
+  color: var(--brf-amber-bright);
+}
+
+/* Local-search input matches the console look */
+.navbar .searchBox_input,
+.navbar input[type='search'] {
+  font-family: var(--brf-font-mono);
+}
+
+/* ---------- Docs sidebar: dossier index ---------- */
+
+.menu {
+  font-size: 0.87rem;
+  padding: 1rem 0.75rem !important;
+}
+
+.menu__list-item-collapsible .menu__link--sublist,
+.menu__list-item-collapsible > .menu__link {
+  font-family: var(--brf-font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brf-dim);
+}
+
+.menu__link--active:not(.menu__link--sublist) {
+  border-left: 2px solid var(--brf-amber);
+  border-radius: 0 4px 4px 0;
+}
+
+.menu__link {
+  border-left: 2px solid transparent;
+  border-radius: 0 4px 4px 0;
+  transition: color 150ms ease-out, background 150ms ease-out;
+}
+
+/* ---------- Doc content: typeset briefing ---------- */
+
+.markdown h1,
+h1.docTitle,
+header h1 {
+  font-family: var(--brf-font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  font-size: 2.6rem;
+}
+
+.markdown h2 {
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  border-bottom: 1px solid var(--brf-hairline);
+  padding-bottom: 0.45rem;
+  margin-top: 2.6rem;
+}
+
+.markdown h3 {
+  font-weight: 600;
+}
+
+.markdown code {
+  border: 1px solid var(--brf-hairline);
+  padding: 0.12rem 0.35rem;
+}
+
+.markdown a code {
+  color: inherit;
+}
+
+.markdown table {
+  font-size: 0.9rem;
+}
+
+.markdown table th {
+  font-family: var(--brf-font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brf-dim);
+  background: var(--brf-surface);
+}
+
+.theme-code-block {
+  border: 1px solid var(--brf-hairline);
+  box-shadow: none;
+}
+
+.markdown blockquote {
+  border-left-color: var(--brf-amber);
+  background: var(--brf-surface);
+  padding: 0.75rem 1.25rem;
+}
+
+/* Breadcrumbs + TOC in mono */
+.breadcrumbs__link,
+.table-of-contents__link {
+  font-size: 0.8rem;
+}
+
+.table-of-contents {
+  font-family: var(--brf-font-mono);
+  font-size: 0.75rem;
+}
+
+.table-of-contents__link--active {
+  color: var(--brf-amber-bright);
+}
+
+/* Pagination cards */
+.pagination-nav__link {
+  border: 1px solid var(--brf-hairline);
+  border-radius: 6px;
+  transition: border-color 150ms ease-out, transform 150ms ease-out;
+}
+
+.pagination-nav__link:hover {
+  border-color: var(--brf-hairline-2);
+  transform: translateY(-2px);
+}
+
+.pagination-nav__sublabel {
+  font-family: var(--brf-font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brf-dim);
+}
+
+/* Admonitions: quiet, hairline, no neon fills */
+.alert {
+  border: 1px solid var(--brf-hairline);
+  border-left-width: 3px;
+  background: var(--brf-surface);
+  box-shadow: none;
+}
+
+/* Footer — .footer--dark defines its own background var, so override at the
+   same specificity or Infima's slate gray wins. */
+.footer,
+.footer--dark {
+  --ifm-footer-background-color: #080a0f;
+  border-top: 1px solid var(--brf-hairline);
+}
+
+.footer__title {
+  font-family: var(--brf-font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.footer__copyright {
+  font-family: var(--brf-font-mono);
+  font-size: 0.72rem;
+  color: var(--brf-dim);
+  margin-top: 2rem;
+}
+
+/* ---------- Motion discipline ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
