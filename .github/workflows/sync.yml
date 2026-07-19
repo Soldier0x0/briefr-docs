@@ -1,0 +1,38 @@
+name: sync-canonical-docs
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # briefr-main is private: needs a fine-grained PAT with contents:read
+      # on Soldier0x0/briefr, stored as the BRIEFR_MAIN_READ_TOKEN secret.
+      - uses: actions/checkout@v4
+        with:
+          repository: Soldier0x0/briefr
+          token: ${{ secrets.BRIEFR_MAIN_READ_TOKEN }}
+          path: briefr-main-src
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: node scripts/migrate.cjs
+        env:
+          BRIEFR_MAIN_DOCS: ${{ github.workspace }}/briefr-main-src/docs
+      # Build gate BEFORE committing: a sync that breaks links never lands.
+      - run: npm run build
+      - name: Commit if changed
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add docs
+          git diff --cached --quiet || { git commit -m "sync: refresh migrated docs from briefr-main"; git push; }
