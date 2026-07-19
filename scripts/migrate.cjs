@@ -6,7 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const SRC = path.resolve(__dirname, '../../briefr-main/docs');
+const SRC =
+  process.env.BRIEFR_MAIN_DOCS || path.resolve(__dirname, '../../briefr-main/docs');
 const DST = path.resolve(__dirname, '../docs');
 
 const FILES = [
@@ -78,13 +79,28 @@ for (const [src, dst, label, position] of FILES) {
   console.log(`${src} -> ${dst}`);
 }
 
-const svgs = fs
+const ASSET_RE = /\.(svg|png|webp)$/i;
+const assets = fs
   .readdirSync(path.join(SRC, 'assets'))
-  .filter((f) => f.endsWith('.svg'));
+  .filter((f) => ASSET_RE.test(f));
 for (const dir of ASSET_DEST_DIRS) {
   fs.mkdirSync(path.join(DST, dir), {recursive: true});
-  for (const f of svgs) {
+  for (const f of assets) {
     fs.copyFileSync(path.join(SRC, 'assets', f), path.join(DST, dir, f));
   }
-  console.log(`assets/*.svg -> ${dir}/ (${svgs.length} files)`);
+  console.log(`assets/* -> ${dir}/ (${assets.length} files)`);
+}
+
+// Screenshots use permanent filenames (see briefr-main docs/assets/screenshots/
+// README): replacing one = dropping a same-named file there and re-running this.
+const shotSrc = path.join(SRC, 'assets', 'screenshots');
+if (fs.existsSync(shotSrc)) {
+  const shots = fs.readdirSync(shotSrc).filter((f) => ASSET_RE.test(f));
+  for (const dir of ASSET_DEST_DIRS) {
+    fs.mkdirSync(path.join(DST, dir, 'screenshots'), {recursive: true});
+    for (const f of shots) {
+      fs.copyFileSync(path.join(shotSrc, f), path.join(DST, dir, 'screenshots', f));
+    }
+  }
+  console.log(`assets/screenshots/* -> {guides}/assets/screenshots/ (${shots.length} files)`);
 }
