@@ -11,9 +11,7 @@ For analysts, security enthusiasts, and anyone using the UI — not deploying it
 
 ## Tabs
 
-![BRIEF tab — pending](assets/placeholder-diagram.svg)
-
-> **Add:** `assets/ui-brief-tab.png` · [IMAGE_BRIEFS §11](https://github.com/Soldier0x0/briefr/blob/main/docs/IMAGE_BRIEFS.md#11-ui-brief-tab)
+![BRIEF tab — morning brief with stat tiles, 90-day activity heatmap, and the CVE feed](assets/screenshots/ui-brief-tab.png)
 
 | Tab | What you get |
 |-----|----------------|
@@ -45,9 +43,7 @@ Click any CVE → drawer with Intel, Related, Detect, and more.
 
 ## IOC lookup
 
-![IOC lookup — pending](assets/placeholder-diagram.svg)
-
-> **Add:** `assets/ui-ioc-lookup.png` · [IMAGE_BRIEFS §14](https://github.com/Soldier0x0/briefr/blob/main/docs/IMAGE_BRIEFS.md#14-ui-ioc-lookup)
+![IOC lookup — indicator input with per-provider API quota tiles](assets/screenshots/ui-ioc-lookup.png)
 
 Sources depend on your keys (VirusTotal, AbuseIPDB, GreyNoise, OTX, etc.). Results cached ~6 hours.
 

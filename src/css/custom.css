@@ -209,6 +209,10 @@ header h1 {
   color: inherit;
 }
 
+.markdown img {
+  border: 1px solid var(--brf-hairline);
+}
+
 .markdown table {
   font-size: 0.9rem;
 }
