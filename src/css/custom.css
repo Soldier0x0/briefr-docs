@@ -314,6 +314,13 @@ header h1 {
   }
 }
 
+/* Visible keyboard focus for shadcn Button (Tailwind ring utilities can
+   collapse under Infima's outline resets on <a> elements). */
+[data-slot='button']:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
 /* ---------- Responsive & fluid type (content-wide) ---------- */
 
 /* Fluid doc H1: shrinks on phones, caps at the current 2.6rem on desktop. */

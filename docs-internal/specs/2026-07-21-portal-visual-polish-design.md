@@ -1,6 +1,6 @@
 # BRIEFR docs portal — visual polish & responsiveness design spec
 
-**Date:** 2026-07-21 · **Status:** proposed (awaiting maintainer approval of Decision D1)
+**Date:** 2026-07-21 · **Status:** approved (Decision D1 = Option A, scoped shadcn runtime)
 **Repo:** `briefr-docs` (portal only — no changes to `briefr` / `briefr-main`)
 **Skills applied:** superpowers:brainstorming → superpowers:writing-plans; shadcn.
 

@@ -22,7 +22,16 @@ matter controls ordering.
 npm install
 npm start        # dev server with hot reload
 npm run build    # production build (must pass before pushing)
+npm run serve    # serve the production build locally
+npm run shoot    # Playwright screenshots at 390/768/1440 (needs serve)
 ```
+
+The landing page and swizzled `DocCard` use a **scoped** Tailwind v4 +
+shadcn/ui layer (`src/components/ui/`). Semantic tokens bridge to the existing
+`--brf-*` product tokens in `src/css/tailwind.css`. Tailwind **preflight is
+disabled** so Infima is never reset. Migrated Markdown is never styled with
+Tailwind — content-wide responsive/typography wins live in
+`src/css/custom.css` only.
 
 ## License
 

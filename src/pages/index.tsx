@@ -90,7 +90,7 @@ const PROJECT = [
 ];
 
 const ctaClass =
-  'h-auto rounded-none font-mono text-[0.82rem] font-semibold tracking-[0.08em] uppercase';
+  'h-auto rounded-none font-mono text-[1.167rem] font-bold tracking-[0.08em] uppercase focus-visible:ring-[3px] focus-visible:ring-ring/60';
 
 function SeveritySpine({className}: {className?: string}) {
   return (
