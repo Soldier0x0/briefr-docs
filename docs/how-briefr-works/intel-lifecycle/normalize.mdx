@@ -5,20 +5,215 @@ title: Normalize
 description: Why BRIEFR normalizes intel records before enrichment and correlation.
 ---
 
-# Normalize
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
 
-:::note[Outline — Phase 2]
-Full chapter lands in the Track A content plan. Sections below are the required template; fill with sourced claims only.
-:::
+# Normalize
 
 ## What it is
 
+Normalization is the step where BRIEFR turns collected source payloads into a
+consistent CVE-centered record.
+
+The collected feeds do not arrive in the same shape. NVD provides CVE records,
+CVSS, and CPE data. CISA KEV provides known-exploited catalog metadata. EPSS
+arrives as exploit-probability scores. MITRE and ATLAS add framework context.
+OTX, exploit sources, OSV, CIRCL, Vulnrichment, cvelistV5, and IOC mirrors each
+bring their own source-specific fields.
+
+BRIEFR keeps that diversity behind a local read model. The primary analyst
+object is the CVE row in `cves`, with related tables for source-specific context
+such as `kev_deadlines`, `epss_history`, `cve_change_history`,
+`cve_technique_map`, `otx_*`, `cve_exploits`, `feed_cache`, and `sync_state`.
+The UI and API can then work with a CVE object instead of re-learning every
+upstream format.
+
+Normalization is not the same as enrichment or prioritization. It does not prove
+that a vulnerability is being exploited, and it does not decide what an analyst
+should fix first. It makes the later steps possible by giving them comparable
+fields to read.
+
 ## Why we do it
+
+Correlation and ranking only work when fields mean the same thing from record to
+record.
+
+For example, BRIEFR's risk scoring uses comparable inputs: asset-profile match,
+KEV status, EPSS, exploit availability, CVSS, and momentum. The correlation and
+detail views also depend on stable identifiers and consistent joins between CVEs,
+techniques, OTX pulses, exploit references, and history rows. If one source calls
+something a score, another calls it a probability, and another omits the field
+entirely, BRIEFR needs a normalized place to store what is known and what is not.
+
+Normalization also keeps the analyst interface calm. A CVE card, drawer, brief
+row, export, or Forge link should not have to care whether a field came from
+JSON, CSV, STIX, a GitHub-hosted CVE 5.x record, or an additive gap-fill source.
+It should read the same local record and show the same meaning every time.
+
+That is why Normalize sits between Collect and Enrich. Collection builds the
+source corpus; normalization shapes it into records that enrichment, correlation,
+hunting, detection, and prioritization can safely reuse.
 
 ## Where it lives in BRIEFR
 
+At the product level, normalization sits directly after scheduler collection:
+
+```text
+External feeds -> scheduler jobs -> parsers/upserts -> cves + related tables -> API/UI
+```
+
+The main CVE path starts with NVD ingest. The system design describes this as
+`scheduler.run_nvd_incremental_sync` calling
+`feeds/nvd.py:fetch_nvd_cve_updates`, then persisting through
+`database.upsert_cves` and chunked upserts in `db/cve.py`. After persistence,
+the ingest path runs post-processing: it strips auto-summaries, backfills display
+fields, and runs `enrich_cves_extended` for additive Sploitus/CIRCL data.
+
+The normalized tables then feed API readers:
+
+- `GET /api/cves`, `GET /api/cves/{id}`, `GET /api/stats`, and
+  `GET /api/brief` read from `cves`.
+- KEV due dates come from `kev_deadlines` and are joined into list, export, and
+  detail responses.
+- EPSS movement uses `epss_history` and `cve_change_history`.
+- ATT&CK, ATLAS, OTX, exploit, and correlation sections read their own related
+  tables, but they still attach back to CVE IDs.
+
+Start with the ingest and persistence code to see how raw batches become local
+CVE records. Then read the CVE router to see how those normalized fields become
+the API shape used by the feed and drawer.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/feeds/nvd.py'},
+    {path: 'backend/db/cve.py'},
+    {path: 'backend/feeds/extended.py'},
+    {path: 'backend/routers/cves.py'},
+  ]}
+/>
+
 ## How it works
+
+Normalization is a sequence of small, repeatable decisions:
+
+1. **A collected batch arrives.** The scheduler has already handled timing,
+   source health, and outbound calls. Normalize starts from the returned batch,
+   not from a browser request.
+2. **The parser extracts CVE-centered facts.** Source-specific fields are shaped
+   into local concepts such as CVE ID, description, severity, CVSS, CWE, CPE or
+   affected products, published and modified timestamps, EPSS score, KEV state,
+   exploit flags, and framework mappings.
+3. **The CVE row is upserted.** BRIEFR stores the core record in `cves` with
+   conflict-aware updates. The system design notes that ingest batches are
+   written in 500-row chunks, and optional change-history rows record changes
+   that matter to brief and momentum views.
+4. **Display fields are cleaned and backfilled.** After NVD ingest, BRIEFR
+   strips auto-generated summaries, backfills fields the UI uses for display,
+   and runs extended enrichment where the source can add useful data without
+   replacing official fields.
+5. **Adjacent facts keep their own tables.** KEV deadlines, EPSS history, MITRE
+   technique links, ATLAS mappings, OTX pulses, exploit references, feed caches,
+   and watermarks are stored next to the CVE object instead of being flattened
+   into one unstructured blob.
+6. **The API reads the normalized shape.** List, detail, brief, stats, risk,
+   correlation, and Forge endpoints can query consistent fields and joins. The
+   frontend does not need a custom parser for every upstream feed.
+
+The result is intentionally boring: one CVE-centered record, plus related tables
+for facts that have their own cadence or provenance.
 
 ## What it needs
 
+Normalization needs the same foundation that Collect creates:
+
+- a running scheduler so source batches arrive;
+- a local database with the CVE and related tables initialized;
+- source parsers that know how to map each upstream format into BRIEFR fields;
+- stable identifiers, especially CVE IDs, so related records can join back to
+  the same object; and
+- enough stored history to compare changes, movement, and deadlines over time.
+
+It does not require every optional API key. The Integrations page shows that many
+sources work without keys, while keys mainly add rate-limit headroom or optional
+depth. Missing optional sources should leave fields unknown, skipped, or
+retained from prior rows according to their documented failure behavior. They
+should not force the normalized CVE object to disappear.
+
+Operators usually feel normalization indirectly. If a feed is healthy but a UI
+field looks empty, the question is often: did the source provide the fact, did
+the parser map it, did the upsert keep it, and did a later official source
+supersede it?
+
 ## How industry does it — and why BRIEFR does it this way
+
+Large SIEM and TIP deployments often preserve raw events or feed payloads for
+long retention, then layer parsers, schemas, and search-time transformations on
+top. That is the right trade-off when a team needs broad telemetry, forensic
+replay, multi-tenant feed management, or arbitrary event search across many
+security domains.
+
+BRIEFR is narrower. It is not trying to become the raw warehouse for every event
+an organization can collect. It keeps the data needed for CVE intelligence and
+serves an analyst-facing CVE object from local tables. Source-specific context is
+still represented, but the daily workflow starts from questions like:
+
+- Is this CVE known exploited?
+- How likely is exploitation?
+- Does it match my stack?
+- Are there public exploits, mapped techniques, pulses, or related incidents?
+- Did anything important change since the last brief?
+
+That focus makes the product smaller and more predictable. BRIEFR gives up the
+generality of a raw SIEM event model, but it gains a stable CVE-centered workflow
+that can feed ranking, correlation, detection work, and exports without asking
+analysts to reconcile upstream schemas by hand.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the [Integrations](/docs/integrations) table and choose three source
+      rows from different shapes: for example NVD, CISA KEV, and EPSS.
+    </li>
+    <li>
+      For each source, write down the fact it adds and where BRIEFR stores or
+      reads it locally. Use the system design's DB table map as the reference.
+    </li>
+    <li>
+      Compare your notes with the fixture below. This is a documentation
+      exercise only: do not add API keys and do not call live third-party
+      services.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "raw_source_shapes": {
+      "nvd": ["description", "cvss_score", "severity", "cpe"],
+      "cisa_kev": ["known_exploited", "due_date"],
+      "epss": ["probability_score"]
+    },
+    "briefr_normalized_read_model": {
+      "cves": {
+        "id": "CVE-2026-0001",
+        "description": "Stored once for API, feed, drawer, brief, and export reads",
+        "cvss_score": 9.8,
+        "severity": "CRITICAL",
+        "epss_score": 0.91,
+        "is_kev": true,
+        "affected_products": ["vendor:product"]
+      },
+      "related_tables": {
+        "kev_deadlines": "KEV due date joined into list/detail responses",
+        "epss_history": "movement used by detail and brief views",
+        "cve_change_history": "field changes used by What Changed and momentum"
+      }
+    }
+  }
+  ```
+
+  The point is to see the difference between raw source shapes and the
+  analyst-facing CVE object BRIEFR serves locally.
+</TryItYourself>
