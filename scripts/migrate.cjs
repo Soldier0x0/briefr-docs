@@ -104,3 +104,31 @@ if (fs.existsSync(shotSrc)) {
   }
   console.log(`assets/screenshots/* -> {guides}/assets/screenshots/ (${shots.length} files)`);
 }
+
+function mirrorTree(relDir) {
+  const from = path.join(SRC, relDir);
+  const to = path.join(DST, 'how-briefr-works', 'synced', relDir);
+  if (!fs.existsSync(from)) {
+    console.log(`skip ${relDir}/ (not present under BRIEFR_MAIN_DOCS)`);
+    return;
+  }
+  fs.rmSync(to, {recursive: true, force: true});
+  fs.mkdirSync(to, {recursive: true});
+  const walk = (dir, outDir) => {
+    for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
+      const srcPath = path.join(dir, entry.name);
+      const dstPath = path.join(outDir, entry.name);
+      if (entry.isDirectory()) {
+        fs.mkdirSync(dstPath, {recursive: true});
+        walk(srcPath, dstPath);
+      } else if (/\.(md|mdx|svg|png|webp|json)$/i.test(entry.name)) {
+        fs.copyFileSync(srcPath, dstPath);
+      }
+    }
+  };
+  walk(from, to);
+  console.log(`${relDir}/* -> how-briefr-works/synced/${relDir}/`);
+}
+
+mirrorTree('study-guide');
+mirrorTree('learn');

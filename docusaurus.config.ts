@@ -44,6 +44,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/Soldier0x0/briefr-docs/tree/main/',
+          exclude: ['**/how-briefr-works/synced/**'],
         },
         blog: false,
         theme: {

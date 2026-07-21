@@ -15,6 +15,10 @@ matter controls ordering.
 - Migrated pages (User/Admin/Developer chapters, API Reference, Roadmap) are
   pulled from `../briefr-main/docs`, which stays canonical. Re-sync with:
   `node scripts/migrate.cjs`
+- Learning section (`docs/how-briefr-works/`) is portal-native. Optional
+  mirrors of `briefr` `docs/study-guide/` and `docs/learn/` land under
+  `docs/how-briefr-works/synced/` via `migrate.cjs` (excluded from the
+  docs plugin routes/sidebar).
 
 ## Develop
 
