@@ -61,5 +61,6 @@ Inbound token buckets on IOC, refresh, admin, login. Set `RATE_LIMIT_ENABLED=1` 
 | [`archive/snapshots/CODEBASE_CONTEXT.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/CODEBASE_CONTEXT.md) | AI / dense module map |
 | [`API_REFERENCE.md`](../api-reference.md) | Every endpoint |
 | [`SYSTEM_DESIGN.md`](../developer-guide/system-design.md) | Full architecture essay |
+| [How BRIEFR Works — and Why](/docs/how-briefr-works) | Learning tracks: intel lifecycle + how it's built |
 
 Historical plans: [`archive/`](https://github.com/Soldier0x0/briefr/tree/main/docs/archive/)

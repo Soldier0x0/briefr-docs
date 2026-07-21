@@ -1,0 +1,191 @@
+---
+sidebar_position: 2
+sidebar_label: NVD
+title: NVD
+description: How BRIEFR uses NVD for core CVE records, CVSS, and CPE data.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# NVD
+
+## What it is
+
+NVD is BRIEFR's core vulnerability record source. In the product, it is the feed
+that supplies CVE records, CVSS data, and CPE data for the local CVE corpus.
+
+BRIEFR does not use NVD as a browser-time lookup service. The system design names
+NVD as a scheduler-owned ingest path: `scheduler.run_nvd_incremental_sync` calls
+`feeds/nvd.py:fetch_nvd_cve_updates`, tracks a watermark in `sync_state`, and
+persists into the local CVE model. The UI then reads those local rows through the
+API.
+
+The important source boundary is simple: NVD gives BRIEFR the official CVE
+backbone. Other sources can add exploitation status, probability, threat pulses,
+package data, or correlation context, but they attach to a CVE-centered record
+that NVD helps create.
+
+## Why we do it
+
+BRIEFR starts with NVD because later lifecycle steps need a consistent CVE object
+before they can add context or rank work.
+
+NVD-backed fields support several product surfaces:
+
+- **Feed and drawer records:** `GET /api/cves` and `GET /api/cves/{id}` read the
+  normalized CVE rows that NVD helps populate.
+- **Risk context:** the backend-canonical risk score includes a CVSS component.
+- **Asset matching:** CPE data and affected-product fields support stack-aware
+  filtering and scoring.
+- **Change awareness:** NVD ingest can write `cve_change_history` rows so BRIEFR
+  can explain meaningful movement rather than only showing the latest snapshot.
+
+Without this source, BRIEFR would still have some additive feeds, but it would be
+missing the main object that those feeds join against.
+
+## Where it lives in BRIEFR
+
+At the product level, the NVD path is:
+
+```text
+NVD REST 2.0 -> scheduler.run_nvd_incremental_sync -> cves + sync_state + history -> API/UI
+```
+
+The system design lists the NVD incremental job as writing to `cves`,
+`sync_state`, `cve_change_history`, and `feed_cache`. It also describes the
+normal CVE lifecycle:
+
+1. `scheduler.run_nvd_incremental_sync` calls
+   `feeds/nvd.py:fetch_nvd_cve_updates`.
+2. `database.upsert_cves` persists batches into `cves`; `db/cve.py` performs
+   chunked upserts.
+3. Post-processing strips auto-summaries, backfills display fields, and runs
+   extended additive enrichment.
+4. The request path reads local data through endpoints such as `GET /api/cves`,
+   `GET /api/cves/{id}`, `GET /api/stats`, and `GET /api/brief`.
+
+NVD is also called out in the shared outbound HTTP design. Most scheduler-driven
+sources use `resilient_client.py`; NVD keeps bespoke handling for 429s and key
+rejection, but still uses the pooled client and reports into the same source
+health registry.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/feeds/nvd.py'},
+    {path: 'backend/db/cve.py'},
+    {path: 'backend/database.py'},
+    {path: 'backend/resilient_client.py'},
+    {path: 'backend/routers/cves.py'},
+  ]}
+/>
+
+## How it works
+
+BRIEFR treats NVD ingest as a repeatable background sync:
+
+1. **The scheduler starts the incremental job.** APScheduler owns recurring feed
+   work. Job locks and `max_instances=1` keep overlapping runs from stepping on
+   the same sync.
+2. **The feed fetcher asks NVD for changed CVE records.** The system design names
+   NVD REST 2.0 and a `sync_state` watermark rather than a full live fetch from
+   every page render.
+3. **Returned records are parsed into BRIEFR's CVE shape.** The useful local
+   facts include CVE ID, description, published/modified timestamps, CVSS,
+   severity, CPE or affected-product data, and related fields that the API can
+   expose consistently.
+4. **Rows are upserted.** The ingest path writes into `cves` through
+   `database.upsert_cves`, with chunked persistence in `db/cve.py`. Meaningful
+   changes can be recorded in `cve_change_history`.
+5. **Rejected CVEs are not kept as active records.** The system design documents
+   that NVD `vulnStatus: Rejected` records are not upserted, and that legacy
+   rejected placeholder rows are purged during NVD sync.
+6. **Post-processing prepares display and enrichment inputs.** The NVD path
+   strips auto-summaries, backfills display fields, and then lets additive
+   enrichment add context without replacing the official record.
+7. **Readers stay local.** Feed, drawer, stats, brief, risk, and export paths
+   read the stored CVE model. A slow NVD response affects the sync job, not a
+   normal browser request.
+
+The result is a stable CVE backbone that later source pages in this section can
+attach to: KEV status, EPSS probability, and OTX pulse context all need the same
+identifier to be useful.
+
+## What it needs
+
+The authoritative integrations facts for NVD are:
+
+| Adds | Key | Free-tier/quota | Failure |
+| --- | --- | --- | --- |
+| CVE records, CVSS, CPE | `NVD_API_KEY` (optional) | 50 req/30s with key | Sync aborts; logs error |
+
+Operationally, NVD needs:
+
+- the scheduler enabled so the incremental job can run;
+- network access from the backend to NVD;
+- a database with `cves`, `sync_state`, `cve_change_history`, and `feed_cache`
+  initialized;
+- enough source health visibility to distinguish an upstream failure from a
+  normal quiet sync; and
+- optionally, `NVD_API_KEY` for rate-limit headroom.
+
+The key is not a product feature flag. BRIEFR can still be installed without an
+NVD key, but the documented quota line only promises the 50 requests per 30
+seconds behavior when the key is present.
+
+When NVD fails, BRIEFR does not turn the UI into a live retry loop. The sync
+aborts and logs the error, source health records the failure, and existing local
+rows remain what downstream pages can read until the next successful run.
+
+## How industry does it - and why BRIEFR does it this way
+
+Many vulnerability platforms treat NVD as one input among commercial feeds,
+vendor advisories, internal asset data, ticketing systems, and scanners. Large
+programs may fan NVD records into queues, data lakes, or SIEM pipelines before
+they ever reach an analyst.
+
+BRIEFR's scope is smaller and more direct. It uses NVD as the local CVE backbone
+for a self-hosted analyst portal:
+
+- scheduler-first ingest instead of UI-time NVD lookups;
+- local upserts and history rather than an external data platform;
+- source health visibility instead of hiding upstream failure;
+- additive enrichment after the official record exists; and
+- backend-canonical reads for the feed, drawer, brief, and risk score.
+
+The trade-off is that BRIEFR is not claiming to replace every vulnerability
+management data pipeline. It takes the NVD facts it needs, stores them in a local
+shape the rest of the product can reuse, and lets later lifecycle steps add
+context without changing the source of the core CVE record.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the [Integrations](/docs/integrations) table and find the NVD row.
+      Copy the four operational facts: what it adds, key, quota, and failure
+      behavior.
+    </li>
+    <li>
+      Open the [System design](/docs/developer-guide/system-design) CVE
+      lifecycle section and trace the named path from
+      <code>scheduler.run_nvd_incremental_sync</code> to the local readers.
+    </li>
+    <li>
+      Compare those docs to the fixture below. This is a documentation check
+      only; do not call NVD from the docs site.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "source": "NVD",
+    "scheduler_job": "NVD incremental",
+    "backend_path": "feeds/nvd.py",
+    "landing_zones": ["cves", "sync_state", "cve_change_history", "feed_cache"],
+    "request_boundary": "UI reads local API rows, not NVD directly"
+  }
+  ```
+</TryItYourself>

@@ -1,0 +1,36 @@
+---
+sidebar_position: 2
+sidebar_label: Pathways
+title: Pathways
+description: Pick a starting path — analyst or builder — into How BRIEFR Works.
+---
+
+# Pathways
+
+## Analyst
+
+You care about the feed, enrichment, and why a CVE rose in the brief.
+
+1. [Collect](./intel-lifecycle/collect)
+2. [Normalize](./intel-lifecycle/normalize)
+3. [Enrich](./intel-lifecycle/enrich) — optional [Sources](./intel-lifecycle/sources) deep-dives for NVD, KEV, EPSS, and OTX
+4. [Correlate](./intel-lifecycle/correlate)
+5. [Hunt](./intel-lifecycle/hunt)
+6. [Detect](./intel-lifecycle/detect)
+7. [Prioritize / report](./intel-lifecycle/prioritize)
+
+Then skim [Resilience](./how-its-built/resilience) so quota and rate limits make sense when a source goes quiet.
+
+## Architect / builder
+
+You care about how the machine is wired.
+
+1. [Ingestion and scheduler](./how-its-built/ingestion-scheduler)
+2. [Resilience](./how-its-built/resilience)
+3. [Storage](./how-its-built/storage)
+4. [API and auth](./how-its-built/api-auth)
+5. [Background jobs](./how-its-built/background-jobs)
+6. [Search and embeddings](./how-its-built/search-embeddings)
+7. [Webhooks and operations](./how-its-built/webhooks-ops)
+
+Cross-read the [Intel lifecycle](./intel-lifecycle/) spine so design choices stay tied to the data path.

@@ -1,0 +1,263 @@
+---
+sidebar_position: 3
+sidebar_label: Resilience
+title: Resilience
+description: Circuit breakers, retries, and inbound rate limits in BRIEFR.
+---
+
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# Resilience
+
+## What it is
+
+Resilience is BRIEFR's set of guardrails for two directions of traffic:
+
+- **Outbound:** scheduler and enrichment code calling public intelligence
+  sources such as NVD, KEV, EPSS, MITRE, ATLAS, OSV, RSS feeds, VirusTotal,
+  AbuseIPDB, GreyNoise, CIRCL, and Groq.
+- **Inbound:** users, wallboards, and automation calling BRIEFR routes that can
+  burn quota, start heavy ingest work, or poll repeatedly.
+
+The goal is not to hide failures. BRIEFR records source health, returns explicit
+`429` responses when callers exceed local limits, and exposes circuit-breaker
+state through health data. The goal is to keep one failing source or noisy route
+from turning into a whole-site incident.
+
+## Why we do it
+
+BRIEFR depends on public and optional third-party services. Those services can
+rate-limit, timeout, reject keys, or return temporary server errors. If every
+feed failure blocked an ingest cycle until timeout, the scheduler could spend
+its time waiting on one unhealthy source. If every inbound request could trigger
+unbounded enrichment or refresh work, a browser tab, kiosk, or script could
+create unnecessary load or spend external API quota.
+
+Resilience makes those boundaries explicit:
+
+- retry transient outbound failures only where a retry is safe;
+- respect upstream `Retry-After` guidance when a source returns `429`;
+- fail fast after repeated per-source failures so one dead source does not stall
+  the rest of a sync cycle;
+- avoid automatic retries for quota-billed sources;
+- protect abuse-prone inbound routes with token buckets; and
+- keep scheduler ownership singular when API concurrency scales out.
+
+## Where it lives in BRIEFR
+
+At a high level, resilience sits between BRIEFR's request or job owner and the
+work that can become expensive:
+
+```text
+Scheduler jobs -> resilient_client.py -> external intel sources
+API requests   -> rate_limit.py       -> IOC, refresh, wallboard handlers
+API workers    -> scheduler owner     -> ingest jobs
+```
+
+The outbound side is centralized in `resilient_client.py`. Scheduler-driven
+intel sources share one pooled `httpx.AsyncClient`; migrated enrichment modules
+use the same resilience behavior where applicable.
+
+The inbound side is centralized in `rate_limit.py`. Token buckets protect
+`POST /api/ioc/lookup`, all `POST /api/refresh*` routes, and
+`GET /api/wallboard`.
+
+Scheduler ownership is an operations concern. The default production unit runs
+one worker with the scheduler enabled. If an operator adds more API workers,
+only one backend instance should keep `BRIEFR_SCHEDULER_ENABLED=1`; additional
+API-only workers should set `BRIEFR_SCHEDULER_ENABLED=0`.
+
+<InTheCode
+  items={[
+    {path: 'backend/resilient_client.py'},
+    {path: 'backend/rate_limit.py'},
+    {path: 'backend/scheduler.py'},
+  ]}
+/>
+
+## How it works
+
+### Outbound calls: retries, backoff, and circuit breakers
+
+Scheduler-driven intel sources share a pooled async HTTP client. For transport
+errors and retryable statuses, BRIEFR retries with exponential backoff. When an
+upstream returns `429` and includes `Retry-After`, the retry path respects that
+header instead of guessing a faster retry cadence.
+
+Each source also has its own circuit breaker. After
+`CIRCUIT_FAILURE_THRESHOLD` consecutive failures, defaulting to `3`, that
+source's circuit opens for `CIRCUIT_COOLDOWN_SECONDS`, defaulting to `60`. While
+open, calls fail fast with `CircuitOpenError`. That keeps a broken source from
+stalling the rest of a scheduler cycle.
+
+Plain `4xx` responses do not trip the circuit. They show that the source is
+reachable even if the request was not accepted.
+
+BRIEFR records the source state in the health registry. `GET /api/health`
+includes `feeds.sources` fields such as `last_success`, `last_failure`,
+`last_error`, `consecutive_failures`, and `circuit_open`.
+
+NVD is a special case. It keeps bespoke handling for `429` responses and key
+rejection, but it still uses the pooled client and reports into the same health
+registry.
+
+### Quota-billed sources: retries stay off
+
+Some sources charge or meter usage in a way that makes automatic retries risky.
+VirusTotal, AbuseIPDB, GreyNoise, and Groq-backed LLM product extraction use
+`retries=0`. A failed call is not retried automatically, so a retry loop cannot
+spend extra quota.
+
+Circuit breakers still apply. For Groq product extraction, a circuit-open state
+aborts that run; repeated provider failures trip the Groq circuit breaker rather
+than repeatedly spending quota.
+
+CIRCL adds another protection: failed or missing lookups are cached for 24 hours
+with `circl_miss:*` keys. That keeps the same IDs from re-hammering a
+rate-limited upstream on every sync cycle.
+
+### Inbound calls: token buckets and `Retry-After`
+
+BRIEFR also limits routes that can be expensive when called repeatedly:
+
+| Route group | Why it is limited | Default |
+| --- | --- | --- |
+| `POST /api/ioc/lookup` | Cache misses can burn external API quota. | `RATE_LIMIT_IOC_PER_MINUTE=30` |
+| `POST /api/refresh*` | Refresh routes kick off heavy ingest work. | `RATE_LIMIT_REFRESH_PER_MINUTE=10` |
+| `GET /api/wallboard` | Kiosk-style polling can become noisy. | `RATE_LIMIT_WALLBOARD_PER_MINUTE=60` |
+
+The limiter uses in-memory token buckets by default. Buckets are keyed by client
+IP, have capacity equal to the per-minute rate, and refill continuously. When a
+bucket is empty, BRIEFR returns `429` with a whole-second `Retry-After` value.
+`RATE_LIMIT_ENABLED=0` disables this protection.
+
+The refresh bucket is consumed before the admin check. That means an
+unauthenticated burst cannot avoid the refresh limiter by failing auth early.
+
+Client identity is guarded against simple spoofing. Forwarded headers are used
+only when the socket peer is a loopback proxy such as nginx or cloudflared;
+direct connections are keyed by socket address. Behind the tunnel, BRIEFR
+prefers `CF-Connecting-IP`, then the rightmost non-loopback `X-Forwarded-For`
+hop, then `X-Real-IP`.
+
+### Multi-worker API: one scheduler owner
+
+The default production deployment deliberately runs one uvicorn worker with the
+scheduler enabled. With the default in-memory limiter, multiple workers would
+also multiply every per-worker token bucket.
+
+BRIEFR can scale API concurrency with multiple uvicorn workers when Postgres and
+pool sizing are configured. In that mode, operations guidance calls for two
+extra constraints:
+
+1. Set `BRIEFR_RATE_LIMIT_STORE=db` on all workers so token buckets are shared.
+2. Run exactly one scheduler owner. Keep `BRIEFR_SCHEDULER_ENABLED=1` on one
+   backend instance, or on a dedicated one-worker `briefr-backend` unit, and set
+   `BRIEFR_SCHEDULER_ENABLED=0` on additional API-only workers.
+
+Do not run multiple scheduler owners. Ingest jobs use in-process locks, so
+duplicating scheduler ownership can duplicate the jobs those locks were meant
+to serialize inside one process.
+
+## What it needs
+
+Resilience is mostly built into BRIEFR, but operators should keep these settings
+visible:
+
+| Setting or surface | What to check |
+| --- | --- |
+| `GET /api/health` | Source health under `feeds.sources`, including circuit state and recent errors. |
+| `CIRCUIT_FAILURE_THRESHOLD` | How many consecutive outbound failures open a source circuit. |
+| `CIRCUIT_COOLDOWN_SECONDS` | How long an open source circuit stays open before calls can be tried again. |
+| `RATE_LIMIT_ENABLED` | Whether inbound token-bucket protection is active. |
+| `RATE_LIMIT_IOC_PER_MINUTE` | Local budget for IOC lookup requests per client IP. |
+| `RATE_LIMIT_REFRESH_PER_MINUTE` | Local budget for manual refresh requests per client IP. |
+| `RATE_LIMIT_WALLBOARD_PER_MINUTE` | Local budget for wallboard polling per client IP. |
+| `BRIEFR_RATE_LIMIT_STORE` | Use `db` on all workers when scaling API workers. |
+| `BRIEFR_SCHEDULER_ENABLED` | Keep enabled on one scheduler owner and disabled on API-only workers. |
+
+The security guide also expects FastAPI to sit behind nginx and the
+Cloudflare/cloudflared tunnel instead of facing the internet directly. That
+proxy boundary matters because forwarded client headers are trusted only from a
+loopback proxy path.
+
+## How industry does it — and why BRIEFR does it this way
+
+<AtEnterpriseScale>
+  <div>
+    Large platforms often put rate limiting at an API gateway or edge proxy,
+    keep quotas in a shared store, and run dedicated enrichment workers. They
+    may split schedulers, API workers, and provider-specific collectors into
+    separate services.
+  </div>
+
+  <div>
+    BRIEFR is aimed at a focused team, not hyperscale multi-tenant traffic. Its
+    default is a single-box deployment: one API worker, one scheduler owner,
+    local token buckets, and source-level circuit breakers. When API concurrency
+    needs to grow, BRIEFR keeps the model small by sharing rate-limit buckets in
+    the database and preserving exactly one scheduler owner.
+  </div>
+</AtEnterpriseScale>
+
+The trade-off is operational simplicity. BRIEFR does not require a gateway or a
+fleet of enrichment workers for the normal self-hosted path. A small team can
+still get the important failure boundaries:
+outbound retries with source health, circuit breakers per provider, no automatic
+quota-spending retries, explicit inbound `429` responses, and one place where
+scheduled ingest is owned.
+
+The limit is scale. If BRIEFR is deployed like a larger service, operators must
+move the rate-limit store out of process and keep scheduler ownership singular.
+That is the line between "more API concurrency" and "duplicated ingest work."
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      On a self-hosted BRIEFR instance, request <code>GET /api/health</code>.
+      You are only reading health data; do not add or rotate API keys for this
+      chapter.
+    </li>
+    <li>
+      Look under <code>feeds.sources</code> for one source. Confirm that the
+      response includes last success, last failure, last error, consecutive
+      failures, and whether the circuit is open.
+    </li>
+    <li>
+      If you operate multiple API workers, compare the deployment environment
+      with the operations rule: shared rate-limit store on all workers, one
+      scheduler owner, and scheduler disabled on API-only workers.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "feeds": {
+      "sources": {
+        "kev": {
+          "last_success": "2026-07-21T20:10:00Z",
+          "last_failure": null,
+          "last_error": null,
+          "consecutive_failures": 0,
+          "circuit_open": false
+        },
+        "groq": {
+          "last_success": null,
+          "last_failure": "2026-07-21T20:12:00Z",
+          "last_error": "provider unavailable",
+          "consecutive_failures": 3,
+          "circuit_open": true
+        }
+      }
+    }
+  }
+  ```
+
+  Treat the JSON as a redacted shape example. The useful lesson is how BRIEFR
+  exposes source health and circuit state without requiring the docs reader to
+  call any third-party provider.
+</TryItYourself>

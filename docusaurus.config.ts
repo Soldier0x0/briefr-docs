@@ -44,6 +44,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/Soldier0x0/briefr-docs/tree/main/',
+          exclude: ['**/how-briefr-works/synced/**'],
         },
         blog: false,
         theme: {
@@ -78,6 +79,7 @@ const config: Config = {
         {to: '/docs/user-guide', label: 'User', position: 'left'},
         {to: '/docs/admin-guide', label: 'Admin', position: 'left'},
         {to: '/docs/developer-guide', label: 'Developer', position: 'left'},
+        {to: '/docs/how-briefr-works', label: 'Learn', position: 'left'},
         {to: '/docs/api-reference', label: 'API', position: 'left'},
         {
           href: 'https://github.com/Soldier0x0/briefr',

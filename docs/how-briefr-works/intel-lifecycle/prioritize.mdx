@@ -1,0 +1,334 @@
+---
+sidebar_position: 8
+sidebar_label: Prioritize / report
+title: Prioritize / report
+description: How BRIEFR scores, ranks, and exports intel for the morning brief.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# Prioritize / report
+
+## What it is
+
+Prioritization is the step where BRIEFR turns stored vulnerability intelligence
+into a short, explainable work queue. It is the bridge between the full CVE feed
+and the analyst's morning brief.
+
+BRIEFR has two related prioritization surfaces:
+
+- **The BRIEF tab** reads `GET /api/brief` and renders a unified
+  `action_queue`: a ranked list of CVEs with reasons such as EPSS movement, new
+  KEV status, KEV due soon, or stack activity.
+- **The CVE drawer risk score** reads `POST /api/cves/{id}/risk` for the
+  backend-canonical Risk Score v1.1b. The score is explainable and weighted; the
+  frontend displays it, but does not compute it.
+
+Reporting is the output side of the same step. BRIEFR can export filtered CVE
+rows through the documented FEED export path, and the API includes an executive
+summary endpoint for PDF export. Those exports should carry the same local CVE
+fields and risk context an analyst can inspect on screen; they are not a
+separate source of truth.
+
+## Why we do it
+
+By this point in the lifecycle, BRIEFR has collected, normalized, enriched,
+correlated, hunted across, and generated detection context from local data. That
+does not automatically tell a small team what to do first.
+
+Prioritization keeps the analyst workflow focused:
+
+- **Known exploited beats generic severity.** A KEV item with an approaching due
+  date should be visibly more urgent than a high CVSS score with no deadline.
+- **Stack matches matter.** A CVE that matches the operator's stack deserves a
+  different read than a CVE outside the environment.
+- **Movement matters.** EPSS movers and newly KEV entries are useful because
+  they changed recently, not because they are permanent top-of-feed records.
+- **Risk needs one owner.** BRIEFR keeps the risk formula backend-canonical so
+  the drawer, brief, exports, and future alerts do not drift into different
+  answers.
+
+The goal is not to make every decision automatic. The goal is to collapse a
+large local corpus into a morning-sized queue, explain why each row is there, and
+give the analyst enough context to open the drawer, export a slice, or hand work
+to the right person.
+
+## Where it lives in BRIEFR
+
+At the product level, prioritization sits after detection:
+
+```text
+local CVE + KEV + EPSS + stack + risk context -> BRIEF action queue -> drawer or export
+```
+
+The BRIEF tab is the landing workflow. The system design describes it as a
+separate surface from the FEED tab: Hero and stack apply controls, StatsRow,
+`MorningBrief.jsx`, BRIEF charts, then the heatmap and What Changed panels. The
+full paginated CVE list lives on FEED instead.
+
+The documented request shape is `GET /api/brief`:
+
+- `stack` accepts comma-separated stack terms using the same matching model as
+  `/api/cves`.
+- `since_hours` controls the lookback window for movers, new KEV entries, and
+  stack activity.
+- `limit` caps items per section.
+- `kev_due_days` controls the due-soon horizon.
+
+The response includes `sections` and a single `action_queue`. Each queue item
+contains core card fields such as `cve_id`, `severity`, `cvss_score`,
+`epss_score`, `is_kev`, `has_poc`, `summary`, `published`, `kev_due_date`, and
+`reasons`, plus section-specific extras such as `epss_delta` or
+`kev_date_added`. `active_campaigns` are cluster-level items, so the API
+reference documents that they are excluded from `action_queue`.
+
+Risk scoring lives behind the CVE detail path. The system design names
+`backend/scoring/risk.py:calculate_risk_score()` as the source of truth for
+`POST /api/cves/{cve_id}/risk`. Optional `profile` and `assets` inputs can
+personalize the asset component, and momentum is calculated server-side in the
+same request. `GET /api/config/risk` exposes the weight constants for formula
+display only.
+
+Reporting and export live on documented API and UI paths:
+
+- `GET /api/cves/export` returns up to 500 filtered CVE rows for CSV/XLSX export
+  using the same filters as the list endpoint.
+- `POST /api/ai/summary` is documented as an executive summary for PDF export
+  only, authenticated through the normal session.
+- The FEED tab is documented as the full CVE list with filters, KEV deadlines,
+  and export.
+
+Start with the brief endpoint, risk scorer, and export helpers. Then read the
+BRIEF tab components that turn `action_queue`, due-date urgency, and risk context
+into the morning workflow.
+
+<InTheCode
+  items={[
+    {path: 'backend/routers/cves.py'},
+    {path: 'backend/scoring/risk.py'},
+    {path: 'backend/scoring/asset_match.py'},
+    {path: 'frontend/src/components/MorningBrief.jsx'},
+    {path: 'frontend/src/components/BriefCharts.jsx'},
+    {path: 'frontend/src/components/CveDescriptionClamp.jsx'},
+    {path: 'frontend/src/scoring/riskScore.js'},
+    {path: 'frontend/src/utils/pdfReport.js'},
+    {path: 'backend/ai/summary.py'},
+  ]}
+/>
+
+## How it works
+
+BRIEFR prioritizes through several narrow mechanisms rather than one hidden
+mega-score.
+
+### Morning brief action queue
+
+1. **The analyst opens the BRIEF tab.** The BRIEF tab is the default landing
+   view, separate from the full FEED list.
+2. **The client asks for a brief.** `MorningBrief.jsx` reads `GET /api/brief`,
+   optionally with stack terms, a lookback window, a per-section limit, and a KEV
+   due-soon horizon.
+3. **The server computes from existing DB state.** The API reference calls this a
+   read-path-only brief: it ranks from stored data and does not start ingest.
+4. **Sections explain where rows came from.** The response can include EPSS
+   movers, new KEV entries, KEV due soon, stack activity, and active campaigns.
+5. **The unified list becomes the queue.** `action_queue` is the CVE-keyed list
+   rendered by the morning brief. Reason chips let the analyst filter the
+   already-fetched list by why a row appeared.
+6. **Campaigns stay separate.** Active campaigns are useful brief context, but
+   the documented response keeps them cluster-level and out of `action_queue`.
+
+This is intentionally smaller than the full feed. The queue is for "what should
+I inspect this morning?" The FEED tab remains the broader paginated list with
+filters, quick chips, stack search, KEV deadline sidebar rows, and export.
+
+### KEV due-date urgency
+
+KEV due dates come from `kev_deadlines` and appear on list, export, detail, and
+brief responses as `kev_due_date` when known. BRIEFR treats due-date urgency as a
+visual hierarchy, not just another neutral metric.
+
+The documented hierarchy is:
+
+- `GET /api/kev/deadlines?sort=urgent` sorts by soonest `due_date`.
+- Sidebar rows and CVE cards use left accent bars tied to KEV due-date urgency.
+- Full red is reserved for overdue, due today, or due tomorrow.
+- Later windows use dim red or amber so they do not compete with immediate
+  remediation deadlines.
+- CVE cards show a **Due in N days** chip when `kev_due_date` is present.
+- `BriefCharts.jsx` builds KEV due-date buckets: Overdue, 0-7 days, 8-14 days,
+  15-30 days, and 31 days or more.
+- Histogram clicks can pass a UTC due-date window into the BRIEF list filter.
+
+That is why a KEV deadline can feel more urgent than a CVSS or EPSS chip. CVSS,
+EPSS percentage, PoC status, and published age remain useful context, but the
+system design explicitly keeps their chip styling neutral or dim so they do not
+compete with real due-date urgency.
+
+### Risk Score v1.1b
+
+The risk score is backend-canonical. The system design documents
+`POST /api/cves/{cve_id}/risk` as the full explainable score and
+`backend/scoring/risk.py` as the implementation owner.
+
+| Component | Weight |
+| --- | ---: |
+| Asset profile match | 0.35 |
+| KEV status | 0.25 |
+| EPSS | 0.15 |
+| Exploit availability | 0.10 |
+| CVSS | 0.10 |
+| Momentum | 0.05 |
+
+`GET /api/config/risk` exposes those constants as version `1.1b` and requires
+the weights to sum to 1.0. The frontend prefetches the constants so it can show
+the formula display and UI helpers, but `frontend/src/scoring/riskScore.js` does
+not compute scores.
+
+The KEV component has its own documented nuance. When a CVE is on CISA KEV,
+BRIEFR uses CISA KEV recency tiers. When it is not on CISA KEV but is flagged by
+the VulnCheck exploited tier, that contributes `0.72` to the KEV component: below
+full CISA KEV tiers, but above zero.
+
+Asset context can be personalized. The POST body can include a profile or assets
+so the backend can score CPE and fuzzy asset matches through the documented
+matching helpers. Momentum is calculated server-side in the same request, while
+`GET /api/cves/{id}/momentum` remains available for drawer tabs and card arrows.
+
+### Stack terms and the morning workflow
+
+Stack terms are how BRIEFR narrows a general CVE corpus into local relevance.
+The brief endpoint accepts `stack`, returns `meta.stack_terms`, and uses the same
+matching behavior as the CVE list. The system design also documents BRIEF tab
+stack controls and a separate FEED stack filter row.
+
+The analyst workflow is:
+
+1. Start on BRIEF.
+2. Apply or confirm stack terms.
+3. Review `action_queue` reasons and KEV due windows.
+4. Open a row in the drawer when it needs deeper risk, evidence, correlation, or
+   detection context.
+5. Move to FEED when the task is broad filtering or export rather than morning
+   triage.
+
+This keeps "what matters to my stack this morning?" separate from "show me every
+CVE matching this filter."
+
+### Report and export
+
+Export should follow the same evidence boundaries as the screen. The documented
+CVE export endpoint returns filtered rows from the local list shape, up to 500
+rows, for CSV/XLSX export. The documented PDF summary path is
+`POST /api/ai/summary`, described as an executive summary for PDF export only.
+
+The important boundary is that export does not create new intel. It packages
+stored CVE fields, summaries, KEV due dates, and other visible context. If an
+optional source is missing or a field is empty on screen, the report should not
+pretend otherwise.
+
+## What it needs
+
+Prioritization needs the earlier lifecycle steps to have produced stable local
+data.
+
+| Data or component | Why it matters |
+| --- | --- |
+| `cves` | Supplies the core card fields used by the feed, brief, drawer, export, and risk score |
+| `kev_deadlines` | Supplies `kev_due_date`, KEV metadata, urgent sort, and due-date buckets |
+| `epss_history` and `cve_change_history` | Support EPSS movers, momentum, and "what changed" context |
+| `GET /api/brief` | Builds the morning `sections` and `action_queue` from existing DB state |
+| `backend/scoring/risk.py` | Owns the canonical Risk Score v1.1b formula |
+| `backend/scoring/asset_match.py` and CPE matching | Personalize the asset component when a profile or assets are supplied |
+| `GET /api/config/risk` | Exposes risk weights for display while keeping computation on the backend |
+| `user_preferences.stack_terms` or a `stack` query | Makes morning triage local to the operator's stack |
+| `GET /api/cves/export` | Exports filtered CVE rows for CSV/XLSX reporting |
+| `POST /api/ai/summary` | Provides the documented executive-summary path for PDF export |
+
+It does not need every optional enrichment source before the morning brief is
+useful. Missing optional feeds can reduce context, but BRIEFR can still rank from
+stored CVE rows, KEV status and due dates, EPSS, stack matches, and the backend
+risk score inputs that are present.
+
+It also does not need a full vulnerability-management platform. BRIEFR can
+highlight what to inspect, explain why it rose into the brief, and export a
+filtered slice. Ownership assignment, remediation SLAs, exception workflows, and
+ticket lifecycle remain outside this chapter's documented BRIEFR scope.
+
+## How industry does it — and why BRIEFR does it this way
+
+Large vulnerability-management programs often prioritize through ticket queues,
+asset inventories, CMDB ownership, SLA policies, vulnerability scanners, service
+management workflows, and commercial threat-intelligence platforms. That can be
+the right model when many teams own many systems and remediation needs durable
+assignment, escalation, approvals, and audit trails.
+
+BRIEFR is intentionally smaller. It is a local CVE intelligence portal for a
+focused team:
+
+- it ranks a morning `action_queue` instead of becoming a ticketing system;
+- it treats KEV due dates as first-class urgency signals;
+- it keeps risk scoring explainable and backend-canonical;
+- it uses stack terms to focus attention on local exposure;
+- it exports filtered evidence instead of creating a separate reporting truth;
+  and
+- it keeps the full feed available when the analyst needs broader search.
+
+The trade-off is explicit. BRIEFR does not replace Jira, ServiceNow, a scanner,
+a CMDB, or a commercial vulnerability-management platform. It helps a small team
+decide what to inspect first, understand why a CVE is urgent, and carry a concise
+slice of local intel into the next workflow.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the API reference and find <code>GET /api/brief</code>,
+      <code>GET /api/kev/deadlines</code>,
+      <code>POST /api/cves/&#123;cve_id&#125;/risk</code>,
+      <code>GET /api/config/risk</code>, and
+      <code>GET /api/cves/export</code>.
+    </li>
+    <li>
+      For each endpoint, write down whether it builds the morning queue, supplies
+      due-date urgency, computes risk, displays risk constants, or exports rows.
+    </li>
+    <li>
+      If you have a sandbox BRIEFR instance, start on the BRIEF tab. Apply stack
+      terms, filter the morning list by one reason chip, and open one CVE drawer
+      to compare the queue reason with the backend risk breakdown.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "prioritize_flow": {
+      "brief": {
+        "endpoint": "GET /api/brief",
+        "output": "sections plus CVE-keyed action_queue",
+        "boundary": "read-path only; no ingest"
+      },
+      "kev_urgency": {
+        "endpoint": "GET /api/kev/deadlines?sort=urgent",
+        "visual_order": ["overdue", "due today", "due tomorrow", "later buckets"],
+        "field": "kev_due_date"
+      },
+      "risk": {
+        "endpoint": "POST /api/cves/{cve_id}/risk",
+        "source_of_truth": "backend/scoring/risk.py",
+        "version": "1.1b"
+      },
+      "export": {
+        "endpoint": "GET /api/cves/export",
+        "scope": "filtered CVE rows, up to 500"
+      }
+    }
+  }
+  ```
+
+  The habit to learn is separation: the BRIEF queue explains why to inspect a CVE
+  now, the drawer risk score explains one CVE in depth, and export packages the
+  filtered evidence without inventing new findings.
+</TryItYourself>

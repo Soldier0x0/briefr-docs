@@ -1,0 +1,280 @@
+---
+sidebar_position: 4
+sidebar_label: Enrich
+title: Enrich
+description: How BRIEFR adds threat context to normalized CVE records.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# Enrich
+
+## What it is
+
+Enrichment is the step where BRIEFR adds threat context to a normalized CVE or
+indicator without changing the identity of the record.
+
+After Collect and Normalize, BRIEFR already has a CVE-centered read model: the
+core `cves` row plus related tables for KEV, EPSS, MITRE, ATLAS, OTX, exploit
+references, caches, and history. Enrichment asks a narrower question: what else
+helps an analyst understand this record now?
+
+For CVEs, that can mean public exploit references, OTX pulses, OSV affected
+package data, CIRCL references, CAPEC context, GreyNoise scans, related
+techniques, and local correlation signals. For IOCs, it can mean reputation or
+malware context for an IP address, hash, or domain from providers such as
+VirusTotal, AbuseIPDB, GreyNoise, OTX, MalwareBazaar, and URLhaus.
+
+BRIEFR deliberately splits enrichment by timing:
+
+- **Scheduled enrichment** builds or refreshes local context before the analyst
+  asks for it.
+- **On-demand enrichment** runs when the analyst opens a drawer or submits an
+  IOC lookup, then caches what can safely be reused.
+
+That split is the important product behavior. Enrich is not one giant live pivot
+against every upstream service. It is a mix of local mirrors, cached source
+results, scheduler-owned additive data, and targeted user-initiated lookups.
+
+## Why we do it
+
+A normalized CVE record tells you what the vulnerability is. Enrichment helps
+answer what the surrounding threat picture looks like.
+
+Analysts often need to know:
+
+- Is there public exploit activity or proof-of-concept material?
+- Do threat-intel pulses mention this CVE or related indicators?
+- Does package ecosystem data add affected-version context?
+- Are there extra references or CAPEC mappings outside the NVD record?
+- Is a submitted IP, hash, or domain already known to reputation sources?
+- Can the drawer show useful context without forcing the analyst into five more
+  browser tabs?
+
+BRIEFR enriches because scattered context is expensive to gather by hand. It also
+keeps the UI honest: optional feeds may add depth, but the product should still
+work when a key is missing, a quota is exhausted, or a source returns nothing.
+
+The goal is not to prove exploitation from a single source. The goal is to add
+evidence around the normalized record so later lifecycle steps can correlate,
+hunt, detect, prioritize, and export with more useful context.
+
+## Where it lives in BRIEFR
+
+At the product level, enrichment sits after normalized records exist:
+
+```text
+normalized CVE / IOC -> enrichment sources + caches -> API response -> drawer, IOC tab, risk, correlation
+```
+
+The CVE detail path is the clearest example. When an analyst opens a CVE, the
+frontend calls `GET /api/cves/{id}`. The backend first loads the local CVE detail
+from the database, then enriches it with Sploitus, OTX, OSV, and CIRCL in
+parallel using `asyncio.gather`. Each enrichment task uses short-lived database
+connections where needed. GreyNoise scans stay on a separate on-demand endpoint,
+`GET /api/cves/{id}/greynoise-scans`, rather than being bundled into every CVE
+drawer open.
+
+The IOC path is separate. The IOC tab sends `POST /api/ioc/lookup` for an IP,
+hash, or domain. The API checks `ioc_cache` first with a roughly six-hour window.
+On a cache miss it calls `enrichment/ioc.lookup_ioc`, stores the result through
+`set_ioc_cache`, and returns per-source result cards plus template sentences.
+
+Scheduler-owned enrichment also exists. OTX pulses, exploit snapshots,
+ThreatFox mirrors, VulnCheck KEV tiering, Vulnrichment, cvelistV5, and other
+jobs add context to local tables outside the analyst request path. Those jobs
+make the drawer and feed richer without requiring every screen render to call
+every upstream provider.
+
+See also: [priority source deep-dives](./sources/) for the NVD, CISA KEV, EPSS,
+and AlienVault OTX source paths behind collection and enrichment.
+
+Start with the CVE and IOC routers to see the request paths. Then read the feed
+and enrichment modules to see which sources run on demand and which ones are
+mirrored or refreshed by the scheduler.
+
+<InTheCode
+  items={[
+    {path: 'backend/routers/cves.py'},
+    {path: 'backend/routers/ioc.py'},
+    {path: 'backend/enrichment/ioc.py'},
+    {path: 'backend/feeds/extended.py'},
+    {path: 'backend/feeds/otx.py'},
+    {path: 'backend/feeds/osv.py'},
+    {path: 'backend/scheduler.py'},
+  ]}
+/>
+
+## How it works
+
+Enrichment has two main flows: CVE detail enrichment and IOC lookup enrichment.
+
+### CVE detail enrichment
+
+1. **The analyst opens a CVE.** The frontend selects a CVE card and calls
+   `GET /api/cves/{id}` for the drawer.
+2. **BRIEFR loads the local detail first.** The backend reads the core CVE row
+   and related local data before making additive enrichment calls.
+3. **Additive sources run in parallel.** Sploitus, OTX, OSV, and CIRCL enrich the
+   detail response through `asyncio.gather`. A slow or empty source should not
+   redefine the CVE; it only affects the context that source would have added.
+4. **GreyNoise stays explicit.** GreyNoise scans are on demand through their own
+   endpoint, so opening every CVE drawer does not automatically spend a
+   quota-billed lookup.
+5. **The drawer requests adjacent context.** After the drawer opens, the client
+   fetches risk, sentences, EPSS history, momentum, and correlation. Related and
+   detection data are lazy-loaded when their tabs are opened.
+6. **Stored context remains local.** OTX pulse IOCs, exploit rows, KEV due dates,
+   EPSS history, MITRE/ATLAS mappings, and correlation data live in tables or
+   caches that the API can read without re-fetching every source.
+
+### IOC lookup enrichment
+
+1. **The analyst submits an indicator.** The UI validates the indicator type as
+   `ip`, `hash`, or `domain`. GreyNoise is optional for IPs.
+2. **The API checks the cache.** `POST /api/ioc/lookup` calls `get_ioc_cache`
+   before spending external quota.
+3. **A cache miss calls providers by type.** Within a shared `httpx` client, the
+   providers are called sequentially for the indicator type:
+   - IP: VirusTotal, AbuseIPDB, optional GreyNoise, OTX.
+   - Hash: VirusTotal, MalwareBazaar.
+   - Domain: VirusTotal, URLhaus, OTX.
+4. **The response is cached.** `set_ioc_cache` writes with
+   `ON CONFLICT DO UPDATE`, so later lookups of the same indicator can reuse the
+   result during the cache window.
+5. **The UI renders source cards and sentences.** BRIEFR does not hide which
+   provider supplied which fact. Missing source data remains visible as missing
+   or empty context rather than becoming a fabricated verdict.
+
+### Scheduler enrichment
+
+Some enrichment never belongs on the request path. The scheduler mirrors or
+refreshes data that is better handled in batches:
+
+- OTX nightly sync stores CVE pulses and pulse IOCs when OTX is configured.
+- Exploit-source jobs update `cve_exploits` and `cves.has_poc` when enabled.
+- ThreatFox sync mirrors IOCs locally for retro-match when `ABUSECH_AUTH_KEY` is
+  set.
+- VulnCheck KEV tier sync marks exploited-in-the-wild context when
+  `VULNCHECK_API_KEY` is set.
+- Vulnrichment and cvelistV5 add CVSS, CWE, CPE, or pre-NVD CVE 5.x details
+  additively from repository-backed sources.
+
+The common rule is placement: batchable enrichment runs on the scheduler, while
+analyst-initiated pivots use explicit endpoints and caches.
+
+## What it needs
+
+Enrichment needs the normalized record first. For a CVE drawer, that means a CVE
+row and any related local tables the API can join. For IOC lookup, it means a
+validated indicator value and type.
+
+It does not need every optional key. The Integrations page documents the shipped
+failure behavior:
+
+| Source group | Key behavior | Failure behavior |
+| --- | --- | --- |
+| Sploitus, OSV, CIRCL | Sploitus and OSV do not list required keys; CIRCL key is optional | Empty result or no merge |
+| OTX | `OTX_API_KEY` adds pulse and IOC depth | Nightly job skipped if unset; empty results on failure |
+| VirusTotal, AbuseIPDB, GreyNoise | Keys unlock IOC or IP reputation depth | Empty fields, skipped source, or unknown-record fallback |
+| MalwareBazaar, URLhaus, ThreatFox | `ABUSECH_AUTH_KEY` adds Abuse.ch-backed IOC depth or mirror data | Empty results or skipped sync with prior rows retained |
+| VulnCheck KEV | `VULNCHECK_API_KEY` required | Job no-op; existing flags unchanged |
+| GitHub-backed enrichment sources | `GITHUB_TOKEN` is optional rate-limit headroom | Skips run or retains watermark for retry |
+
+BRIEFR also needs cache discipline. `feed_cache` supports source snapshots and
+source-specific cache entries. `ioc_cache` prevents repeated IOC lookups from
+burning provider quota during the cache window. CIRCL miss caching avoids
+hammering an upstream with the same missing or failed lookup.
+
+For operators, the right question is not "did every enrichment source answer?"
+It is:
+
+- Was the source configured when configuration is required?
+- Did the source fail softly according to its documented behavior?
+- Did the cache serve a recent result?
+- Did the scheduler retain prior rows when a snapshot source was unavailable?
+- Is the drawer or IOC tab clear about which context is known and which is not?
+
+## How industry does it — and why BRIEFR does it this way
+
+Many threat-intelligence platforms make live pivots the center of the analyst
+workflow. An analyst opens a vulnerability or indicator, the platform fans out to
+reputation tools, exploit databases, sandbox results, malware feeds, and
+commercial sources, then presents the latest response from each provider.
+
+That model is powerful when a team owns many paid feeds and needs broad,
+real-time investigation depth. It also has trade-offs: live fan-out can be slow,
+quota-sensitive, provider-dependent, and hard to reproduce when the same
+investigation is opened later.
+
+BRIEFR uses a smaller hybrid model:
+
+- nightly or interval mirrors for data that can be refreshed in batches;
+- local tables for context that feeds ranking, drawer views, correlation, and
+  watchlist retro-match;
+- on-demand IOC lookup when the analyst explicitly asks for an indicator pivot;
+- on-demand drawer enrichment for targeted CVE context;
+- soft failure when optional keys or sources are unavailable.
+
+This fits BRIEFR's scope. It is a self-hosted CVE intelligence portal, not a full
+TIP or SIEM. It favors a calm local workflow where most screens read stored
+context, and live calls are reserved for the places where analyst intent is
+clear. The trade-off is that BRIEFR will not have every commercial feed or every
+live pivot a large platform can provide. The gain is that a small team can still
+get useful exploit, threat, package, and IOC context without building a whole
+intelligence operations stack.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the [Integrations](/docs/integrations) table and choose one CVE
+      enrichment source, one IOC lookup source, and one scheduler mirror source.
+      Good examples are OSV, VirusTotal, and ThreatFox.
+    </li>
+    <li>
+      For each source, write down three things: whether a key is required,
+      whether it runs on the scheduler or from an analyst action, and what the
+      documented failure behavior is.
+    </li>
+    <li>
+      Compare your notes with the fixture below. This is a documentation
+      exercise only: do not add keys and do not call live third-party services.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "enrichment_examples": {
+      "osv": {
+        "record_type": "cve",
+        "timing": "CVE detail enrichment",
+        "key_required": false,
+        "failure_behavior": "empty result"
+      },
+      "virustotal": {
+        "record_type": "ioc",
+        "timing": "POST /api/ioc/lookup after cache miss",
+        "key_required": true,
+        "failure_behavior": "empty VirusTotal fields"
+      },
+      "threatfox": {
+        "record_type": "ioc mirror",
+        "timing": "scheduler mirror for retro-match",
+        "key_required": true,
+        "failure_behavior": "skip sync; prior rows retained"
+      }
+    },
+    "cache_boundary": {
+      "ioc_cache": "roughly six-hour reuse window for IOC lookups",
+      "feed_cache": "source snapshots and scheduler-owned cached context"
+    }
+  }
+  ```
+
+  The point is to separate source capability from product guarantee. Enrichment
+  adds context when BRIEFR has it; missing optional context should not turn into
+  a hard failure or an invented conclusion.
+</TryItYourself>

@@ -1,0 +1,183 @@
+---
+sidebar_position: 3
+sidebar_label: CISA KEV
+title: CISA KEV
+description: How BRIEFR uses CISA KEV for known-exploited status and remediation deadline context.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# CISA KEV
+
+## What it is
+
+CISA KEV is BRIEFR's known-exploited catalog source. In BRIEFR, its job is to
+mark CVEs that CISA lists as known exploited and to attach deadline metadata that
+the UI, brief, webhooks, and risk score can use.
+
+This page is about the tool behavior, not a general KEV policy course. The
+important BRIEFR question is: once the KEV catalog says a CVE is known exploited,
+where does that fact land and how does the product use it?
+
+The system design names the scheduled KEV metadata job as writing to
+`kev_deadlines`, `cves.is_kev`, and `webhook_alert_log`. Those landing zones make
+KEV visible in the feed, drawer, brief, deadline charts, notifications, and risk
+score.
+
+## Why we do it
+
+KEV is one of BRIEFR's strongest triage signals because it means a vulnerability
+is not merely severe or interesting; it is known exploited according to the KEV
+catalog.
+
+BRIEFR uses that signal in several places:
+
+- **Feed and drawer urgency:** CVE rows can show KEV status and due-date context.
+- **Sidebar and charts:** KEV deadlines can be sorted and bucketed so analysts
+  can see urgent remediation windows.
+- **Morning brief:** new KEV entries and due-soon KEV items can appear in the
+  action queue with reason chips.
+- **Risk scoring:** KEV status contributes to the backend-canonical Risk Score
+  v1.1b.
+- **Notifications:** KEV-on-stack webhook alerts can be deduplicated through
+  `webhook_alert_log`.
+
+That does not mean KEV is the only priority signal. BRIEFR still combines it with
+asset match, EPSS, exploit availability, CVSS, and momentum. KEV's role is to add
+a high-confidence exploitation and deadline signal that the rest of the product
+can explain.
+
+## Where it lives in BRIEFR
+
+At the product level, the KEV path is:
+
+```text
+CISA KEV catalog -> KEV metadata scheduler job -> cves.is_kev + kev_deadlines -> UI, brief, risk, webhooks
+```
+
+The system design names the scheduled job as "KEV metadata" and lists its
+landing zones:
+
+- `cves.is_kev` for the CVE-level known-exploited flag.
+- `kev_deadlines` for due-date metadata.
+- `webhook_alert_log` for deduped notification records.
+
+It also maps the `kev_deadlines` table to product readers:
+
+- `GET /api/kev/deadlines` for deadline lists.
+- `kev_due_date` on list, export, and detail responses.
+- `GET /api/brief` for brief items.
+- Sidebar urgent sorting, CVE card due chips, drawer sentences, and the morning
+  brief on the frontend.
+
+The webhook section adds one operational path: after each `kev_metadata_sync`,
+newly flagged KEV CVEs matching `BRIEFR_STACK_TERMS` can dispatch a deduped
+`kev_alert`.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/feeds/kev.py'},
+    {path: 'backend/routers/cves.py'},
+    {path: 'backend/scoring/risk.py'},
+    {path: 'backend/webhooks/engine.py'},
+  ]}
+/>
+
+## How it works
+
+BRIEFR uses KEV as scheduled metadata attached to the CVE corpus:
+
+1. **The scheduler runs the KEV metadata job.** The job is part of the same
+   scheduler-owned feed model as the other recurring source syncs.
+2. **The feed module fetches the catalog.** `feeds/kev.py` is the named source
+   module in the external dependencies map.
+3. **BRIEFR joins KEV entries back to CVE IDs.** The KEV feed is useful because
+   it can mark existing CVE-centered records rather than creating a separate
+   analyst object.
+4. **Local fields are updated.** The system design names `cves.is_kev` and
+   `kev_deadlines` as the primary landing zones.
+5. **Product readers use the local facts.** Feed list, export, detail, deadline,
+   and brief paths read KEV state from BRIEFR's database.
+6. **Notifications stay deduped.** KEV-on-stack alerts write through
+   `webhook_alert_log`, so the same CVE does not repeatedly notify for the same
+   event.
+7. **Risk remains backend-canonical.** The risk scorer uses KEV as one weighted
+   component; the frontend displays the resulting explanation instead of
+   computing a separate score.
+
+The result is intentionally narrow: KEV adds exploitation and deadline context to
+BRIEFR's existing CVE model. It does not replace NVD, EPSS, asset matching, or
+analyst judgment.
+
+## What it needs
+
+The authoritative integrations facts for CISA KEV are:
+
+| Adds | Key | Free-tier/quota | Failure |
+| --- | --- | --- | --- |
+| Known-exploited catalog | No key | Unrestricted | Returns empty batch |
+
+Operationally, KEV needs:
+
+- the scheduler enabled so the metadata job can run;
+- a local CVE corpus so KEV rows can attach to CVE IDs;
+- `kev_deadlines` and `cves.is_kev` storage;
+- API readers that surface `kev_due_date` and `is_kev`; and
+- optional webhook configuration if the operator wants KEV-on-stack alerts.
+
+Because the feed has no documented key requirement, configuration is mostly
+about scheduler health and downstream usage. If the source fails, the documented
+behavior is an empty batch. Analysts should treat missing new KEV data as a
+source-health question, not as proof that no CVEs are known exploited.
+
+## How industry does it - and why BRIEFR does it this way
+
+Many teams use KEV as one input to vulnerability management programs, ticket
+queues, scanner prioritization, and remediation service-level objectives. In
+larger environments, KEV may be merged with asset ownership, exposure, exploit
+telemetry, and policy deadlines before work reaches an analyst.
+
+BRIEFR uses a smaller model that fits its self-hosted portal:
+
+- ingest KEV on the scheduler;
+- store the exploitation flag and deadline locally;
+- show urgency in the feed, drawer, sidebar, charts, and morning brief;
+- emit deduped KEV-on-stack alerts when configured; and
+- let the backend risk scorer account for KEV without hiding the other factors.
+
+The trade-off is that BRIEFR does not become a full remediation workflow system.
+It gives the analyst clear KEV evidence and deadlines inside the CVE workflow so
+the next action can be triage, hunting, detection work, export, or handoff.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the [Integrations](/docs/integrations) table and find the CISA KEV
+      row. Confirm that no key is listed and the failure behavior is an empty
+      batch.
+    </li>
+    <li>
+      Open [System design](/docs/developer-guide/system-design) and find the
+      scheduler line for "KEV metadata" plus the DB table mapping for
+      <code>kev_deadlines</code>.
+    </li>
+    <li>
+      Use the fixture below to check whether you can explain how one KEV fact
+      reaches the UI without a live CISA call from the browser.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "source": "CISA KEV",
+    "scheduler_job": "KEV metadata",
+    "landing_zones": ["cves.is_kev", "kev_deadlines", "webhook_alert_log"],
+    "primary_readers": ["GET /api/kev/deadlines", "GET /api/brief", "GET /api/cves"],
+    "request_boundary": "KEV facts are local by the time the UI renders"
+  }
+  ```
+</TryItYourself>

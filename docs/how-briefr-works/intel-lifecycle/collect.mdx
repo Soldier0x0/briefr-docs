@@ -1,0 +1,225 @@
+---
+sidebar_position: 2
+sidebar_label: Collect
+title: Collect
+description: How BRIEFR ingests intel from open feeds on scheduler-driven intervals.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# Collect
+
+## What it is
+
+Collection is the first step in BRIEFR's intel lifecycle. It is the work of
+pulling external vulnerability and threat data into BRIEFR before an analyst
+opens the feed.
+
+The key design choice is timing: BRIEFR collects on scheduled jobs, not during
+normal page rendering. The browser talks to FastAPI, FastAPI reads the local
+database or cached snapshots, and schedulers keep those records fresh in the
+background. That keeps a slow upstream feed from turning into a slow UI.
+
+The sources are broad but practical: NVD for CVE records, CISA KEV for known
+exploitation, EPSS for probability scores, MITRE and ATLAS for framework
+context, OTX and other IOC feeds for threat context, exploit indexes for public
+proof-of-concept signals, and RSS feeds for incident cards. The
+[Integrations](/docs/integrations) page lists each feed, key, quota, and failure
+behavior.
+
+See also: [priority source deep-dives](./sources/) for how BRIEFR uses NVD,
+CISA KEV, EPSS, and AlienVault OTX specifically.
+
+## Why we do it
+
+Analysts should not have to ask ten public services the same question before
+they can decide whether a CVE matters. Collection gives BRIEFR one local body of
+evidence to normalize, enrich, correlate, and rank.
+
+That local copy also gives BRIEFR predictable behavior:
+
+- **Fast reads:** the UI can read precomputed data instead of waiting on public
+  APIs.
+- **Quota control:** scheduled jobs can batch requests and respect upstream rate
+  limits.
+- **Soft failure:** a broken feed degrades its own sync job rather than taking
+  down the main analyst workflow.
+- **Repeatability:** later lifecycle steps work from the same stored records
+  instead of seeing different live responses on every page load.
+
+This is why the collection layer exists before Normalize, Enrich, Correlate, and
+Prioritize. Those later steps need a stable source corpus.
+
+## Where it lives in BRIEFR
+
+At the product level, the flow is:
+
+```text
+External feeds -> scheduler.py -> database tables / feed_cache -> FastAPI -> UI
+```
+
+The main collection owner is `scheduler.py`. The system design describes it as
+an APScheduler process with recurring jobs and startup one-shots for feed work.
+Examples include NVD incremental sync, KEV metadata, EPSS scores, MITRE and
+ATLAS weekly jobs, incident feed refresh, cvelistV5 deltas, exploit sources,
+ThreatFox mirror, VulnCheck KEV tier, and IOC retro-match.
+
+Several feed modules sit behind those jobs:
+
+- `feeds/nvd.py` fetches NVD CVE updates; `scheduler.run_nvd_incremental_sync`
+  uses it and stores the watermark in `sync_state`.
+- `feeds/kev.py`, `feeds/epss.py`, `feeds/mitre.py`, `feeds/atlas.py`, and
+  `feeds/incident_news.py` collect scheduled source data.
+- `feeds/vulnrichment.py` and `feeds/cvelistv5.py` add repo-based CVE 5.x and
+  ADP data on the scheduler only.
+- `database.upsert_cves` and `db/cve.py` persist CVE batches, including
+  chunked upserts.
+- `resilient_client.py` centralizes outbound HTTP behavior for migrated feed and
+  enrichment modules.
+
+Start with the scheduler to see which jobs own collection. Then read the
+resilient client to see how shared retries, source health, and circuit breakers
+protect outbound calls.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/resilient_client.py'},
+  ]}
+/>
+
+## How it works
+
+Collection is a loop, not a single request:
+
+1. **A scheduler job starts.** APScheduler registers recurring jobs in
+   `scheduler.py`. Jobs use gates and locks so the same recurring sync does not
+   overlap itself.
+2. **The job asks a source for a batch.** NVD, KEV, EPSS, MITRE, ATLAS, RSS,
+   cvelistV5, Vulnrichment, exploit indexes, and IOC mirrors each have their own
+   source shape and cadence.
+3. **Outbound HTTP goes through resilience rules.** Shared feed clients retry
+   transport errors and retryable statuses, respect `Retry-After` on 429s, and
+   track circuit-breaker health per source. Quota-billed sources use no
+   automatic retries, so a retry loop cannot spend extra quota.
+4. **The job stores what it learned.** CVE records go through upserts; feed
+   snapshots and source caches go through `feed_cache`; watermarks live in
+   `sync_state`; source-specific tables hold context such as KEV deadlines,
+   EPSS history, OTX pulses, exploit rows, MITRE mappings, and ThreatFox IOCs.
+5. **The request path reads local data.** Feed pages, brief panels, wallboard
+   tiles, and incident snapshots read stored data or cached snapshots. They do
+   not need to call NVD, KEV, EPSS, or RSS feeds while rendering the page.
+
+This boundary is especially visible in the incident feed. The scheduler builds
+an incident snapshot from RSS plus ATLAS cards, stores it in `feed_cache`, and
+the API serves that snapshot. A cold miss schedules a background build and
+returns a warming response instead of blocking the request until every RSS feed
+answers.
+
+The boundary is also visible in the IOC watchlist path. ThreatFox sync mirrors
+IOC data into local tables when `ABUSECH_AUTH_KEY` is set, and the nightly
+retro-match joins saved IOCs against local OTX and ThreatFox data. The match
+path does not perform live IOC enrichment.
+
+Some BRIEFR features still perform user-initiated enrichment on demand, such as
+IOC lookup and parts of CVE detail enrichment. Those are not the baseline
+collection path. They belong to later lifecycle chapters because they happen
+after the core corpus already exists.
+
+## What it needs
+
+Collection needs a running BRIEFR instance, a database, network access to public
+feeds, and the scheduler enabled. Most feed data does not require paid accounts
+or secret setup.
+
+Keys are optional for many sources:
+
+| Source group | Key behavior |
+| --- | --- |
+| NVD and GitHub-backed feeds | Keys are optional and mostly increase rate-limit headroom. |
+| CISA KEV, EPSS, OSV, exploit CSV/index sources, MITRE STIX, RSS | No key is listed for normal collection. |
+| OTX, VirusTotal, AbuseIPDB, GreyNoise, CIRCL, Abuse.ch feeds, VulnCheck | Keys unlock optional threat or IOC depth; some jobs skip when unset. |
+| Groq and Anthropic | AI summaries are additive; template summaries remain when AI keys are absent. |
+
+The important operator signal is not "all keys present." It is feed health. The
+admin and health surfaces expose source status such as last success, last
+failure, consecutive failures, and whether a source circuit is open. That lets
+you distinguish "this source is intentionally not configured" from "this source
+is configured but failing."
+
+BRIEFR also records per-source failure behavior. Some failures return empty
+batches, some skip a run and retain prior rows, some abort only that sync, and
+some keep their watermark so the next run can retry. The common theme is that a
+source failure should be visible without becoming a whole-site failure.
+
+## How industry does it — and why BRIEFR does it this way
+
+Large teams often put a threat-intelligence platform or SIEM at the center of
+collection. Those systems may pull from many commercial feeds, run enrichment
+on demand during searches, forward everything through message queues, and keep
+long retention for many teams and tenants.
+
+BRIEFR is intentionally smaller. It batch-syncs the feeds it needs into a local
+database, then serves analyst screens from that local copy. That means:
+
+- no separate broker is required for the normal collection path;
+- public-source outages stay local to their scheduled jobs;
+- a self-hosted instance can start useful work with no third-party keys;
+- the UI can stay focused on CVE triage instead of becoming a general-purpose
+  SIEM search console.
+
+The trade-off is scope. BRIEFR is not trying to replace a TIP or SIEM for every
+telemetry source in an enterprise. It collects enough vulnerability and threat
+context to support the rest of its lifecycle: normalize records, enrich them,
+correlate related signals, help analysts hunt, generate detection work, and
+prioritize the brief.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      In a self-hosted BRIEFR instance, open the Admin area and look for feed or
+      source health. You are checking status only; do not paste new API keys for
+      this chapter.
+    </li>
+    <li>
+      Compare one healthy source with one source that is skipped because it is
+      not configured. The useful fields are last success, last failure, error
+      text, consecutive failures, and circuit state.
+    </li>
+    <li>
+      Open the [Integrations](/docs/integrations) table and confirm the same
+      source's expected failure behavior. For example, some feeds return an
+      empty batch, while exploit snapshots often retain prior rows.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "feeds": {
+      "sources": {
+        "nvd": {
+          "last_success": "2026-07-21T20:10:00Z",
+          "last_failure": null,
+          "last_error": null,
+          "consecutive_failures": 0,
+          "circuit_open": false
+        },
+        "otx": {
+          "last_success": null,
+          "last_failure": null,
+          "last_error": "skipped: source not configured",
+          "consecutive_failures": 0,
+          "circuit_open": false
+        }
+      }
+    }
+  }
+  ```
+
+  Treat this as a redacted fixture walkthrough, not a live API exercise. The
+  point is to learn what BRIEFR records about collection health without sending
+  credentials or calling third-party services from the docs site.
+</TryItYourself>
