@@ -59,12 +59,36 @@ rg -n -i 'zero to hero' docs/how-briefr-works src/components/learn; test $? -eq 
 
 ## Deviations from brief
 
-- The InTheCode paths use `scheduler.py` and `resilient_client.py`, matching the
-  names cited directly in `docs/developer-guide/system-design.md`.
+- ~~The InTheCode paths use `scheduler.py` and `resilient_client.py`, matching the
+  names cited directly in `docs/developer-guide/system-design.md`.~~ **Fixed** — see Post-review fix below.
 
 ## Concerns / follow-ups
 
-- None for Task 4.
+- ~~None for Task 4.~~ **Fixed** — InTheCode paths corrected in post-review fix.
+
+## Post-review fix (Task 4 review finding)
+
+**Finding:** InTheCode items used bare `scheduler.py` / `resilient_client.py` instead of the brief-specified `backend/` paths.
+
+**Change:** Updated `docs/how-briefr-works/intel-lifecycle/collect.mdx`:
+
+```mdx
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/resilient_client.py'},
+  ]}
+/>
+```
+
+**Commit:** `fix(learn): use backend/ paths in Collect InTheCode links`
+
+**Build evidence:**
+
+```bash
+npm run build
+# SUCCESS — Generated static files in "build"
+```
 
 ## Files touched
 
