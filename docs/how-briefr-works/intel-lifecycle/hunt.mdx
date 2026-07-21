@@ -5,20 +5,270 @@ title: Hunt
 description: Analyst hunt workflows over BRIEFR's local intel store.
 ---
 
-# Hunt
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
 
-:::note[Outline — Phase 2]
-Full chapter lands in the Track A content plan. Sections below are the required template; fill with sourced claims only.
-:::
+# Hunt
 
 ## What it is
 
+Hunting in BRIEFR is structured follow-up from intel that is already in the
+product. It starts from a CVE, indicator, ATT&CK technique, coverage gap, or
+Forge backlog item and asks: what should an analyst inspect next?
+
+That is narrower than generic red-team training. This chapter is not about
+teaching intrusion techniques, building adversary emulation plans, or searching
+an enterprise's raw telemetry from scratch. In BRIEFR, Hunt means using the local
+CVE intelligence corpus to pivot across related evidence and turn a known signal
+into a focused detection or investigation task.
+
+Two product paths carry most of that work:
+
+- **Investigation pivots:** the user guide documents a browser-session workflow
+  that moves CVE -> IOC -> related CVE. The important boundary is "session-only":
+  BRIEFR can help an analyst follow the chain in the UI, but this is not a
+  durable case-management system.
+- **Forge hunt packs:** the Forge tab turns ATT&CK technique coverage into a
+  work queue. It shows where the local CVE corpus maps to techniques, where
+  saved hunt packs already exist, where bundled templates provide a baseline,
+  and where gaps remain.
+
 ## Why we do it
+
+After Collect, Normalize, Enrich, and Correlate, BRIEFR has more than a list of
+CVE records. It has KEV status, EPSS, exploit signals, OTX context, IOC lookup
+results, ATT&CK mappings, case-study links, and correlation lanes. Hunting is the
+step where an analyst turns that context into a next question.
+
+Examples of BRIEFR-shaped hunt questions are:
+
+- Which ATT&CK techniques appear in CVEs that match my stack?
+- Which techniques already have saved hunt packs, and which are only covered by
+  a community template baseline?
+- Which KEV or high-EPSS CVEs are linked to a technique that is still a coverage
+  gap?
+- Which IOC from a CVE or pulse is worth checking in the IOC lookup flow?
+- Which related CVE should I open next because the current record shares
+  infrastructure, campaign context, or technique context?
+
+The goal is to reduce open-ended searching. A small team should not have to
+manually reconcile CVE detail, IOC reputation, ATT&CK coverage, and detection
+templates before deciding where to spend detection-engineering time. BRIEFR uses
+the evidence it already stores to make those pivots visible.
 
 ## Where it lives in BRIEFR
 
+At the product level, hunting sits between correlation and detection:
+
+```text
+local CVE + IOC + ATT&CK context -> analyst pivot / Forge coverage -> hunt pack or next CVE
+```
+
+The investigation-pivot path lives in the analyst UI. The user guide describes
+the CVE detail drawer, IOC lookup tab, and session-only investigation pivot as
+the human workflow: click a CVE, inspect context, pivot to an IOC, then pivot
+back to a related CVE when the session gives you enough evidence.
+
+The Forge path is more concrete in the system design:
+
+- `Forge.jsx` loads `GET /api/forge/coverage` when the Forge tab mounts.
+- `routers/forge.py` builds the coverage map from a grouped query over
+  `cve_technique_map` joined to `cves`, plus `hunt_packs` counts and
+  `mitre_techniques` metadata.
+- Coverage status is local and ordered: `yours` when a saved pack exists,
+  `community` when the bundled template library covers the technique, then
+  `gap` when neither is present.
+- Clicking a technique calls `GET /api/hunt-packs/{technique_id}` for technique
+  metadata, saved packs, template SIEM baseline, log patterns, and linked CVEs.
+- Generating a pack calls `POST /api/hunt-packs/generate`, then the UI refetches
+  coverage so the technique can move to `yours`.
+
+Start with the Forge router and detection-template helpers to see the hunt-pack
+boundary. Then read the CVE and IOC routers for the adjacent investigation
+pivots that feed a human hunt session.
+
+<InTheCode
+  items={[
+    {path: 'backend/routers/forge.py'},
+    {path: 'backend/detection/sigma_generator.py'},
+    {path: 'backend/detection/siem_queries.py'},
+    {path: 'backend/routers/cves.py'},
+    {path: 'backend/routers/ioc.py'},
+  ]}
+/>
+
 ## How it works
+
+BRIEFR hunting is a set of bounded pivots over stored evidence.
+
+### Investigation pivots
+
+1. **The analyst starts from a CVE.** The starting point may be a feed card,
+   morning brief item, related-CVE result, correlation lane, or Forge-linked CVE.
+2. **The drawer exposes local context.** The CVE detail flow loads the local CVE
+   record and adjacent context such as Intel, Related, Detect, risk, sentences,
+   EPSS history, momentum, and correlation.
+3. **The analyst follows an IOC when one is useful.** OTX pulse IOCs and IOC
+   lookup results can move the session from CVE context into IP, hash, or domain
+   context. IOC lookup uses `POST /api/ioc/lookup`, checks `ioc_cache`, and calls
+   source-specific providers only on cache miss.
+4. **The analyst pivots back to a related CVE.** The user guide documents this as
+   CVE -> IOC -> related CVE. That is a session workflow in the browser, not a
+   stored case graph.
+5. **The evidence remains inspectable.** A related CVE, IOC result, or
+   correlation lane is not a verdict. It is a reason to inspect the next record,
+   decide whether it matters, and either continue the session or stop.
+
+This path depends on the earlier lifecycle steps. Collection and normalization
+create the CVE records. Enrichment adds IOC and exploit context. Correlation
+shows explainable CVE-to-CVE relationships. Hunt uses those outputs without
+pretending they are enterprise-wide telemetry.
+
+### Forge coverage and hunt packs
+
+Forge is the structured coverage side of hunting:
+
+1. **Forge loads coverage.** `GET /api/forge/coverage` reads local ATT&CK
+   technique mappings, CVE rows, `hunt_packs`, and `mitre_techniques`. The
+   optional **MY STACK ONLY** toggle re-fetches coverage for the saved stack from
+   `user_preferences.stack_terms`, with `BRIEFR_STACK_TERMS` available as an
+   operator override.
+2. **Coverage gets a status.** A technique is `yours` if BRIEFR has a saved pack
+   for it, `community` if the bundled Sigma/SIEM template library covers it, or
+   `gap` if neither exists. The coverage map is entirely local; the system design
+   explicitly says it performs no outbound HTTP and needs no caching layer.
+3. **The analyst opens a technique.** `GET /api/hunt-packs/{technique_id}`
+   returns the technique, saved packs, template SIEM baseline, log patterns, and
+   up to 20 linked CVEs. Linked CVEs are ordered KEV first, then EPSS, then
+   recency. The same rail can also show additive context such as case studies and
+   CVE fields when those are available from the shipped endpoint.
+4. **The analyst generates a pack from a linked CVE.** The
+   `POST /api/hunt-packs/generate` route builds a Sigma rule and SIEM query
+   starters from the template library, derives priority from KEV/CVSS/EPSS, and
+   upserts the result into `hunt_packs`.
+5. **Regeneration is idempotent.** The system design documents a
+   `UNIQUE(technique_id, cve_id)` constraint, so regenerating the same
+   technique/CVE pair updates the saved pack instead of creating duplicates.
+6. **Coverage refreshes.** After generation, the UI refetches coverage. A
+   technique that was `community` or `gap` can become `yours` once a saved pack
+   exists.
+
+Forge also has clear boundaries. Community-rule search over GitHub-backed
+SigmaHQ/Elastic sources stays in `GET /api/cves/{cve_id}/detection` on the
+drawer Detect tab. The proof bench validates saved Sigma rules against pasted
+log lines; it is file-based and does not connect to a live SIEM. The KEV
+detection backlog surfaces stack-matched KEV CVEs whose ATT&CK techniques are
+coverage gaps; it does not turn BRIEFR into a full detection-engineering
+platform.
 
 ## What it needs
 
+Hunt needs stored BRIEFR intel, not a blank slate.
+
+For investigation pivots, it needs:
+
+- normalized CVE rows and detail-drawer data;
+- enrichment context such as OTX pulses, pulse IOCs, exploit rows, OSV/CIRCL
+  context, and IOC lookup cache entries when those sources are configured;
+- correlation or related-CVE results when the analyst wants CVE-to-CVE pivots;
+- the IOC lookup route for explicit IP, hash, or domain enrichment; and
+- a browser session, because the documented investigation pivot is session-only.
+
+For Forge coverage and hunt packs, it needs:
+
+| Data or component | Why it matters |
+| --- | --- |
+| `cve_technique_map` and `mitre_techniques` | Tell Forge which ATT&CK techniques are represented by local CVE intel |
+| `cves` | Supplies linked CVEs, KEV, EPSS, CVSS, recency, and stack filtering context |
+| `hunt_packs` | Stores saved packs and drives the `yours` coverage status |
+| `detection/sigma_generator.py` and `detection/siem_queries.py` | Provide the bundled template library for generated Sigma and SIEM starters |
+| `user_preferences.stack_terms` or `BRIEFR_STACK_TERMS` | Limits Forge coverage to the operator's stack when requested |
+| `GET /api/forge/coverage` | Supplies the coverage map |
+| `GET /api/hunt-packs/{technique_id}` | Supplies the technique rail, saved packs, templates, log patterns, and linked CVEs |
+| `POST /api/hunt-packs/generate` | Creates or regenerates a saved hunt pack |
+
+It does not need every optional API key before it becomes useful. Missing OTX or
+IOC-provider keys can reduce pivot depth, but Forge's coverage map is local. It
+also does not need a live SIEM connection. The documented Forge MVP produces
+coverage, templates, generated packs, exports, and pasted-log proof checks; it
+does not deploy detections into production telemetry.
+
 ## How industry does it — and why BRIEFR does it this way
+
+Dedicated detection-engineering platforms usually sit close to SIEM, EDR, data
+lake, or telemetry pipelines. They may manage rule lifecycle, test detections
+against production-like event stores, deploy content, track ownership, measure
+alert quality, and connect to commercial threat-intelligence feeds. Mature
+security teams need that when hunting spans many log sources, many responders,
+and a formal detection backlog.
+
+BRIEFR's Forge MVP is deliberately smaller. It is scoped to ATT&CK coverage from
+local CVE intelligence:
+
+- read the local CVE-to-technique map;
+- show whether a technique is already covered by a saved pack, a bundled
+  baseline, or nothing;
+- let the analyst open linked CVEs and generate a pack from the available
+  template library;
+- keep generation idempotent in `hunt_packs`; and
+- leave live SIEM deployment and broad rule lifecycle management out of scope.
+
+That scope matches BRIEFR's product center. The platform is a self-hosted CVE
+intelligence portal, not a replacement for an enterprise detection platform. The
+gain is focus: a small team can move from "this CVE matters" to "which ATT&CK
+coverage do we have, and what starter pack can we create?" without standing up a
+full detection-engineering stack. The trade-off is that BRIEFR will not prove
+coverage against every real production log source or manage the entire detection
+lifecycle for a SOC.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the system design's Forge section and find the three endpoint shapes:
+      <code>GET /api/forge/coverage</code>,
+      <code>GET /api/hunt-packs/&#123;technique_id&#125;</code>, and
+      <code>POST /api/hunt-packs/generate</code>.
+    </li>
+    <li>
+      For each endpoint, write down whether it reads coverage, reads a selected
+      technique, or writes a saved pack. Do this from the docs first; no API keys
+      are required.
+    </li>
+    <li>
+      If you have a sandbox BRIEFR instance, open Forge and select one technique.
+      Inspect the status and linked CVEs. Avoid generating a pack in a production
+      workspace unless you intend to save or update that local pack.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "forge_hunt_flow": {
+      "coverage": {
+        "endpoint": "GET /api/forge/coverage",
+        "source": "local cve_technique_map, cves, hunt_packs, mitre_techniques",
+        "statuses": ["yours", "community", "gap"]
+      },
+      "technique_rail": {
+        "endpoint": "GET /api/hunt-packs/{technique_id}",
+        "returns": ["technique metadata", "saved packs", "template baseline", "log patterns", "linked CVEs"]
+      },
+      "generate": {
+        "endpoint": "POST /api/hunt-packs/generate",
+        "writes": "hunt_packs",
+        "idempotency": "UNIQUE(technique_id, cve_id)"
+      },
+      "investigation_boundary": {
+        "pivot": "CVE -> IOC -> related CVE",
+        "persistence": "browser session only"
+      }
+    }
+  }
+  ```
+
+  The useful habit is to name the boundary before acting: are you following a
+  session-only investigation pivot, reading Forge coverage, or writing a local
+  hunt pack?
+</TryItYourself>
