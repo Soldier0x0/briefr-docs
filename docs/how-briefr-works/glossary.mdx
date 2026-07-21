@@ -33,6 +33,10 @@ Common Vulnerability Scoring System — severity metadata attached to CVE record
 
 Exploit Prediction Scoring System — a probability that a CVE will be exploited in the wild. BRIEFR syncs EPSS on a scheduler interval and blends it into threat scoring alongside KEV and CVSS signals.
 
+### Hunt pack
+
+A saved Forge bundle — typically a Sigma rule and SIEM query tied to an ATT&CK technique and CVE. BRIEFR creates hunt packs via `POST /api/hunt-packs/generate` and tracks coverage gaps (saved pack vs bundled template vs none) on the Hunt and Detect tabs.
+
 ### IOC
 
 Indicator of Compromise — an observable such as an IP, hash, or domain. BRIEFR supports IOC lookup, watchlists, and retro-match against local OTX and ThreatFox mirrors; inbound IOC endpoints are token-bucket rate limited.
@@ -44,6 +48,10 @@ CISA Known Exploited Vulnerabilities catalog — CVEs confirmed exploited in the
 ### Normalization
 
 The step where raw feed payloads are shaped into consistent BRIEFR schema — shared field names, IDs, and timestamps — before enrichment and correlation run. Normalized records live in SQLite/PostgreSQL tables the schedulers and API read.
+
+### Sigma
+
+A portable YAML detection-rule format shared across SIEMs. BRIEFR generates Sigma starter content from CVE evidence and ATT&CK mappings, searches GitHub-backed SigmaHQ/Elastic rules on the drawer Detect tab, and returns `generated_sigma` as a labeled supplement alongside community matches.
 
 ### Token bucket
 
