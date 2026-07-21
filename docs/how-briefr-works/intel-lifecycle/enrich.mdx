@@ -87,6 +87,9 @@ jobs add context to local tables outside the analyst request path. Those jobs
 make the drawer and feed richer without requiring every screen render to call
 every upstream provider.
 
+See also: [priority source deep-dives](./sources/) for the NVD, CISA KEV, EPSS,
+and AlienVault OTX source paths behind collection and enrichment.
+
 Start with the CVE and IOC routers to see the request paths. Then read the feed
 and enrichment modules to see which sources run on demand and which ones are
 mirrored or refreshed by the scheduler.

@@ -1,0 +1,57 @@
+---
+sidebar_position: 1
+sidebar_label: Sources overview
+title: Sources overview
+description: Priority source deep-dives for NVD, CISA KEV, EPSS, and AlienVault OTX in BRIEFR.
+---
+
+# Sources overview
+
+These pages explain how BRIEFR uses four priority sources in its intel
+lifecycle. They are not general source primers. Each page stays close to the
+tooling path: what the source adds, where it lands, which scheduler or on-demand
+path owns it, what keys or quotas matter, and how BRIEFR behaves when the source
+is missing or failing.
+
+Start here if you want to understand the source-specific details behind
+[Collect](/docs/how-briefr-works/intel-lifecycle/collect) and
+[Enrich](/docs/how-briefr-works/intel-lifecycle/enrich).
+
+## Priority sources
+
+| Source | Primary lifecycle role | Start here |
+| --- | --- | --- |
+| NVD | Core CVE records, CVSS, and CPE data collected by NVD incremental sync | [NVD](/docs/how-briefr-works/intel-lifecycle/sources/nvd) |
+| CISA KEV | Known-exploited status and remediation deadline metadata | [CISA KEV](/docs/how-briefr-works/intel-lifecycle/sources/kev) |
+| EPSS | Exploit-probability score and history used for movement and risk context | [EPSS](/docs/how-briefr-works/intel-lifecycle/sources/epss) |
+| AlienVault OTX | Threat pulses and IOCs used by CVE detail, IOC lookup, and correlation | [AlienVault OTX](/docs/how-briefr-works/intel-lifecycle/sources/otx) |
+
+## How to read these pages
+
+Each source page follows the same template:
+
+1. **What it is** - the BRIEFR-facing role of the source.
+2. **Why we do it** - the analyst problem the source solves inside the product.
+3. **Where it lives in BRIEFR** - scheduler jobs, backend modules, database
+   landing zones, and request paths from the system design.
+4. **How it works** - the source-specific flow through BRIEFR.
+5. **What it needs** - integrations facts: adds, key, free-tier/quota, and
+   failure behavior.
+6. **How industry does it - and why BRIEFR does it this way** - the product
+   boundary and trade-off.
+7. **Try it yourself** - optional, docs-only checks that do not ask for keys or
+   live third-party calls.
+
+## Related lifecycle chapters
+
+- [Collect](/docs/how-briefr-works/intel-lifecycle/collect) explains the
+  scheduler-first collection boundary.
+- [Normalize](/docs/how-briefr-works/intel-lifecycle/normalize) explains how
+  collected data becomes a CVE-centered local record.
+- [Enrich](/docs/how-briefr-works/intel-lifecycle/enrich) explains which source
+  data is scheduler-owned and which context appears on demand.
+- [Correlate](/docs/how-briefr-works/intel-lifecycle/correlate) explains how
+  stored OTX and related signals become explainable relationship lanes.
+- [Prioritize / report](/docs/how-briefr-works/intel-lifecycle/prioritize)
+  explains how KEV, EPSS, CVSS, and other local facts feed the morning brief and
+  risk score.

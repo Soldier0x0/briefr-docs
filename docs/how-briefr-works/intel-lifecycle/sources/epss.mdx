@@ -1,0 +1,181 @@
+---
+sidebar_position: 4
+sidebar_label: EPSS
+title: EPSS
+description: How BRIEFR uses EPSS scores for exploit probability, movement, and risk context.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# EPSS
+
+## What it is
+
+EPSS is BRIEFR's exploit-prediction score source. In BRIEFR, it adds probability
+context to CVE rows and records history so the product can show movement rather
+than only a static score.
+
+The system design lists the EPSS scheduler job as writing to `cves.epss_score`
+and `epss_history`. It also names a startup one-shot EPSS history backfill. Those
+local rows feed the drawer sparkline, top EPSS movers, momentum context, and the
+EPSS component of the backend-canonical risk score.
+
+This page stays focused on how BRIEFR tools use EPSS. It does not try to teach
+the scoring model itself.
+
+## Why we do it
+
+CVSS and KEV answer different questions from EPSS. CVSS describes severity. KEV
+marks known exploitation. EPSS adds a probability-style signal that can move over
+time.
+
+BRIEFR uses that signal where movement and prioritization matter:
+
+- **CVE rows:** `cves.epss_score` makes EPSS available to list, detail, brief,
+  and risk readers.
+- **Drawer history:** `GET /api/cves/{id}/epss-history` powers the EPSS
+  sparkline in the drawer.
+- **Morning brief charts:** top EPSS movers use change data and per-CVE history
+  to highlight recently changing items.
+- **Risk scoring:** Risk Score v1.1b includes an EPSS component.
+- **Momentum:** EPSS movement contributes to the idea that a record changed in a
+  way analysts may need to notice.
+
+The product value is not "EPSS replaces analyst judgment." The value is that
+BRIEFR can show when a CVE's exploit-probability context is high or moving, then
+combine that with KEV status, asset match, CVSS, exploit availability, and other
+local facts.
+
+## Where it lives in BRIEFR
+
+At the product level, the EPSS path is:
+
+```text
+EPSS feed -> EPSS scores scheduler job -> cves.epss_score + epss_history -> drawer, brief, risk
+```
+
+The system design names these local landing zones:
+
+- `cves.epss_score` for the current score on the CVE row.
+- `epss_history` for score history.
+- `sync_state` markers for the startup EPSS history backfill.
+
+The main readers are documented in the system design:
+
+- `GET /api/cves/{id}/epss-history` for the drawer sparkline.
+- `GET /api/changes?field=epss_score&since_hours=168&limit=50` for top EPSS
+  movers in BRIEF charts.
+- `POST /api/cves/{id}/risk` for backend-canonical scoring.
+- `GET /api/brief` for action-queue reasons that include movers.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/feeds/epss.py'},
+    {path: 'backend/routers/cves.py'},
+    {path: 'backend/scoring/risk.py'},
+    {path: 'frontend/src/components/BriefCharts.jsx'},
+    {path: 'frontend/src/components/DetailDrawer.jsx'},
+  ]}
+/>
+
+## How it works
+
+BRIEFR uses EPSS as a scheduled score and history feed:
+
+1. **The scheduler runs the EPSS score sync.** The system design lists this job
+   as one of the recurring APScheduler feed jobs.
+2. **The feed module returns score data keyed by CVE.** `feeds/epss.py` is the
+   named source module in the external dependencies map.
+3. **Current scores update CVE rows.** BRIEFR stores the latest score in
+   `cves.epss_score`, so ordinary CVE readers can expose it without another
+   source call.
+4. **History is retained separately.** `epss_history` lets the drawer and movers
+   views show change over time instead of only a latest value.
+5. **A startup one-shot can backfill history.** The system design names an EPSS
+   history backfill that writes `epss_history` and a `sync_state` marker.
+6. **Brief and drawer readers use local rows.** The drawer requests
+   `GET /api/cves/{id}/epss-history`; BRIEF charts request changes for
+   `field=epss_score` and then fetch per-CVE history for the displayed movers.
+7. **Risk scoring stays server-side.** `POST /api/cves/{id}/risk` includes the
+   EPSS component in the backend calculation, so the frontend does not create a
+   second scoring interpretation.
+
+The key behavior is placement. EPSS is refreshed by BRIEFR's scheduler and read
+locally by the UI. A page render should not need to ask the EPSS source for a
+fresh score before it can show the feed or drawer.
+
+## What it needs
+
+The authoritative integrations facts for EPSS are:
+
+| Adds | Key | Free-tier/quota | Failure |
+| --- | --- | --- | --- |
+| Exploit-prediction scores | No key | Unrestricted | Returns empty batch |
+
+Operationally, EPSS needs:
+
+- the scheduler enabled so score sync and backfill can run;
+- normalized CVE rows that EPSS scores can attach to by CVE ID;
+- `cves.epss_score` and `epss_history` storage;
+- change-history or history reads for movers; and
+- API readers for drawer history, brief movers, and risk scoring.
+
+Because no key is listed, EPSS setup is mostly about scheduler/source health and
+local persistence. If the source returns an empty batch, BRIEFR should show the
+absence of updated EPSS context instead of inventing movement or scores.
+
+## How industry does it - and why BRIEFR does it this way
+
+Larger vulnerability programs often combine EPSS with scanner findings, asset
+criticality, exposure, compensating controls, ticket age, and remediation policy.
+Some systems make it one column in a data warehouse; others fold it into a
+proprietary priority score.
+
+BRIEFR uses EPSS in a narrower, explainable way:
+
+- store the current score on the CVE row;
+- keep history for movement and sparkline views;
+- surface movers in the morning workflow;
+- include EPSS in the backend risk score alongside other named components; and
+- avoid live source calls from normal UI reads.
+
+The trade-off is that BRIEFR is not trying to make EPSS the whole priority model.
+It treats EPSS as one useful signal: strong when paired with KEV, asset match,
+CVSS, exploit context, and momentum, but still a source fact that should remain
+visible as its own component.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the [Integrations](/docs/integrations) table and find EPSS. Confirm
+      what it adds, that no key is listed, and that failures return an empty
+      batch.
+    </li>
+    <li>
+      Open [System design](/docs/developer-guide/system-design) and find the
+      EPSS scheduler row plus the DB table mapping for <code>epss_history</code>.
+    </li>
+    <li>
+      Explain how a BRIEF "top EPSS mover" can render from local API reads using
+      the fixture below.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "source": "EPSS",
+    "scheduler_job": "EPSS scores",
+    "landing_zones": ["cves.epss_score", "epss_history"],
+    "readers": [
+      "GET /api/cves/{id}/epss-history",
+      "GET /api/changes?field=epss_score",
+      "POST /api/cves/{id}/risk"
+    ],
+    "request_boundary": "scores and history are read locally after sync"
+  }
+  ```
+</TryItYourself>

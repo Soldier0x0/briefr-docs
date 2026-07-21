@@ -1,0 +1,200 @@
+---
+sidebar_position: 5
+sidebar_label: AlienVault OTX
+title: AlienVault OTX
+description: How BRIEFR uses AlienVault OTX pulses and IOCs for threat context, IOC lookup, and correlation.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# AlienVault OTX
+
+## What it is
+
+AlienVault OTX is BRIEFR's pulse and IOC source. In BRIEFR, OTX can add threat
+pulses to CVE detail, IOC context to indicator lookups, and stored pulse IOCs to
+correlation and retro-match workflows.
+
+OTX is not a replacement for NVD, KEV, or EPSS. It is threat context that
+attaches to already-normalized CVEs and submitted indicators. The source is also
+optional: the integrations table lists `OTX_API_KEY`, a 10k/month free tier, and
+the shipped behavior that the nightly job is skipped when the key is unset.
+
+The product boundary matters because OTX appears in more than one place:
+
+- the OTX nightly scheduler job mirrors CVE pulses and pulse IOCs locally;
+- the CVE detail path can enrich a drawer response with OTX context;
+- IOC lookup can call OTX for IPs and domains after a cache miss; and
+- correlation and IOC retro-match use stored OTX pulse IOC data.
+
+## Why we do it
+
+OTX helps BRIEFR answer context questions that core CVE feeds do not answer on
+their own:
+
+- Are there threat-intel pulses mentioning this CVE?
+- Do those pulses include indicators that can support infrastructure or campaign
+  context?
+- Does a submitted IP or domain have OTX context during an IOC lookup?
+- Can correlation link CVEs through stored pulse and IOC evidence rather than a
+  live browser-time OTX pivot?
+- Can saved IOC watchlist values be checked against local OTX pulse IOCs during
+  retro-match?
+
+The goal is not to treat one OTX pulse as proof of exploitation. The goal is to
+add named, inspectable threat context around a CVE or indicator so the analyst
+can decide whether it changes triage, hunting, detection, or reporting work.
+
+## Where it lives in BRIEFR
+
+At the product level, OTX has four BRIEFR paths:
+
+```text
+OTX nightly sync -> otx_cve_pulses + otx_pulse_iocs + feed_cache
+GET /api/cves/{id} -> OTX CVE detail enrichment
+POST /api/ioc/lookup -> OTX IP/domain lookup after cache miss
+correlation + IOC retro-match -> local otx_pulse_iocs
+```
+
+The system design names the scheduler job as "OTX nightly" and lists its landing
+zones: `otx_cve_pulses`, `otx_pulse_iocs`, and `feed_cache`.
+
+The CVE detail path also names OTX directly. When an analyst opens a CVE, the
+backend first loads local detail, then enriches with Sploitus, OTX, OSV, and
+CIRCL through `asyncio.gather`. OTX pulse IOCs are available through the CVE
+detail `otx_pulses` data, and IOC drill-down uses
+`GET /api/otx/pulses/{id}/iocs`.
+
+The IOC lookup path uses OTX for IPs and domains:
+
+- IP lookup sequence: VirusTotal, AbuseIPDB, optional GreyNoise, then OTX.
+- Domain lookup sequence: VirusTotal, URLhaus, then OTX.
+
+The correlation path uses local OTX evidence. The nightly correlation job writes
+`correlation_*`, uses `feed_cache`, and reads `otx_pulse_iocs`. IOC retro-match
+also joins the user's saved IOC watchlist against local `otx_pulse_iocs` and
+ThreatFox IOCs without outbound enrichment on the match path.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/feeds/otx.py'},
+    {path: 'backend/routers/cves.py'},
+    {path: 'backend/routers/ioc.py'},
+    {path: 'backend/enrichment/ioc.py'},
+    {path: 'backend/correlation/engine.py'},
+    {path: 'backend/ioc/retro_match.py'},
+  ]}
+/>
+
+## How it works
+
+BRIEFR uses OTX through scheduled mirrors and explicit analyst actions:
+
+1. **The nightly scheduler mirror runs when configured.** With `OTX_API_KEY`
+   present, the OTX nightly job can populate `otx_cve_pulses`,
+   `otx_pulse_iocs`, and `feed_cache`. Without the key, the integrations table
+   says the nightly job is skipped.
+2. **CVE detail loads local data first.** `GET /api/cves/{id}` reads the core
+   CVE row before additive OTX enrichment. OTX can add pulse context, but it does
+   not define the CVE record.
+3. **Pulse IOCs are drill-down context.** The API reference documents
+   `GET /api/otx/pulses/{id}/iocs` and its `503` response when `OTX_API_KEY` is
+   not configured.
+4. **IOC lookup uses a cache boundary.** `POST /api/ioc/lookup` checks
+   `ioc_cache` first. On cache miss, OTX can be part of the IP or domain lookup
+   sequence and the final result is cached.
+5. **Correlation reads stored pulse IOCs.** The correlation engine can use
+   `otx_pulse_iocs` for campaign and infrastructure lanes. The drawer reads
+   correlation through BRIEFR's API rather than calling OTX live for every
+   relationship.
+6. **Watchlist retro-match stays local.** The nightly IOC retro-match joins saved
+   IOCs against local OTX and ThreatFox mirrors. It does not perform outbound IOC
+   enrichment on the match path.
+7. **Missing OTX means missing optional context.** OTX-backed detail,
+   correlation, or IOC results can be empty when the key is absent or the source
+   is quiet. BRIEFR should not turn that into a fabricated threat verdict.
+
+This mixed placement is why OTX belongs in both Collect and Enrich discussions:
+some data is mirrored on the scheduler, while targeted IOC and drawer context can
+be requested by analyst actions.
+
+## What it needs
+
+The authoritative integrations facts for AlienVault OTX are:
+
+| Adds | Key | Free-tier/quota | Failure |
+| --- | --- | --- | --- |
+| Pulses, IOCs | `OTX_API_KEY` | 10k/month | Nightly job skipped if unset |
+
+Operationally, OTX needs:
+
+- `OTX_API_KEY` for the nightly mirror and OTX-backed source depth;
+- the scheduler enabled if the operator expects local pulse and IOC tables to
+  populate;
+- `otx_cve_pulses`, `otx_pulse_iocs`, and `feed_cache` for mirrored data;
+- `ioc_cache` for IOC lookup reuse;
+- correlation tables and `feed_cache` when OTX data is used for correlation; and
+- clear UI/API handling for missing optional OTX context.
+
+The system design's external dependency map also records empty OTX results as a
+failure outcome for configured calls. The integrations page is the operator-level
+source of truth for the key point: without `OTX_API_KEY`, the nightly job is
+skipped.
+
+## How industry does it - and why BRIEFR does it this way
+
+Threat-intelligence platforms often use OTX-like sources as part of broad live
+pivoting: open an indicator or vulnerability, query many providers at once, and
+build a larger graph from the latest responses. That can be useful when a team
+has many feeds and accepts live lookup latency and quota usage.
+
+BRIEFR uses OTX more conservatively:
+
+- mirror batchable OTX pulse and IOC data on the scheduler;
+- cache IOC lookup results after explicit analyst actions;
+- read stored pulse IOCs for correlation and watchlist retro-match;
+- keep OTX-backed context visibly optional; and
+- avoid using OTX as a hidden final verdict.
+
+The trade-off is narrower source coverage than a full threat-intelligence
+platform. The benefit is a calmer workflow: OTX can enrich CVEs, IOC lookups, and
+correlation when configured, while the core portal still works from NVD, KEV,
+EPSS, and local records when OTX is absent.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the [Integrations](/docs/integrations) table and find AlienVault OTX.
+      Confirm the key name, quota, and skipped-nightly behavior.
+    </li>
+    <li>
+      Open [System design](/docs/developer-guide/system-design) and find the OTX
+      nightly scheduler row, the CVE detail drill-down path, the IOC lookup
+      provider order, and the IOC retro-match path.
+    </li>
+    <li>
+      Use the fixture below to explain which OTX paths are scheduler-owned and
+      which are analyst-initiated.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "source": "AlienVault OTX",
+    "scheduler_path": {
+      "job": "OTX nightly",
+      "landing_zones": ["otx_cve_pulses", "otx_pulse_iocs", "feed_cache"]
+    },
+    "on_demand_paths": [
+      "GET /api/cves/{id}",
+      "GET /api/otx/pulses/{id}/iocs",
+      "POST /api/ioc/lookup"
+    ],
+    "local_consumers": ["correlation nightly", "IOC retro-match"]
+  }
+  ```
+</TryItYourself>
