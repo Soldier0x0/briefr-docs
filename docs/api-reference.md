@@ -7,8 +7,8 @@ sidebar_position: 5
 
 
 **Base URL:** `/api` (proxied from Vite dev server at `http://localhost:5173/api` → `http://localhost:8000/api`)  
-**Auth:** built-in app login (`briefr_at` / `briefr_rt` cookies). **Analyst routes** (`/api/*` except health, auth, wallboard, and dev OpenAPI) require a valid session — 401 without login (#441). **Ingest** `POST /api/refresh*` and all `/api/admin/*` routes require the `admin` role. See [Authentication](#authentication) below.  
-**Interactive docs:** `GET /api/docs` (Swagger UI), `GET /api/redoc` (ReDoc) — **unprotected; disable in production**
+**Auth:** built-in app login (`briefr_at` / `briefr_rt` cookies). **Analyst routes** (`/api/*` except health, auth, wallboard, and dev OpenAPI) pass through `require_user` and require a valid session — 401 without login (#441). **Ingest** `POST /api/refresh*` and all `/api/admin/*` routes require the `admin` role. See [Authentication](#authentication) below.
+**Interactive docs:** `GET /api/docs` (Swagger UI), `GET /api/redoc` (ReDoc), `GET /api/openapi.json` — available outside production only; `BRIEFR_ENV=production` disables all three.
 
 Default error shape (FastAPI): `{"detail": "<message>"}`
 
@@ -28,6 +28,8 @@ Built-in app login (Sprint A0). Sessions use HttpOnly cookies:
 | `briefr_rt` | `/api/auth` | Rotating refresh token (stored hashed in `sessions`) |
 
 **Roles:** `admin` (full admin/ingest routes) and standard users. Admin-only routes return `403` for non-admin sessions.
+
+**Route gate:** middleware calls `require_user` for non-public `/api/*` routes. Public API paths are limited to `/api/auth/*`, `/api/health`, `/api/health/live`, `/api/wallboard/*`, and the dev-only docs/OpenAPI paths above. `/api/admin/*` and `/api/refresh*` skip the middleware gate because their routers call `require_admin`.
 
 ### GET /api/auth/setup-required
 
@@ -105,7 +107,7 @@ Built-in app login (Sprint A0). Sessions use HttpOnly cookies:
 
 **Description:** Paginated CVE feed with filters.
 
-**Auth:** None
+**Auth:** Required (`briefr_at`; enforced by `require_user` middleware).
 
 **Query params:**
 
@@ -439,6 +441,14 @@ When no row exists yet, fields use defaults and `updated_at` is `null`.
 | `limit` | int | 30 | 1–100 |
 
 **Response:** `{notifications: [{id, scope, category, severity, title, body, entity_type, entity_id, created_at, read_at}], unread_count}` — `unread_count` counts undismissed `critical`/`high` rows with `read_at` null.
+
+### GET /api/me/notifications/unread-count
+
+**Description:** Lightweight badge count for one scope. Standard users requesting `operator` scope receive `{unread_count: 0}` rather than operator events.
+
+**Params:** `scope` = `analyst` (default) or `operator`.
+
+**Response:** `{unread_count}`
 
 ### POST /api/me/notifications/seen
 
@@ -825,6 +835,65 @@ Retro-match joins `ioc_watchlist` against local `otx_pulse_iocs` and `threatfox_
 
 ## Risk & Correlation
 
+### POST /api/cves/{cve_id}/risk
+
+**Description:** Canonical ADR-002 scoring for one CVE — Threat Score, Environment
+tier, Operational Priority band, legacy v1.1b under `legacy_risk_v11b`, plus
+momentum. Optional body `profile` / `assets` personalise Environment.
+
+**OP escalations (W3):** EPSS from `cves.epss_score` and rising-EPSS momentum
+signals (`momentum_signals[].type == "epss_rising"`) may bump OP one band per
+ADR-002 addendum (HIGH/MED + EPSS ≥ 0.5 + env ≥ POSSIBLE; or rising EPSS
+P3→P2). Threat formula unchanged; low EPSS never lowers KEV/CRIT P1.
+Correlation-based OP escalation is **not** computed on this path (E1-2) — the
+drawer may apply campaign escalation client-side when correlation data arrives.
+
+**Exposure flags (W5):** optional `profile` fields `internet_facing` (bool),
+`criticality` (`MISSION_CRITICAL`|`IMPORTANT`|`SUPPORTING`), plus optional
+`privileged_service` / `ot_safety` (bool). These modify **OP and/or SSVC
+only** — never Threat. Absent → pre-W5 behaviour. OP (`operational-priority-1.2`):
+KEV/CRIT + `internet_facing` + env ≠ `NO_MATCH` prefers P1 when band would be P2.
+
+**SSVC annotation (W4):** response includes parallel `ssvc` object from
+`scoring/ssvc.py` (`version` `ssvc-annotation-1.0`). Outcomes are exactly
+`Act` | `Attend` | `Track*` | `Track`. Computed after Threat / Environment / OP;
+does **not** change Threat math or replace the OP P-band. W5 profile
+`internet_facing` / `criticality` (and optional privileged/OT flags) are
+passed into SSVC factors / mission prevalence when present.
+
+**Response shape (ADR-002 + W4 + W5):**
+
+```json
+{
+  "cve_id": "CVE-2024-0001",
+  "threat": { "version": "threat-1.0", "score": 84.0, "band": "CRIT", "components": {} },
+  "environment": { "version": "environment-1.0", "tier": "CONFIRMED", "evidence_label": "…" },
+  "operational_priority": { "version": "operational-priority-1.2", "band": "P1", "rationale": "…" },
+  "ssvc": {
+    "version": "ssvc-annotation-1.0",
+    "outcome": "Act",
+    "factors": {
+      "exploitation": "active",
+      "technical_impact": "total",
+      "mission_prevalence": "high",
+      "environment_tier": "CONFIRMED",
+      "threat_band": "CRIT",
+      "internet_facing": true,
+      "criticality": "MISSION_CRITICAL",
+      "privileged_service": null,
+      "ot_safety": null
+    },
+    "path": "active+high→Act"
+  },
+  "legacy_risk_v11b": {},
+  "momentum": {},
+  "hasProfile": true,
+  "momentumScore": 0.0
+}
+```
+
+**P↔SSVC documentation crosswalk (OP remains primary):** P1↔Act, P2↔Attend,
+P3↔Track*, P4↔Track.
 ### GET /api/cves/{cve_id}/greynoise-scans
 
 On-demand GreyNoise Community lookups for IPv4 addresses found in the CVE
@@ -857,7 +926,9 @@ When `GREYNOISE_API_KEY` is unset: `{"configured": false, "scans": []}`.
 |---|---|---|---|
 | `sector` | str | `""` | User industry for actor sector matching |
 
-**Response:** Threat, Environment, Operational Priority (ADR-002), legacy v1.1b blend, momentum. Correlation-based OP escalation is **not** computed on this path (E1-2) — the drawer applies campaign escalation client-side when correlation data arrives.
+**Response:** Campaign / infrastructure / actor correlation graph for the CVE.
+Correlation-based OP escalation is applied separately (E1-2 / temporary FE merge
+after `/risk`) — this route does not recompute Threat.
 
 ```json
 {
@@ -1163,13 +1234,17 @@ ID match.
   "log_patterns": ["..."],
   "case_studies": [ { "study_id": "AML.CS0001", "name": "...", "summary": "...",
                       "target": "AI system", "incident_date": "2021-12-15" } ],
+  "linked_cve_total": 1,
   "linked_cves": [ { "cve_id": "CVE-2021-44228", "severity": "CRITICAL",
                      "cvss_score": 10.0, "epss_score": 0.97, "is_kev": true,
-                     "published": "..." } ]
+                     "published": "...",
+                     "description": "Apache Log4j2 JNDI features allow remote code execution." } ]
 }
 ```
 
 `linked_cves` is capped at 20, ordered KEV first, then EPSS, then recency.
+`linked_cve_total` is the uncapped map count (may exceed the preview list).
+Each `linked_cves[].description` is truncated to ~180 characters for inventory rows.
 `packs[].cwe_ids`/`cvss_score`/`epss_score` and `case_studies` are Forge
 Redesign FR-3 additions — read from the same `cve_technique_map` join already
 used for `linked_cves`, no extra query. `case_studies` capped at 5, matched
@@ -1535,7 +1610,7 @@ generator's output exactly.
   "clusters": [{"id": "api", "label": "API Routers", "kind": "component"}, "..."],
   "nodes": [
     {"id": "routers-cves", "label": "routers.cves", "kind": "component", "cluster": "api",
-     "endpoint_count": 22, "source_refs": [{"type": "file", "ref": "backend/routers/cves.py"}]},
+     "endpoint_count": 22, "source_refs": [{"type": "file", "ref": "backend/routers/cves/"}]},
     {"id": "table:cves", "label": "cves", "kind": "table", "cluster": "database",
      "source_refs": [{"type": "table", "ref": "cves"}]},
     {"id": "job:nvd_incremental_sync", "label": "NVD Incremental Sync", "kind": "job",
@@ -1641,7 +1716,7 @@ typed table/timeline/card layout instead of a plain list.
   to security-relevant action prefixes (`auth.`, `backup.`, `database.`,
   `diagnostics.integrity`, `config.apply`, `system.restart`, `scheduler.`) and reusing
   `redact.mask_audit_log_target` — the same table and masking rule as the Admin Audit
-  Log view (`routers/admin.py::get_audit_log`), not a duplicate.
+  Log view (`routers/admin/diagnostics.py::get_audit_log`), not a duplicate.
 
 **Response:** `{ "section": "...", "type": "...", "available_types": [...], "count": N, "items": [...] }`
 
@@ -1801,7 +1876,7 @@ fetches this once at startup to keep weights single-sourced from
 `backend/scoring/risk.py`; it falls back to its bundled constants if the
 request fails.
 
-**Auth:** None
+**Auth:** Required (`briefr_at`; enforced by `require_user` middleware).
 
 **Response:**
 
@@ -1877,7 +1952,7 @@ sum deviates by more than 1 × 10⁻⁶.
 
 ---
 
-**Frontend:** `TimelineHeatmap.jsx` (90-day SVG heatmap; all seven weekday row labels S–S). Chart.js is used in `BriefCharts.jsx` and admin `OpsCharts.jsx` (lazy-loaded Vite chunk; CSP `script-src 'self'` — no CDN).
+**Frontend:** `TimelineHeatmap.jsx` (90-day SVG heatmap; all seven weekday row labels S–S). Chart views use Recharts 3 via shared `rechartsTheme` helpers (`BriefCharts.jsx`, admin ops/resource charts); no Chart.js runtime is current.
 
 ---
 
@@ -1893,7 +1968,19 @@ sum deviates by more than 1 × 10⁻⁶.
 
 ## Admin Dashboard — `/api/admin/*`
 
-All admin endpoints require an authenticated session (`briefr_at` cookie) with the `admin` role — 401 without a session, 403 for non-admin roles (Sprint A0). All are rate-limited by the refresh bucket.
+All admin endpoints require an authenticated session (`briefr_at` cookie) with the `admin` role — 401 without a session, 403 for non-admin roles (Sprint A0). Admin `GET`s use the `RATE_LIMIT_ADMIN_READ_PER_MINUTE` bucket; mutating admin requests share the refresh bucket (`RATE_LIMIT_REFRESH_PER_MINUTE`).
+
+### GET /api/admin/catchup
+Returns Catch-up mode status for Admin → Scheduler. Key fields: `active`, `started_at`, `ends_at`, `duration_hours`, `started_by`, `cleared_reason`, `in_wind_down`, `should_start_new_work`, and `api_queue` (`total_queued`, `total_active`, `has_pending`).
+
+### POST /api/admin/catchup/start
+Starts a time-boxed Catch-up window. Body accepts either `{ "duration_hours": 6 }` (default 6h, max 24h) or `{ "ends_at": "2026-07-20T23:00:00Z" }`; supplying both is rejected. Response is the status object without `api_queue`. Errors: `400` invalid window; `409` Catch-up already active.
+
+### POST /api/admin/catchup/stop
+Ends the active Catch-up window early. Body may be `{}`. Response is the status object with `active: false` and `cleared_reason: "ended_early"`.
+
+### GET /api/admin/retrieval/health
+Ops honesty for the live hybrid/embeddings index (Admin → AI operations). Returns flags (`embeddings_enabled`, `auto_on_ingest`, `pgvector_writes`), `model`, `extension_vector` (`present` \| `absent` \| `n/a` on SQLite), `counts` by `entity_type` from the **`embeddings`** table **for the active model**, `pending` (cheap SQL: missing/`migrated:` only — excludes hash-drift), `last_backfill` from `scheduler.last_run.embeddings_backfill`, `last_ingest_tail` from `embeddings.ingest_tail.last` (auto-on-ingest success/error), and optional `degraded.reason` (`disabled` \| `no_vector_extension` \| `cold_index`). No model inference on this path.
 
 ### GET /api/admin/system
 Returns system health: CVE count, NVD sync age, backup age, DB integrity, scheduler jobs (with `status`, `last_error_message`, `run_history`), feed sources, active locks, recent errors, open circuit count.
@@ -1976,15 +2063,26 @@ List recent **Procrastinate** durable jobs (Q1). Admin auth required.
 
 When `PROCRASTINATE_ENABLED=0` (default), `enabled` is false and `jobs` is empty. No args/payloads are returned (allowlisted fields only).
 
+**UI consumer:** Admin → Data refresh schedule (`SchedulerPage`) renders `OutboundJobsPanel`, which calls this endpoint on mount (limit 50), refreshes manually, and polls every ~15s while the page is visible.
+
+### POST /api/admin/jobs/outbound/ping
+
+Admin-only canary for the durable queue. Defers the no-op `jobs:health_ping` task with a singleton `queueing_lock` so operators can verify queue writes from Admin without running a real sync job. `AlreadyEnqueued` is treated as success. Returns `503` when `PROCRASTINATE_ENABLED=0` or the durable app is unavailable.
+
+Response: `{ok, task, queueing_lock, already_enqueued, message}`. Audit: `jobs.outbound.ping`.
+
 ### GET /api/admin/api-usage/metering
 Params: `hours` (1–168, default 24). Returns outbound call metering from `api_call_events` (Q2): `{ok, hours, by_source: [{source, calls, ok_calls, last_called_at}], by_actor: [{actor_type, calls}], usage_rollups}`. Every `resilient_request` **attempt** is counted (retries included). Disable with `API_CALL_EVENTS_ENABLED=0`. Events retained 30 days via `cache_retention_cleanup`.
 
 ### POST /api/admin/scheduler/run
-Body `{job_id}`. Triggers a scheduler job immediately. Returns `409` if job lock is held, `400` if job_id unknown.
+Body `{job_id}`. Triggers a scheduler job immediately. Returns `409` if job lock is held, `400` if job_id unknown. For `job_id="llm_product_extraction"`, `PROCRASTINATE_ENABLED=1` defers `jobs:llm_product_extraction` with `trigger="manual"` and elevated priority; disabled/unavailable durable queue falls back to the existing scheduler path.
 Audit: `scheduler.run.{job_id}`.
 
 ### GET /api/admin/config/schema
-Returns field metadata for every writable config key: `section`, `type`, bounds, `help_text`, `restart_required`, `apply_strategy` (`immediate` | `scheduler_reschedule` | `restart`), `display_label`, and `unit` (e.g. `h`, `min` for scheduler intervals). Includes `WALLBOARD_TOKEN` under section `security` (kiosk gate — `restart` apply strategy) and `RATE_LIMIT_WALLBOARD_PER_MINUTE` under `app` (kiosk polling limit — `restart` apply strategy).
+Returns field metadata for every writable config key: `section`, `type`, bounds, `help_text`, `restart_required`, `apply_strategy` (`immediate` | `scheduler_reschedule` | `restart`), `display_label`, and `unit` (e.g. `h`, `min` for scheduler intervals). Includes `WALLBOARD_TOKEN` under section `security` (kiosk gate — `restart` apply strategy), `RATE_LIMIT_WALLBOARD_PER_MINUTE` under `app` (kiosk polling limit — `restart` apply strategy), and Admin-visible boolean toggles for `CORRELATION_PRECOMPUTE_ENABLED`, `DETECTION_CONTEXT_SYNC_ENABLED`, `DETECTION_CONTEXT_LLM_ENABLED`, and `DETECTION_CONTEXT_NUCLEI_ENABLED`.
+
+### GET /api/admin/config
+Returns the current Admin config values grouped by section, with secrets masked. The `ml` section includes env-backed runtime booleans for correlation precompute and detection-context sync/LLM/Nuclei toggles so operators can see the same flags exposed by `/config/schema`.
 
 ### POST /api/admin/config
 Body `{key, value}`. Writes one key to `.env` and `os.environ`. For `scheduler_reschedule` keys, reschedules affected APScheduler jobs without a full restart. Response includes `apply_strategy`, `warning_restart_required` (when strategy is `restart`), `rescheduled_jobs`, and `message`. Use `POST /config/apply-all` for keys that require a backend restart (including `WALLBOARD_TOKEN`).
@@ -2033,8 +2131,8 @@ Runs in-process smoke checks: CVE count > 0, KEV count > 0, DB integrity, feed h
 Response: `{ok, checks: [{name, passed, detail}], duration_ms}`.
 
 ### POST /api/admin/diagnostics/integrity
-Runs `PRAGMA integrity_check` and `PRAGMA foreign_key_check`.
-Response: `{ok, integrity_ok, foreign_keys_ok, message, foreign_key_violations}`.
+Runs the dialect-aware DB integrity probe from `db.integrity`: SQLite uses `PRAGMA integrity_check` + `PRAGMA foreign_key_check`; Postgres uses `pg_catalog` probes for invalid indexes, unvalidated constraints, and FK violations.
+Response: `{ok, integrity_ok, foreign_keys_ok, message, foreign_key_violations, backend, method, checks}`.
 
 ### POST /api/admin/diagnostics/corpus-drift
 Regenerates the security architecture **generated** corpus layer (`components.yaml`, `api_inventory.yaml`, scheduler/DB/self-stack YAML, `graphs/architecture.json`) into a temp directory and diffs against the committed files. Read-only — does not modify the repo.
@@ -2076,7 +2174,7 @@ Security panel readout. Response: `{failed_auth_last_24h, environment, posture_w
 
 Clears stored EPSS CSV file identity (`sync_state.epss_csv_file_identity`) so the
 next scheduled or triggered EPSS sync re-parses and applies scores even if the
-remote FIRST CSV.GZ bytes are unchanged. Admin JWT required.
+remote FIRST CSV.GZ bytes are unchanged. Admin session required.
 Returns `{ok, cleared, message}`.
 
 **All other admin endpoints** (`GET/DELETE /api/admin/watchlist*`, `GET/DELETE /api/admin/ioc-cache*`, `GET/DELETE /api/admin/hunt-packs*`, `GET/POST /api/admin/config`, `POST /api/admin/config/webhook-test`, `GET/POST /api/admin/scheduler/*`, `GET/POST /api/admin/feeds/*`, `POST /api/admin/backups/*`, `GET /api/admin/backups`) remain as documented in V1.3; scheduler jobs now include `status` field (ACTIVE/PAUSED/LOCKED/DISABLED), `last_error_message`, and `run_history` (array of last 5 runs).
@@ -2115,7 +2213,16 @@ Aggregated intel posture payload for the `/wallboard` kiosk view. Built from exi
     "highlights": [{"cve_id": "CVE-…", "severity": "HIGH", "summary": "…", "reasons": ["epss_mover"], "is_kev": false}]
   },
   "top_risk": {
-    "items": [{"cve_id": "CVE-…", "risk_score": 87.4, "severity": "CRITICAL", "summary": "…", "is_kev": true, "epss_score": 0.91}]
+    "items": [{
+      "cve_id": "CVE-…",
+      "threat_score": 87.4,
+      "op_band": "P1",
+      "risk_score": 87.4,
+      "severity": "CRITICAL",
+      "summary": "…",
+      "is_kev": true,
+      "epss_score": 0.91
+    }]
   },
   "ingest_health": {
     "status": "ok",
@@ -2141,21 +2248,23 @@ Aggregated intel posture payload for the `/wallboard` kiosk view. Built from exi
 }
 ```
 
+**`top_risk` ranking (W2):** items are ordered by Operational Priority band (P1 first), then Threat score descending — **not** by legacy v1.1b blend total. Fields: `threat_score` (ADR-002 Threat 0–100), `op_band` (`P1`–`P4`, wallboard uses UNKNOWN environment / no profile), `risk_score` (**alias of `threat_score`** for backward-compatible kiosk clients — no longer the v1.1b total).
+
 ---
 
 ## OpenAPI / Swagger
 
-FastAPI auto-generates OpenAPI spec at runtime.
+FastAPI auto-generates OpenAPI spec at runtime. It is exposed at `/api/openapi.json` outside production only; `BRIEFR_ENV=production` sets `openapi_url=None`, `docs_url=None`, and `redoc_url=None`.
 
 To export:
 
-1. Start backend: `cd backend && uvicorn main:app --host 0.0.0.0 --port 8000`
-2. `curl http://localhost:8000/openapi.json > docs/openapi.json`
+1. Start backend with `BRIEFR_ENV` unset or set to `development`: `cd backend && uvicorn main:app --host 0.0.0.0 --port 8000`
+2. `curl http://localhost:8000/api/openapi.json > docs/openapi.json`
 3. Import `openapi.json` into Postman or Swagger UI for interactive docs
 
 The `/api/docs` endpoint (Swagger UI) is available at `http://localhost:8000/api/docs` when running locally.
 
-**NOTE:** `/api/docs` and `/api/redoc` are unprotected — disable or restrict in production (`docs_url=None` in FastAPI constructor).
+**NOTE:** `/api/docs`, `/api/redoc`, and `/api/openapi.json` are intentionally unprotected in development; production disables them in `main.py`.
 
 ---
 

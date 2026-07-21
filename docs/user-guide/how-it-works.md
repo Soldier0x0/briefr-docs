@@ -5,7 +5,7 @@ sidebar_position: 2
 
 # How BRIEFR works
 
-**Optional** — read this if you want the “why” behind the product. Skip if you only want to use or deploy it.
+**Optional** — read this if you want the "why" behind the product. Skip if you only want to use or deploy it.
 
 ---
 
@@ -13,25 +13,44 @@ sidebar_position: 2
 
 ![Production architecture](assets/production-architecture.svg)
 
-> **Asset:** [`assets/production-architecture.svg`](assets/production-architecture.svg) · [IMAGE_BRIEFS §1](https://github.com/Soldier0x0/briefr/blob/main/docs/IMAGE_BRIEFS.md#1-production-architecture)
+**Flow:** Browser → optional edge/nginx → FastAPI → PostgreSQL 16. Schedulers pull external intel into the DB; request handlers read cached/precomputed state.
 
-**Flow:** Browser → (optional Cloudflare/nginx) → FastAPI → PostgreSQL. Schedulers pull external intel **into the DB**; the UI reads precomputed data.
-
-**Auth:** Two independent layers — optional Cloudflare at the edge + built-in app login.
+**Auth:** Optional edge access can sit in front of built-in app login.
 
 ![Auth layers](assets/auth-layers.svg)
 
-> **Asset:** [`assets/auth-layers.svg`](assets/auth-layers.svg) · [IMAGE_BRIEFS §8](https://github.com/Soldier0x0/briefr/blob/main/docs/IMAGE_BRIEFS.md#8-auth-layers)
+---
+
+## Ingest and jobs
+
+NVD, cvelistV5, CISA KEV, Vulnrichment, EPSS, OTX, MITRE ATT&CK/ATLAS, exploit sources, RSS × 5, and optional LLM/embedding jobs run on schedulers — not page load.
+
+Outbound HTTP calls are paced by the API queue. Restart-sensitive work can use Procrastinate durable jobs (`PROCRASTINATE_ENABLED=1`), visible in Admin → Scheduler → Durable outbound jobs.
+
+**Catch-up mode** is operator-triggered. It spends local headroom for a fixed window, kicks eligible backlog work, and still respects provider rate limits.
 
 ---
 
-## Ingest
+## Retrieval
 
-![Ingest pipeline — pending](assets/placeholder-diagram.svg)
+FEED search is hybrid: keyword/CVE matching plus semantic retrieval when embeddings are enabled. Results can include ATT&CK techniques, campaigns, and CVEs.
 
-> **Add:** `assets/ingest-pipeline.png` · [IMAGE_BRIEFS §6](https://github.com/Soldier0x0/briefr/blob/main/docs/IMAGE_BRIEFS.md#6-ingest-pipeline)
+Related-CVE retrieval falls back to product/keyword heuristics when embeddings or pgvector are unavailable. With `EMBEDDINGS_ENABLED=1` and Postgres + pgvector, local CPU embeddings add semantic similarity.
 
-NVD, KEV, EPSS, OTX, MITRE, and others run on **schedulers** — not on every page load. API queue protects outbound quotas.
+---
+
+## Scoring
+
+BRIEFR separates:
+
+| Surface | Meaning |
+|---------|---------|
+| **Threat Score** | Asset-independent exploitation credibility |
+| **Environment Relevance** | How much the CVE appears to matter to your stack/profile |
+| **Operational Priority (OP)** | P1-P4 action band from Threat × Environment |
+| **SSVC** | Parallel deployer-style annotation; it does not replace OP |
+
+The drawer calls `POST /api/cves/{cve_id}/risk` with optional asset/profile context. Formula display weights are read separately from `GET /api/config/risk`.
 
 ---
 
@@ -39,27 +58,24 @@ NVD, KEV, EPSS, OTX, MITRE, and others run on **schedulers** — not on every pa
 
 ![Correlation pipeline](assets/correlation-pipeline.svg)
 
-> **Asset:** [`assets/correlation-pipeline.svg`](assets/correlation-pipeline.svg) · [IMAGE_BRIEFS §5](https://github.com/Soldier0x0/briefr/blob/main/docs/IMAGE_BRIEFS.md#5-correlation-pipeline)
-
-Four explainable lanes: **Campaigns**, **Infrastructure**, **Actor/sector**, **Temporal**. No black-box ML score. Drawer open does **not** call OTX live.
+Four explainable lanes: **Campaigns**, **Infrastructure**, **Actor/sector**, **Temporal**. OTX pulse titles are normalized for display, and pulse clusters show why members were grouped. No black-box ML score; drawer open does not call OTX live.
 
 ---
 
-## Rate limits
+## Limits and queues
 
-Inbound token buckets on IOC, refresh, admin, login. Set `RATE_LIMIT_ENABLED=1` in production.
+Inbound rate limits protect BRIEFR's own API (`RATE_LIMIT_ENABLED=1`). `BRIEFR_RATE_LIMIT_STORE=db` shares buckets across workers if you ever leave the default single-worker shape.
 
-> **Add:** `assets/rate-limits-and-queue.png` · [IMAGE_BRIEFS §9](https://github.com/Soldier0x0/briefr/blob/main/docs/IMAGE_BRIEFS.md#9-rate-limits-and-queue)
+Provider pacing is separate: NVD can still return transient 503s; wait for cooldown rather than hammering refresh.
 
 ---
 
-## Deeper reference (developers)
+## Deeper reference
 
 | Doc | When |
 |-----|------|
+| [`study-guide/`](https://github.com/Soldier0x0/briefr/tree/main/docs/study-guide/) | Primary generated architecture book |
+| [`STUDY_GUIDE.html`](https://github.com/Soldier0x0/briefr/blob/main/docs/STUDY_GUIDE.html) | Editable standalone source for the book |
 | [`ONBOARDING.md`](../developer-guide/onboarding.md) | Contributing code |
-| [`archive/snapshots/CODEBASE_CONTEXT.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/CODEBASE_CONTEXT.md) | AI / dense module map |
 | [`API_REFERENCE.md`](../api-reference.md) | Every endpoint |
 | [`SYSTEM_DESIGN.md`](../developer-guide/system-design.md) | Full architecture essay |
-
-Historical plans: [`archive/`](https://github.com/Soldier0x0/briefr/tree/main/docs/archive/)
