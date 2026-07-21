@@ -1,0 +1,22 @@
+---
+sidebar_position: 1
+sidebar_label: Overview
+title: How it's built
+description: System design as BRIEFR implements it on a single self-hosted box.
+---
+
+# How it's built
+
+Track B explains how BRIEFR is engineered — schedulers, storage, API layers, and operations on one server. The primary text in each chapter describes **how BRIEFR is built**. **At enterprise scale** callout boxes are comparative only: they note how larger orgs solve the same problem without implying BRIEFR must match that scale.
+
+## Chapters
+
+1. [Ingestion and scheduler](how-its-built/ingestion-scheduler) — outbound feed jobs and the APScheduler owner model
+2. [Resilience](how-its-built/resilience) — circuit breakers, retries, and inbound token buckets
+3. [Storage](how-its-built/storage) — SQLite/PostgreSQL schema, caches, and feed tables
+4. [API and auth](how-its-built/api-auth) — FastAPI routes, session auth, and admin boundaries
+5. [Background jobs](how-its-built/background-jobs) — nightly correlation, OTX sync, retro-match, and maintenance crons
+6. [Search and embeddings](how-its-built/search-embeddings) — local search indexes and semantic helpers
+7. [Webhooks and operations](how-its-built/webhooks-ops) — alerts, backups, health checks, and multi-worker notes
+
+Cross-read the [Intel lifecycle](intel-lifecycle/) spine so each design choice stays tied to the data path.
