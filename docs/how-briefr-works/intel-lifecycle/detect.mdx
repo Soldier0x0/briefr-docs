@@ -5,20 +5,280 @@ title: Detect
 description: Detection engineering output from BRIEFR intel — Sigma and Forge.
 ---
 
-# Detect
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
 
-:::note[Outline — Phase 2]
-Full chapter lands in the Track A content plan. Sections below are the required template; fill with sourced claims only.
-:::
+# Detect
 
 ## What it is
 
+Detection in BRIEFR is the step where local CVE intelligence becomes starter
+detection content: generated Sigma, SIEM query templates, saved Forge hunt
+packs, pasted-log proof checks, and a KEV-driven backlog of gaps.
+
+That scope is deliberately narrow. BRIEFR does not deploy rules to a production
+SIEM, query a live XDR, or prove that an organization has full telemetry
+coverage. It gives analysts detection-engineering starting points from the
+evidence BRIEFR already stores: CVE metadata, KEV status, EPSS, ATT&CK technique
+mappings, community rule search results, artifacts, and saved hunt packs.
+
+Two product surfaces carry most of this:
+
+- **The CVE drawer Detect tab** lazy-loads detection context for one CVE with
+  `GET /api/cves/{id}/detection`.
+- **Forge** turns ATT&CK coverage into saved hunt packs, SIEM starters, a
+  file-based proof bench, and the KEV detection backlog.
+
 ## Why we do it
+
+After Collect, Normalize, Enrich, Correlate, and Hunt, BRIEFR knows more than
+"this CVE exists." It may know the CVE is in CISA KEV, has high EPSS, maps to an
+ATT&CK technique, has community detection references, has artifact evidence, or
+matches the operator's stack.
+
+Detection is where that context becomes something an analyst can inspect and
+adapt:
+
+- a Sigma rule supplement for the CVE;
+- SIEM query starters for common search languages;
+- a saved hunt pack for an ATT&CK technique and CVE;
+- log patterns that explain what the starter content is looking for;
+- a pasted-log proof check before trusting a saved rule; and
+- a backlog item when a stack-matched KEV CVE maps to a coverage gap.
+
+The point is not to claim production coverage. The point is to shorten the path
+from "this vulnerability matters" to "here is the local detection work to review
+next." Analysts still need to adapt rules to their telemetry, field names,
+normalization, suppression strategy, and alerting process.
 
 ## Where it lives in BRIEFR
 
+At the lifecycle level, detection follows the hunt step:
+
+```text
+local CVE + ATT&CK + evidence -> Sigma/SIEM starter -> saved pack, proof check, or backlog item
+```
+
+The CVE drawer path is lazy. The system design documents that
+`GET /api/cves/{id}/detection` is requested only when the **Detect** tab is
+first opened, after the drawer has already loaded the local CVE detail and
+adjacent context.
+
+Forge is the structured detection-engineering workspace:
+
+- `GET /api/forge/coverage` reads local ATT&CK technique mappings, CVE rows,
+  `hunt_packs`, and `mitre_techniques`.
+- Coverage status is `yours` when a saved pack exists, `community` when the
+  bundled template library covers the technique, and `gap` when neither exists.
+- The bundled template library lives in the documented detection helpers:
+  `backend/detection/sigma_generator.py` and
+  `backend/detection/siem_queries.py`.
+- `GET /api/hunt-packs/{technique_id}` returns technique metadata, saved packs,
+  template SIEM baseline, log patterns, linked CVEs, and related case-study
+  context when known.
+- `POST /api/hunt-packs/generate` creates or regenerates a saved pack for a CVE
+  and technique.
+- `POST /api/proof/run` is the rule proof bench for saved pack content. It
+  checks pasted log lines against Sigma-derived or explicit patterns. It is
+  file-based and does not connect to a live SIEM.
+- `GET /api/detection-backlog` powers the Forge Backlog view for stack-matched
+  KEV CVEs whose ATT&CK techniques are coverage gaps.
+
+Start with the CVE and Forge routers, then read the detection helper modules and
+the backlog scheduler path.
+
+<InTheCode
+  items={[
+    {path: 'backend/routers/cves.py'},
+    {path: 'backend/routers/forge.py'},
+    {path: 'backend/detection/rule_sources.py'},
+    {path: 'backend/detection/sigma_generator.py'},
+    {path: 'backend/detection/siem_queries.py'},
+    {path: 'backend/detection/backlog.py'},
+    {path: 'backend/notifications/emit.py'},
+  ]}
+/>
+
 ## How it works
+
+BRIEFR has four detection flows. They overlap, but they do not all do the same
+job.
+
+### Drawer Detect tab
+
+1. **The analyst opens a CVE.** The drawer first loads the local CVE detail.
+2. **The Detect tab is opened.** The frontend lazily calls
+   `GET /api/cves/{id}/detection` only when the analyst asks for detection
+   content.
+3. **Community search remains scoped to this path.** The system design places
+   GitHub-backed SigmaHQ/Elastic community-rule search on the drawer Detect tab,
+   not on Forge coverage or pack generation.
+4. **BRIEFR returns generated content and evidence.** The API reference
+   documents community Sigma/Elastic results, `generated_sigma`, generated Sigma
+   metadata, `siem_queries`, YARA fields, an additive evidence pack, and
+   provenance.
+5. **Generated Sigma is a supplement.** The API reference states that
+   `generated_sigma` is always returned as a labeled supplement, and that
+   Sigma/Elastic community results are cached for 24 hours.
+6. **No LLM is involved.** The API reference documents the detection composer as
+   deterministic: it emits Sigma/SIEM/YARA from evidence and template fallback
+   bases, with no LLM.
+
+The Detect tab is a CVE-specific workbench. It can show community references and
+BRIEFR-generated starter content, but it does not save a Forge hunt pack by
+itself and does not deploy a detection.
+
+### Sigma and SIEM templates
+
+Forge uses the bundled detection helpers as its local template library:
+
+- `backend/detection/sigma_generator.py` produces Sigma starter content.
+- `backend/detection/siem_queries.py` supplies SIEM query starters.
+
+The coverage map treats those templates as `community` coverage when there is no
+saved pack yet. When an analyst generates a pack,
+`POST /api/hunt-packs/generate` emits detection content with community search
+disabled on that path. The API reference documents that artifact evidence can
+inject into Sigma and SIEM output, and that the compose basis for Forge
+generation is `nuclei_artifacts`, `yara`, or `template_fallback`.
+
+Generated packs are stored in `hunt_packs`. Regenerating the same technique/CVE
+pair is idempotent: the documented unique key updates the existing row instead
+of creating duplicate packs.
+
+### Proof bench
+
+The proof bench is intentionally small. `POST /api/proof/run` accepts pasted log
+lines plus either Sigma YAML or explicit substring patterns. It returns counts,
+a hit rate, extracted patterns, false-positive hints, and sample hits.
+
+The important boundary is in the API reference and system design: the proof
+bench is file-based. It runs against supplied log lines, ignores empty lines in
+counts, and does not require or contact a live SIEM, ClickHouse, data lake, or
+XDR. A pass in the proof bench means "this pattern matched these pasted lines,"
+not "this detection is production-ready."
+
+### KEV detection backlog
+
+The KEV backlog is the gap-focused detection queue. `GET /api/detection-backlog`
+returns open items where a stack-matched KEV CVE maps to an ATT&CK technique
+with `gap` coverage: no saved hunt pack and no bundled community template.
+
+The system design documents two creation paths:
+
+- rows are created when the KEV metadata sync sees newly KEV CVEs that match the
+  operator stack; and
+- a weekly reconcile job refreshes the backlog.
+
+The Forge Backlog view reads those rows. Dismissal is soft:
+`POST /api/detection-backlog/{item_id}/dismiss` marks an item dismissed so later
+KEV syncs do not recreate it. The system design also documents an optional
+`kev_backlog` webhook and notification path for newly created backlog rows.
 
 ## What it needs
 
+Detection needs earlier lifecycle output. It is not useful without local
+evidence to turn into rule starters.
+
+| Data or component | Why it matters |
+| --- | --- |
+| `cves` | Supplies the CVE record, severity, KEV status, EPSS, and stack filtering context |
+| `cve_technique_map` and `mitre_techniques` | Connect CVEs to ATT&CK techniques for Forge coverage and backlog decisions |
+| `hunt_packs` | Stores saved detection packs and drives the `yours` coverage status |
+| `backend/detection/sigma_generator.py` | Generates Sigma starter content from documented templates and evidence |
+| `backend/detection/siem_queries.py` | Generates SIEM query starters and template baselines |
+| `backend/detection/rule_sources.py` | Searches GitHub-backed community Sigma/Elastic sources for the drawer Detect tab |
+| `user_preferences.stack_terms` or `BRIEFR_STACK_TERMS` | Limits coverage and backlog work to the operator's stack when requested |
+| `POST /api/proof/run` | Validates saved Sigma or explicit patterns against pasted log lines only |
+| KEV sync and weekly backlog reconcile | Create and maintain stack-matched KEV backlog rows |
+
+It does not need a live SIEM connection. That is a product boundary, not a
+missing configuration step. BRIEFR can generate starter rules, show query
+templates, save packs, export content, and run pasted-log proof checks without
+deploying anything into production telemetry.
+
+It also does not need every optional external source before the local template
+path is useful. The Detect tab may be richer when GitHub-backed community search
+is available, and Forge-linked CVEs may be richer when earlier enrichment
+sources have populated more context. The deterministic template path and stored
+coverage model still remain local.
+
 ## How industry does it — and why BRIEFR does it this way
+
+Mature detection-engineering programs often manage rules directly in SIEM, EDR,
+XDR, or data-lake tooling. A production workflow may include rule repositories,
+CI validation, deployment approvals, field mapping, alert routing, exception
+management, regression testing against historical telemetry, quality metrics,
+and ownership for every detection.
+
+BRIEFR does not try to replace that stack. Its detection work is upstream of
+production deployment:
+
+- the drawer Detect tab gathers CVE-specific community and generated starter
+  content;
+- Forge reads local ATT&CK coverage and saved packs;
+- generated Sigma and SIEM templates help an analyst start from BRIEFR evidence;
+- the proof bench checks pasted log lines only; and
+- the KEV backlog highlights stack-matched coverage gaps.
+
+That smaller scope matches BRIEFR's role as a self-hosted CVE intelligence
+portal. A small team can see why a vulnerability matters, what ATT&CK technique
+it maps to, whether a saved pack exists, and what starter detection content is
+available. The trade-off is explicit: BRIEFR will not prove that production logs
+exist, will not tune alert fidelity across an enterprise, and will not push rules
+into a live SIEM.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the API reference Detection and Forge sections. Find
+      <code>GET /api/cves/&#123;cve_id&#125;/detection</code>,
+      <code>POST /api/hunt-packs/generate</code>,
+      <code>POST /api/proof/run</code>, and
+      <code>GET /api/detection-backlog</code>.
+    </li>
+    <li>
+      For each endpoint, write down whether it reads detection context, writes a
+      saved pack, proves pasted log lines, or reads backlog rows.
+    </li>
+    <li>
+      If you have a sandbox BRIEFR instance, open a CVE drawer and switch to the
+      Detect tab. Then open Forge and compare one technique's status with the
+      backlog view. Do not connect BRIEFR to a production SIEM; this exercise is
+      about understanding the documented boundaries.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "detect_flow": {
+      "drawer_detect_tab": {
+        "endpoint": "GET /api/cves/{cve_id}/detection",
+        "does": "returns CVE-specific community and generated detection context",
+        "does_not": "save a hunt pack or deploy a rule"
+      },
+      "forge_generate": {
+        "endpoint": "POST /api/hunt-packs/generate",
+        "writes": "hunt_packs",
+        "content": ["Sigma starter", "SIEM query starters", "log patterns"]
+      },
+      "proof_bench": {
+        "endpoint": "POST /api/proof/run",
+        "input": "pasted log lines plus Sigma YAML or explicit patterns",
+        "boundary": "file-based; no live SIEM"
+      },
+      "kev_backlog": {
+        "endpoint": "GET /api/detection-backlog",
+        "shows": "stack-matched KEV CVEs mapped to gap coverage",
+        "dismiss": "POST /api/detection-backlog/{item_id}/dismiss"
+      }
+    }
+  }
+  ```
+
+  The useful habit is to separate starter content from production deployment.
+  BRIEFR can help generate and proof local detection ideas; the analyst still
+  owns SIEM field mapping, tuning, rollout, and monitoring.
+</TryItYourself>
