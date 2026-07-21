@@ -2,6 +2,16 @@ import type {ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
+import {Badge} from '@/components/ui/badge';
+import {Button} from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {cn} from '@/lib/utils';
 import styles from './index.module.css';
 
 const GUIDES = [
@@ -46,21 +56,18 @@ const REFERENCE = [
     title: 'Security Guide',
     to: '/docs/security-guide',
     desc: 'Hardening checklist, the auth model, how secrets are handled, and how to report a vulnerability.',
-    draft: true,
   },
   {
     tag: 'API',
     title: 'API Reference',
     to: '/docs/api-reference',
     desc: 'Every endpoint: request and response shapes, authentication, and error semantics.',
-    draft: false,
   },
   {
     tag: 'INT',
     title: 'Integrations',
     to: '/docs/integrations',
     desc: 'Feeds in, alerts out — the sources BRIEFR pulls from and the systems it pushes to.',
-    draft: true,
   },
 ];
 
@@ -69,21 +76,21 @@ const PROJECT = [
     title: 'Roadmap',
     to: '/docs/roadmap',
     desc: 'Where BRIEFR is going, and what is deliberately out of scope.',
-    draft: false,
   },
   {
     title: 'Release Notes',
     to: '/docs/release-notes',
     desc: 'What changed in each release, in plain language.',
-    draft: true,
   },
   {
     title: 'FAQ',
     to: '/docs/faq',
     desc: 'Short answers on licensing, requirements, data ownership, and scope.',
-    draft: false,
   },
 ];
+
+const ctaClass =
+  'h-auto rounded-none font-mono text-[0.82rem] font-semibold tracking-[0.08em] uppercase';
 
 function SeveritySpine({className}: {className?: string}) {
   return (
@@ -106,10 +113,6 @@ function SectionHead({kicker}: {kicker: string}) {
       <span className={styles.sectionRule} />
     </div>
   );
-}
-
-function DraftMark() {
-  return <span className={styles.draft}>DRAFT</span>;
 }
 
 export default function Home(): ReactNode {
@@ -141,12 +144,18 @@ export default function Home(): ReactNode {
           </p>
 
           <div className={styles.ctas}>
-            <Link className={styles.ctaPrimary} to="/docs/user-guide">
-              Get started
-            </Link>
-            <Link className={styles.ctaGhost} to="/docs/admin-guide/self-host">
-              Self-host guide
-            </Link>
+            <Button asChild className={cn(ctaClass, 'px-[26px] py-3')}>
+              <Link to="/docs/user-guide">Get started</Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className={cn(
+                ctaClass,
+                'border-border bg-transparent px-6 py-[11px] text-secondary-foreground hover:border-primary hover:bg-transparent hover:text-secondary-foreground',
+              )}>
+              <Link to="/docs/admin-guide/self-host">Self-host guide</Link>
+            </Button>
             <Link
               className={styles.ctaPlain}
               href="https://github.com/Soldier0x0/briefr">
@@ -158,51 +167,82 @@ export default function Home(): ReactNode {
         </header>
 
         {/* ---- Field guides: one per audience ---- */}
-        <section className={styles.section}>
+        <section className={cn(styles.section, '@container')}>
           <SectionHead kicker="FIELD GUIDES" />
-          <div className={styles.guideGrid}>
+          <div className="grid grid-cols-1 gap-5 @3xl:grid-cols-3">
             {GUIDES.map((g) => (
-              <article key={g.title} className={styles.guideCard}>
-                <span className={styles.cardTag}>{g.tag}</span>
-                <h2 className={styles.cardTitle}>
-                  <Link to={g.to}>{g.title}</Link>
-                </h2>
-                <p className={styles.cardDesc}>{g.desc}</p>
-                <ol className={styles.chapters}>
-                  {g.chapters.map((c, i) => (
-                    <li key={c.to}>
-                      <Link to={c.to}>
-                        <span className={styles.chapterIndex}>
-                          {String(i + 1).padStart(2, '0')}
-                        </span>
-                        {c.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ol>
-              </article>
+              <Card
+                key={g.title}
+                className="@container flex flex-col rounded-md border-border bg-card py-0 shadow-none transition-transform hover:-translate-y-0.5">
+                <CardHeader className="gap-2 px-[26px] pt-[26px]">
+                  <Badge
+                    variant="outline"
+                    className="w-fit rounded-none border-transparent px-0 font-mono tracking-widest text-primary">
+                    {g.tag}
+                  </Badge>
+                  <CardTitle className="font-[family-name:var(--brf-font-display)] text-2xl font-normal leading-tight">
+                    <Link
+                      to={g.to}
+                      className="text-secondary-foreground no-underline hover:text-accent-foreground hover:no-underline">
+                      {g.title}
+                    </Link>
+                  </CardTitle>
+                  <CardDescription className="text-[0.94rem] leading-relaxed text-muted-foreground">
+                    {g.desc}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="mt-auto border-t border-border px-[26px] pb-[18px] pt-0">
+                  <ol className="m-0 flex list-none flex-col p-0">
+                    {g.chapters.map((c, i) => (
+                      <li
+                        key={c.to}
+                        className="border-b border-border last:border-0">
+                        <Link
+                          to={c.to}
+                          className="flex items-baseline gap-3.5 py-2.5 text-[0.88rem] text-foreground no-underline hover:text-accent-foreground hover:no-underline">
+                          <span className="font-mono text-xs text-muted-foreground">
+                            {String(i + 1).padStart(2, '0')}
+                          </span>
+                          {c.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ol>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </section>
 
         {/* ---- Reference shelf ---- */}
-        <section className={styles.section}>
+        <section className={cn(styles.section, '@container')}>
           <SectionHead kicker="REFERENCE" />
-          <div className={styles.refGrid}>
+          <div className="grid grid-cols-1 gap-5 @3xl:grid-cols-3">
             {REFERENCE.map((r) => (
-              <Link key={r.title} to={r.to} className={styles.refCard}>
-                <span className={styles.refTag}>{r.tag}</span>
-                <span className={styles.refBody}>
-                  <span className={styles.refTitle}>
-                    {r.title}
-                    {/* breakable space so the badge can wrap on tiny screens */}
-                    {r.draft && <>{' '}<DraftMark /></>}
+              <Link
+                key={r.title}
+                to={r.to}
+                className="text-inherit no-underline hover:text-inherit hover:no-underline">
+                <Card className="flex h-full flex-row items-start gap-4 rounded-md border-border bg-card px-[22px] py-[22px] shadow-none transition-transform hover:-translate-y-0.5">
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 rounded-none border-border font-mono tracking-wider text-primary">
+                    {r.tag}
+                  </Badge>
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <CardTitle className="text-[1.02rem] font-semibold leading-snug text-secondary-foreground">
+                      {r.title}
+                    </CardTitle>
+                    <CardDescription className="text-[0.86rem] leading-relaxed text-muted-foreground">
+                      {r.desc}
+                    </CardDescription>
+                  </div>
+                  <span
+                    className={cn(styles.rowArrow, 'shrink-0 self-center')}
+                    aria-hidden="true">
+                    →
                   </span>
-                  <span className={styles.refDesc}>{r.desc}</span>
-                </span>
-                <span className={styles.rowArrow} aria-hidden="true">
-                  →
-                </span>
+                </Card>
               </Link>
             ))}
           </div>
@@ -211,22 +251,29 @@ export default function Home(): ReactNode {
         {/* ---- Project index ---- */}
         <section className={clsx(styles.section, styles.sectionLast)}>
           <SectionHead kicker="PROJECT" />
-          <ul className={styles.projectList}>
-            {PROJECT.map((p) => (
-              <li key={p.title}>
-                <Link to={p.to} className={styles.projectRow}>
-                  <span className={styles.projectTitle}>
-                    {p.title}
-                    {p.draft && <>{' '}<DraftMark /></>}
-                  </span>
-                  <span className={styles.projectDesc}>{p.desc}</span>
-                  <span className={styles.rowArrow} aria-hidden="true">
-                    →
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <Card className="gap-0 rounded-md border-border bg-transparent py-0 shadow-none">
+            <ul className="m-0 list-none p-0">
+              {PROJECT.map((p) => (
+                <li key={p.title} className="border-b border-border last:border-0">
+                  <Link
+                    to={p.to}
+                    className="grid grid-cols-1 items-baseline gap-2 px-1 py-[18px] text-inherit no-underline transition-colors hover:bg-secondary/40 hover:text-inherit hover:no-underline @container sm:grid-cols-[220px_1fr_auto] sm:gap-6">
+                    <span className="font-[family-name:var(--brf-font-display)] text-[1.3rem] font-normal text-secondary-foreground">
+                      {p.title}
+                    </span>
+                    <span className="text-[0.9rem] text-muted-foreground">
+                      {p.desc}
+                    </span>
+                    <span
+                      className={cn(styles.rowArrow, 'hidden sm:inline')}
+                      aria-hidden="true">
+                      →
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
         </section>
       </main>
     </Layout>

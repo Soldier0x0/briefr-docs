@@ -79,43 +79,6 @@
   animation: rise 400ms ease-out 180ms both;
 }
 
-.ctaPrimary {
-  font-family: var(--brf-font-mono);
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #ffffff; /* product --text-on-accent */
-  background: var(--brf-accent);
-  padding: 12px 26px;
-  transition: background 150ms ease-out, transform 150ms ease-out;
-}
-
-.ctaPrimary:hover {
-  background: var(--brf-accent-strong);
-  color: #ffffff;
-  text-decoration: none;
-  transform: translateY(-1px);
-}
-
-.ctaGhost {
-  font-family: var(--brf-font-mono);
-  font-size: 0.82rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--brf-bright);
-  border: 1px solid var(--brf-hairline-2);
-  padding: 11px 24px;
-  transition: border-color 150ms ease-out, transform 150ms ease-out;
-}
-
-.ctaGhost:hover {
-  border-color: var(--brf-accent);
-  color: var(--brf-bright);
-  text-decoration: none;
-  transform: translateY(-1px);
-}
-
 .ctaPlain {
   font-family: var(--brf-font-mono);
   font-size: 0.82rem;
@@ -195,224 +158,19 @@
   background: var(--brf-hairline);
 }
 
-/* ---------- Field guide cards ---------- */
-
-.guideGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.guideCard {
-  display: flex;
-  flex-direction: column;
-  background: var(--brf-surface);
-  border: 1px solid var(--brf-hairline);
-  padding: 26px 26px 18px;
-  transition: border-color 150ms ease-out, transform 150ms ease-out;
-}
-
-.guideCard:hover {
-  border-color: var(--brf-hairline-2);
-  transform: translateY(-2px);
-}
-
-.cardTag {
-  font-family: var(--brf-font-mono);
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  color: var(--brf-accent);
-}
-
-.cardTitle {
-  font-family: var(--brf-font-display);
-  font-weight: 400;
-  font-size: 1.65rem;
-  letter-spacing: -0.01em;
-  margin: 14px 0 0;
-}
-
-.cardTitle a {
-  color: var(--brf-bright);
-}
-
-.cardTitle a:hover {
-  color: var(--brf-accent-strong);
-  text-decoration: none;
-}
-
-.cardDesc {
-  font-size: 0.94rem;
-  line-height: 1.65;
-  color: var(--brf-text);
-  margin: 12px 0 20px;
-  flex: 1;
-}
-
-.chapters {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--brf-hairline);
-}
-
-.chapters li {
-  border-bottom: 1px solid var(--brf-hairline);
-}
-
-.chapters li:last-child {
-  border-bottom: none;
-}
-
-.chapters a {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  padding: 10px 2px;
-  font-size: 0.88rem;
-  color: var(--brf-text);
-  transition: color 150ms ease-out;
-}
-
-.chapters a:hover {
-  color: var(--brf-accent-strong);
-  text-decoration: none;
-}
-
-.chapterIndex {
-  font-family: var(--brf-font-mono);
-  font-size: 0.68rem;
-  color: var(--brf-dim);
-}
-
-/* ---------- Reference shelf ---------- */
-
-.refGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.refCard {
-  display: flex;
-  gap: 18px;
-  align-items: flex-start;
-  background: var(--brf-surface);
-  border: 1px solid var(--brf-hairline);
-  padding: 22px;
-  color: inherit;
-  transition: border-color 150ms ease-out, transform 150ms ease-out;
-}
-
-.refCard:hover {
-  border-color: var(--brf-hairline-2);
-  transform: translateY(-2px);
-  text-decoration: none;
-  color: inherit;
-}
-
-.refTag {
-  font-family: var(--brf-font-mono);
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: var(--brf-accent);
-  border: 1px solid var(--brf-hairline-2);
-  padding: 4px 8px;
-  flex-shrink: 0;
-}
-
-.refBody {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-  min-width: 0; /* let text wrap instead of setting the card's width floor */
-}
-
-.refTitle {
-  font-weight: 600;
-  font-size: 1.02rem;
-  color: var(--brf-bright);
-}
-
-.refDesc {
-  font-size: 0.86rem;
-  line-height: 1.6;
-  color: var(--brf-dim);
-}
-
-/* ---------- Project index rows ---------- */
-
-.projectList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border-top: 1px solid var(--brf-hairline);
-}
-
-.projectRow {
-  display: grid;
-  grid-template-columns: 220px 1fr auto;
-  align-items: baseline;
-  gap: 24px;
-  padding: 18px 4px;
-  border-bottom: 1px solid var(--brf-hairline);
-  color: inherit;
-  transition: background 150ms ease-out;
-}
-
-.projectRow:hover {
-  background: rgba(255, 255, 255, 0.02);
-  text-decoration: none;
-  color: inherit;
-}
-
-.projectTitle {
-  font-family: var(--brf-font-display);
-  font-size: 1.3rem;
-  font-weight: 400;
-  color: var(--brf-bright);
-}
-
-.projectRow:hover .projectTitle {
-  color: var(--brf-accent-strong);
-}
-
-.projectDesc {
-  font-size: 0.9rem;
-  color: var(--brf-dim);
-}
-
 .rowArrow {
   font-family: var(--brf-font-mono);
   color: var(--brf-dim);
   transition: color 150ms ease-out, transform 150ms ease-out;
 }
 
-.refCard:hover .rowArrow,
-.projectRow:hover .rowArrow {
+a:hover .rowArrow {
   color: var(--brf-accent-strong);
   transform: translateX(3px);
 }
 
 .sectionLast {
   margin-bottom: 12px;
-}
-
-/* ---------- Draft mark ---------- */
-
-.draft {
-  font-family: var(--brf-font-mono);
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: var(--brf-dim);
-  border: 1px solid var(--brf-hairline-2);
-  padding: 2px 6px;
-  margin-left: 10px;
-  vertical-align: 2px;
 }
 
 /* ---------- Motion ---------- */
@@ -432,21 +190,6 @@
 
 /* Breakpoints in em: they track the browser's default font size, so users
    with larger fonts get the stacked layout proportionally earlier. */
-@media (max-width: 62.25em) {
-  .guideGrid,
-  .refGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .projectRow {
-    grid-template-columns: 1fr auto;
-  }
-
-  .projectDesc {
-    grid-column: 1 / -1;
-  }
-}
-
 @media (max-width: 40em) {
   .hero {
     padding-top: 40px;
