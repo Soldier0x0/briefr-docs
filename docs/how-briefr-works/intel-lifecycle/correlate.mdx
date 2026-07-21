@@ -5,20 +5,264 @@ title: Correlate
 description: How BRIEFR links CVEs through explainable correlation lanes.
 ---
 
-# Correlate
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
 
-:::note[Outline — Phase 2]
-Full chapter lands in the Track A content plan. Sections below are the required template; fill with sourced claims only.
-:::
+# Correlate
 
 ## What it is
 
+Correlation is the step where BRIEFR links one CVE to nearby threat context
+without hiding the reason for the link.
+
+The output is not a black-box score. BRIEFR uses four explainable lanes:
+
+- **Campaigns** — CVEs co-mentioned in threat-intel pulses or campaign-like
+  groupings.
+- **Infrastructure** — CVEs that share indicators such as IPs, domains, hashes,
+  or URLs through stored OTX pulse IOC data.
+- **Actor/sector** — CVEs whose ATT&CK technique context overlaps with actor or
+  sector patterns, including an optional user sector hint.
+- **Temporal** — CVEs that cluster through timing signals rather than direct
+  infrastructure or campaign evidence.
+
+Each lane is meant to answer a different analyst question. Are these CVEs being
+discussed together? Do they touch the same infrastructure? Does the technique
+context resemble a sector-relevant actor pattern? Did activity or changes happen
+close together? The lane label is part of the explanation.
+
+Correlation is also separate from prioritization. A campaign or infrastructure
+link can contribute useful context to the drawer and to operational-priority
+components, but the existence of a link is still evidence, not a final verdict.
+
 ## Why we do it
+
+Analysts rarely look at one CVE in isolation. A single vulnerability may matter
+more when it appears beside other exploited CVEs, shares indicators with another
+advisory, overlaps with a known technique pattern, or appears during the same
+operational window as related activity.
+
+Without correlation, the workflow becomes manual pivoting:
+
+- open a CVE;
+- read pulses, techniques, exploit references, and history;
+- search for nearby CVEs;
+- remember whether another drawer showed the same infrastructure or campaign
+  clue; and
+- decide which relationship is real enough to mention.
+
+BRIEFR correlates to make those pivots visible in one place. It does not try to
+turn every weak relationship into a confident graph. The product guidance in the
+user guide is explicit: correlation uses four explainable lanes and no black-box
+ML score. That matters because an analyst needs to know why two CVEs were shown
+together before using the relationship in triage, detection work, or a report.
+
+This is also why BRIEFR keeps correlation off the live OTX request path. Opening a
+drawer should not spend an upstream lookup just to rediscover relationships that
+the nightly job and local tables can already serve.
 
 ## Where it lives in BRIEFR
 
+At the product level, correlation sits after collection, normalization, and
+enrichment:
+
+```text
+local CVE + OTX + MITRE + history data -> correlation engine -> API response -> drawer
+```
+
+The system design names correlation as a nightly scheduler job that writes
+`correlation_*` data and uses local `feed_cache` plus `otx_pulse_iocs`. The
+primary reader is `GET /api/cves/{id}/correlation`, and the frontend consumes the
+result in the CVE drawer's correlation section.
+
+The important boundary is that the drawer reads correlation through BRIEFR's API.
+It does not call OTX live for correlation when the analyst opens a CVE. OTX pulse
+data may already be present because the OTX sync and correlation jobs populated
+local tables, but the drawer is not a direct OTX client.
+
+The API reference also documents the cache and precompute behavior:
+
+- correlation responses are cached for six hours in `feed_cache` under a
+  `correlation:v2:{cve}:{sector}`-style key;
+- when `CORRELATION_PRECOMPUTE_ENABLED=1`, the handler prefers a
+  scheduler-written `correlation_cve_snapshot` row for a cheap indexed read;
+- actor sector matching can still use the request's `sector` parameter; and
+- on engine error, the endpoint returns empty lane arrays with an `error` string
+  instead of inventing findings.
+
+Start with the correlation engine and the CVE router to see the request shape.
+Then read the scheduler and OTX feed code to see which data is prepared before
+the drawer asks for it.
+
+<InTheCode
+  items={[
+    {path: 'backend/correlation/engine.py'},
+    {path: 'backend/routers/cves.py'},
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/feeds/otx.py'},
+    {path: 'frontend/src/components/DetailDrawer.jsx'},
+  ]}
+/>
+
 ## How it works
+
+Correlation is a read over stored evidence, not a live fan-out from the browser.
+
+1. **Scheduled jobs prepare local evidence.** BRIEFR's schedulers collect and
+   enrich the CVE corpus. OTX sync stores CVE pulses and pulse IOCs when OTX is
+   configured. MITRE mappings, exploit signals, EPSS history, KEV metadata, and
+   other related rows are also local before the drawer opens.
+2. **The nightly correlation job precomputes relationships.** The system design
+   lists "Correlation nightly" as a recurring job that writes
+   `correlation_*`, uses `feed_cache`, and reads `otx_pulse_iocs`. With
+   correlation precompute enabled, the job backfills snapshots for
+   tier-prioritized CVEs up to `CORRELATION_PRECOMPUTE_MAX_PER_RUN`.
+3. **The analyst opens a CVE.** The drawer requests correlation context through
+   BRIEFR's API. The documented direct endpoint is
+   `GET /api/cves/{id}/correlation`, with an optional `sector` query parameter
+   for actor/sector matching. The aggregate drawer endpoint includes the same
+   correlation sub-object shape.
+4. **The API checks cheap stored results first.** A cached response or
+   precomputed snapshot can satisfy most of the request. If a sector is provided,
+   the actor/sector lane can account for that input while still using stored
+   MITRE technique context.
+5. **The engine returns lane-specific findings.** The response can include
+   `campaigns`, `infrastructure`, `actor`, and `temporal` arrays, plus boosters,
+   priority components, OTX status, metadata, and `computed_at`.
+6. **The UI shows why each link exists.** Campaign and infrastructure items carry
+   evidence and `confidence_factors` so the drawer can render reasons such as
+   same-pulse evidence, shared indicators, hub-IOC penalties, confirmations, or
+   attribution conflicts.
+7. **Failures stay bounded.** If the engine fails, the endpoint returns empty
+   arrays and an `error` field. Missing optional OTX data can make correlation
+   empty, but it should not become a fabricated relationship.
+
+The four lanes stay distinct:
+
+| Lane | What it uses | What the analyst sees |
+| --- | --- | --- |
+| Campaigns | Stored pulse/campaign-style co-mentions and related evidence | A named campaign-like grouping, members, confidence, evidence, and boosters |
+| Infrastructure | Shared stored indicators from pulse IOC data | CVE-to-CVE links with shared IP/domain/hash/URL counts and evidence |
+| Actor/sector | MITRE technique overlap plus optional `sector` input | Actor or sector-relevant matches with overlap and confidence |
+| Temporal | Timing patterns from stored activity/change context | Time-based relationships when present |
+
+Confidence is explainable, not magical. The API reference documents factors such
+as IOC type, confirmation, degree, noisy IP handling, same-pulse evidence, shared
+indicators, and attribution conflict. It also documents that campaign boosters
+such as KEV or exploit signals contribute to priority components rather than
+making the campaign link itself more certain.
 
 ## What it needs
 
+Correlation needs stored data with stable identifiers:
+
+- normalized CVE rows in `cves`;
+- OTX pulse and IOC rows when OTX-backed lanes are expected;
+- MITRE technique mappings for actor/sector overlap;
+- history, KEV, exploit, and other related rows that can support context or
+  boosters;
+- initialized `correlation_*` tables and `feed_cache`; and
+- a running scheduler if the operator wants nightly precompute instead of only
+  request-time computation.
+
+It may also need configuration:
+
+| Setting or input | Why it matters |
+| --- | --- |
+| `OTX_API_KEY` | Allows OTX pulse and IOC data to be synced locally; without it, OTX-backed correlation can be empty |
+| `CORRELATION_HOUR` / `CORRELATION_TIMEZONE` | Schedule the nightly correlation engine |
+| `CORRELATION_PRECOMPUTE_ENABLED` | Lets the endpoint prefer scheduler-written snapshots |
+| `CORRELATION_PRECOMPUTE_MAX_PER_RUN` | Caps how many prioritized CVEs the nightly precompute job backfills |
+| `CORRELATION_HUB_CVE_PULSE_CAP` | Excludes high-degree hub IOCs from shared-IOC joins |
+| `sector` query parameter | Optional user industry hint for actor/sector matching |
+
+The drawer does not need a live OTX call at open time. If correlation is empty,
+the likely questions are operational:
+
+- Has OTX been configured and allowed to run?
+- Has the nightly correlation job run since new data arrived?
+- Is the endpoint serving a cached response?
+- Is the CVE outside the current precompute cap?
+- Did hub-IOC filtering remove noisy shared indicators?
+- Did the engine return an `error` field?
+
+Those questions preserve the evidence boundary. Empty correlation can mean "no
+stored relationship found" or "the relevant optional source has not populated
+local data." It should not be read as proof that no relationship exists anywhere
+on the internet.
+
 ## How industry does it — and why BRIEFR does it this way
+
+Large threat-intelligence platforms often build broad relationship graphs across
+malware, infrastructure, actors, incidents, vulnerabilities, detections, and
+commercial feeds. Some products then collapse those relationships into opaque
+graph scores or confidence numbers. That can be useful at enterprise scale, but
+it can also make a small team ask a hard question: what exactly caused this edge
+or score?
+
+BRIEFR uses a narrower model because its product center is CVE intelligence for a
+self-hosted portal. It favors:
+
+- local nightly computation over drawer-time live correlation calls;
+- named lanes over one blended graph score;
+- evidence lists and confidence factors over unexplained confidence;
+- cache and precompute boundaries over quota-sensitive fan-out; and
+- honest empty states when optional sources are missing or quiet.
+
+The trade-off is scope. BRIEFR is not claiming to be a full threat-intelligence
+platform with every commercial graph edge. It links CVEs through the evidence it
+stores and exposes why each link appears. For the intended workflow, that is the
+useful behavior: a correlation is something an analyst can inspect, accept,
+suppress, or use as a pivot, not a number they have to trust on faith.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the API reference section for
+      <code>GET /api/cves/&#123;cve_id&#125;/correlation</code>.
+    </li>
+    <li>
+      Copy the four lane names from the documented response:
+      <code>campaigns</code>, <code>infrastructure</code>, <code>actor</code>,
+      and <code>temporal</code>.
+    </li>
+    <li>
+      For each lane, write down one piece of evidence the response can expose.
+      Use the fixture below as the expected shape. This is a documentation
+      exercise only: do not add API keys and do not call OTX live.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "correlation_lanes": {
+      "campaigns": {
+        "example_evidence": "same OTX pulse",
+        "explanation_fields": ["campaign_id", "members", "confidence_factors", "evidence"]
+      },
+      "infrastructure": {
+        "example_evidence": "shared hash, domain, IP, or URL from stored pulse IOCs",
+        "explanation_fields": ["cve_id_b", "shared_hash_count", "confidence_factors", "evidence"]
+      },
+      "actor": {
+        "example_evidence": "MITRE technique overlap with optional sector context",
+        "explanation_fields": ["actor_name", "actor_sectors", "technique_overlap", "confidence"]
+      },
+      "temporal": {
+        "example_evidence": "time-based relationship when present",
+        "explanation_fields": ["temporal"]
+      }
+    },
+    "boundary": {
+      "drawer_behavior": "reads BRIEFR API correlation data",
+      "not_a_live_step": "drawer open does not call OTX live for correlation"
+    }
+  }
+  ```
+
+  The useful habit is to ask which lane produced a relationship before deciding
+  what to do with it. Same-pulse evidence, shared infrastructure, sector context,
+  and timing are different claims.
+</TryItYourself>
