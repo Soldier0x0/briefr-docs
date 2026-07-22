@@ -68,13 +68,14 @@ prevents a second concurrent instance of the same job from starting.
 
 Beyond that, `scheduler_locks.py` holds a named `asyncio.Lock` for each ingest job.
 Both the scheduler and the admin manual-refresh routes import the same lock objects from
-that module, so a manual admin refresh of a feed cannot race against a scheduled run of
-the same job.
+that module (admin via `routers/admin/helpers.py`), so a manual admin refresh of a feed
+cannot race against a scheduled run of the same job.
 
 <InTheCode
   items={[
     {path: 'backend/scheduler.py'},
     {path: 'backend/scheduler_locks.py'},
+    {path: 'backend/routers/admin/helpers.py'},
     {path: 'backend/feeds/', kind: 'tree'},
   ]}
 />
@@ -144,9 +145,9 @@ The per-job `asyncio.Lock` in `scheduler_locks.py` closes that gap. Every ingest
 function follows the same pattern: check the lock before acquiring it, skip if already
 held, then acquire the lock for the duration of the run.
 
-Because both `scheduler.py` and `routers/admin.py` import the same lock objects from
-`scheduler_locks.py`, a manual refresh and a scheduled run of the same job cannot proceed
-at the same time. `scheduler_locks.py` also exposes `any_locked()` (used to check whether
+Because both `scheduler.py` and `routers/admin/helpers.py` import the same lock objects
+from `scheduler_locks.py`, a manual refresh and a scheduled run of the same job cannot
+proceed at the same time. `scheduler_locks.py` also exposes `any_locked()` (used to check whether
 any ingest is in flight) and `locked_jobs()` (returns the list of currently-held job IDs).
 
 Not every job has a named lock. Six short-running or naturally idempotent jobs —
@@ -184,7 +185,7 @@ The scheduler is built into BRIEFR. Operators should keep these settings visible
 | `EPSS_SYNC_INTERVAL_HOURS` | How often EPSS scores are updated. Default: `6`. |
 | `SCHEDULER_TIMEZONE` | Timezone for cron and interval jobs. Default: `Asia/Kolkata`. |
 | `SCHEDULER_DB_CONCURRENCY` | Max concurrent jobs holding DB pool connections. Default: `3`. |
-| `GET /api/health` | Shows current ingest lock state and configured intervals under the `ingest` key. |
+| `GET /api/health` | Shows ingest lock state and configured intervals under `ingest` (including nested `ingest.intervals`); the same interval object is also exposed at top-level `ingest_intervals`. |
 
 Optional feed keys only affect what specific jobs can do — they do not affect whether the
 scheduler itself starts. Jobs skip or return empty results when a required key is absent;
@@ -233,12 +234,14 @@ security team on one box or a small cluster — the model is a good fit.
     <li>
       Look under the <code>ingest</code> key. Confirm that the response includes
       per-source lock state (<code>nvd_in_progress</code>,{' '}
-      <code>kev_in_progress</code>, <code>epss_in_progress</code>) and the
-      configured intervals for NVD, KEV, EPSS, and the scheduler timezone.
+      <code>kev_in_progress</code>, <code>epss_in_progress</code>) and a nested{' '}
+      <code>intervals</code> object with NVD, KEV, EPSS cadences and the scheduler
+      timezone.
     </li>
     <li>
-      Compare the <code>ingest_intervals</code> values against the environment
-      variables in your deployment. If <code>NVD_SYNC_INTERVAL_HOURS</code> is
+      Compare <code>ingest.intervals</code> against the environment variables in your
+      deployment (the health payload also repeats the same object at top-level{' '}
+      <code>ingest_intervals</code>). If <code>NVD_SYNC_INTERVAL_HOURS</code> is
       unset, the default should be <code>1</code>. If <code>KEV_SYNC_INTERVAL_MINUTES</code>{' '}
       is unset, the default should be <code>15</code>.
     </li>
