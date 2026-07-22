@@ -9,9 +9,13 @@ description: BRIEFR-grounded definitions for terms used across the learning sect
 
 Alphabetical reference for concepts that appear in the intel lifecycle and how-it's-built tracks. Definitions describe how BRIEFR uses each term, not generic industry tutorials.
 
+### APScheduler
+
+The in-process async scheduler (`AsyncIOScheduler` from the `apscheduler` library) that owns all recurring feed and ops jobs in BRIEFR. Configured with `max_instances=1` and `coalesce=True` per job, and gated by `BRIEFR_SCHEDULER_ENABLED` so only one replica runs ingest at a time. See [Ingestion and scheduler](/docs/how-briefr-works/how-its-built/ingestion-scheduler) for the full owner model.
+
 ### ATT&CK
 
-MITRE ATT&CK is a catalog of adversary tactics and techniques. BRIEFR maps CVEs to ATT&CK techniques from MITRE feeds and uses those mappings in detection engineering (Sigma rules) and the Intel tab on CVE detail.
+MITRE ATT&CK is a catalog of adversary tactics and techniques. BRIEFR maps CVEs to ATT&CK techniques from MITRE feeds and uses those mappings in detection engineering (Sigma rules) and the Intel tab on CVE detail. See the [MITRE ATT&CK source deep-dive](/docs/how-briefr-works/intel-lifecycle/sources/attack) for the full sync path.
 
 ### Circuit breaker
 
@@ -33,6 +37,10 @@ Common Vulnerability Scoring System — severity metadata attached to CVE record
 
 Exploit Prediction Scoring System — a probability that a CVE will be exploited in the wild. BRIEFR syncs EPSS on a scheduler interval and blends it into threat scoring alongside KEV and CVSS signals.
 
+### Feed cache
+
+A `feed_cache` database table BRIEFR uses as a generic key-value store for scheduler snapshots and on-demand enrichment results. Examples: OTX pulse snapshots, incident feed builds, GreyNoise IP results (one-hour TTL), and correlation responses (six-hour TTL). Feed cache entries avoid re-spending external quota for repeated lookups of the same key within the TTL window.
+
 ### Hunt pack
 
 A saved Forge bundle — typically a Sigma rule and SIEM query tied to an ATT&CK technique and CVE. BRIEFR creates hunt packs via `POST /api/hunt-packs/generate` and tracks coverage gaps (saved pack vs bundled template vs none) on the Hunt and Detect tabs.
@@ -45,13 +53,33 @@ Indicator of Compromise — an observable such as an IP, hash, or domain. BRIEFR
 
 CISA Known Exploited Vulnerabilities catalog — CVEs confirmed exploited in the wild with remediation deadlines. BRIEFR syncs KEV on a short interval, applies a scoring floor for KEV-listed CVEs, and can alert via webhooks when stack-relevant entries appear.
 
+### Morning brief
+
+A read-path API response (`GET /api/brief`) built by `brief/service.py:build_morning_brief`. It ranks recent CVEs by urgency signals — KEV status and deadlines, risk score, momentum, and stack relevance — without performing any external feed calls. The same service function powers the wallboard's brief tile and the PDF export path.
+
 ### Normalization
 
 The step where raw feed payloads are shaped into consistent BRIEFR schema — shared field names, IDs, and timestamps — before enrichment and correlation run. Normalized records live in SQLite/PostgreSQL tables the schedulers and API read.
 
+### pgvector
+
+A PostgreSQL extension that adds the `vector` column type and cosine-distance operator (`<=>`) used for approximate nearest-neighbor (ANN) CVE embedding search. BRIEFR's Alembic migration `032_embeddings_pgvector` installs it on PostgreSQL deployments. Requires a `pgvector/pgvector:pg16` image; plain `postgres:*-alpine` images lack the extension and will fail this migration. SQLite stores embeddings as BLOBs and uses a Python-side dot-product fallback instead.
+
+### Risk Score
+
+A backend-canonical 0–1 score computed by `scoring/risk.py` (Risk Score v1.1b) that combines weighted signals: CVSS severity, KEV recency tier (0.84–1.0), VulnCheck KEV tier (0.72), EPSS probability, exploit evidence graduation, and asset-match relevance. The score is exposed on CVE detail and brief responses and drives the analyst feed ranking. The frontend displays the scoring explanation alongside the numerical value rather than computing a separate score.
+
 ### Sigma
 
 A portable YAML detection-rule format shared across SIEMs. BRIEFR generates Sigma starter content from CVE evidence and ATT&CK mappings, searches GitHub-backed SigmaHQ/Elastic rules on the drawer Detect tab, and returns `generated_sigma` as a labeled supplement alongside community matches.
+
+### SSRF
+
+Server-Side Request Forgery — a class of attack where an application is tricked into making outbound HTTP calls to internal or privileged network destinations. In BRIEFR, `webhooks/ssrf.py` guards all outbound webhook deliveries: it enforces HTTPS-only URLs, blocks private/loopback/link-local and IPv6 ULA address ranges, and strips forbidden headers (such as `Authorization`) before any bytes leave the backend. A URL that fails these checks raises `SSRFError` and the delivery is refused. See [Webhooks and ops](/docs/how-briefr-works/how-its-built/webhooks-ops) for the full protection model.
+
+### Sync state
+
+A `sync_state` key-value table that stores watermarks and configuration snapshots for scheduler-owned ingest jobs. The NVD incremental sync, for example, reads its last-seen timestamp from `sync_state` before each run so it can request only changed CVEs rather than re-downloading the full catalog. Other uses include ATLAS version tracking and cvelistV5 commit watermarks.
 
 ### Token bucket
 
@@ -60,3 +88,7 @@ An inbound rate-limit algorithm BRIEFR applies to sensitive API paths (IOC looku
 ### TTP
 
 Tactics, techniques, and procedures — the operational patterns ATT&CK encodes. In BRIEFR, TTP context arrives via MITRE technique mappings on CVEs and informs detection content in Forge and correlation campaign lanes.
+
+### Wallboard
+
+A read-only kiosk view (`/wallboard`) for TV or screen displays, guarded by the `WALLBOARD_TOKEN` environment variable. The wallboard renders aggregated CVE feed data, a brief tile, and EPSS mover data from precomputed snapshots rather than live outbound calls. It uses its own `require_wallboard_token` auth dependency and never triggers feed enrichment on page load.

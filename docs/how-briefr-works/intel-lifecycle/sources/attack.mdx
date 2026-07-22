@@ -1,0 +1,223 @@
+---
+sidebar_position: 8
+sidebar_label: MITRE ATT&CK
+title: MITRE ATT&CK
+description: How BRIEFR uses the MITRE ATT&CK STIX bundle to populate techniques, groups, and CVE technique mappings.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# MITRE ATT&CK
+
+## What it is
+
+MITRE ATT&CK is BRIEFR's framework-context source. On a weekly scheduler job,
+BRIEFR downloads the Enterprise ATT&CK STIX bundle, parses it into technique
+and group records, and maps CVEs to techniques from supplemental CTID and
+KEV-ATT&CK mapping files. Those stored records support the Intel tab on CVE
+detail, detection content in Forge, and the correlation engine's campaign and
+actor lanes.
+
+This page is about the tool path, not an ATT&CK tutorial. The important BRIEFR
+question is: once the STIX bundle is downloaded, where do the parsed records
+land and which product surfaces read them?
+
+The system design names a `weekly_mitre_refresh` scheduler job backed by
+`feeds/mitre.py:refresh_mitre_data`. That function downloads the STIX bundle,
+parses techniques and groups, downloads CTID CVE→ATT&CK mapping files, and
+stores everything in four tables: `mitre_techniques`, `cve_technique_map`,
+`mitre_groups`, and `group_technique_map`.
+
+## Why we do it
+
+Vulnerability intelligence is more actionable when it is connected to
+adversarial behavior. A CVE that maps to ATT&CK Initial Access or Lateral
+Movement techniques tells a different story than one that maps only to a CVSS
+score. ATT&CK mappings help analysts:
+
+- understand what an attacker could do with a particular vulnerability;
+- generate or find detection rules aligned to the relevant tactic and
+  technique;
+- ask whether the techniques linked to a CVE overlap with active campaign
+  or actor patterns; and
+- produce hunting and detection work in Forge that starts from verified
+  ATT&CK context rather than guesswork.
+
+BRIEFR uses ATT&CK data in several product surfaces:
+
+- **CVE detail Intel tab:** ATT&CK technique IDs and descriptions linked to the
+  open CVE.
+- **Correlation engine:** campaign and actor lanes can use group–technique links
+  to explain why two CVEs are correlated.
+- **Detection and Forge:** Sigma rule generation and hunt-pack content can use
+  ATT&CK tactic and technique context from the stored `mitre_techniques` rows.
+- **ATLAS connection:** the weekly job also covers MITRE ATLAS (AI/ML
+  techniques), running in the same `refresh_mitre_data` call.
+
+Without this source, BRIEFR would have CVE records and threat pulses but no
+structured adversary-behavior layer connecting them to known techniques and
+groups.
+
+## Where it lives in BRIEFR
+
+At the product level, the ATT&CK path is:
+
+```text
+Enterprise ATT&CK STIX + CTID CSV/JSON -> scheduler.run_weekly_mitre_refresh -> mitre_techniques + cve_technique_map + mitre_groups + group_technique_map -> API / correlation / detection
+```
+
+The system design names the weekly job and lists its landing zones:
+
+1. `scheduler.run_weekly_mitre_refresh` acquires a per-job lock and calls
+   `feeds/mitre.py:refresh_mitre_data`.
+2. The function downloads the Enterprise ATT&CK STIX bundle from the MITRE CTI
+   GitHub repository and parses it with `parse_enterprise_attack_stix` (for
+   technique records) and `parse_attack_groups_stix` (for intrusion-set groups
+   and group–technique `uses` relationships).
+3. CVE→technique mappings come from three sources merged together:
+   - The CTID `Att&ckToCveMappings.csv` from mappings-explorer (or an optional
+     custom `MITRE_CVE_MAPPINGS_JSON_URL`).
+   - The CTID KEV→ATT&CK enterprise JSON for CISA KEV entries.
+   - The existing `cves.mitre_technique` column values already in the database.
+4. `db/metadata.py:replace_mitre_techniques` replaces the `mitre_techniques`
+   table. `upsert_cve_technique_pairs` populates `cve_technique_map`.
+   `replace_mitre_groups` replaces `mitre_groups`. `upsert_group_technique_pairs`
+   populates `group_technique_map`.
+5. Revoked and deprecated STIX objects are skipped. Sub-technique IDs that are
+   not directly in the Enterprise STIX bundle fall back to their parent technique
+   ID when resolving CVE links.
+
+The job is triggered weekly by the scheduler and also at startup when the
+`mitre_techniques` or ATLAS technique tables are sparse (fewer than 10 rows),
+ensuring the first run after a fresh install populates the tables without
+waiting a week.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/feeds/mitre.py'},
+    {path: 'backend/db/metadata.py'},
+  ]}
+/>
+
+## How it works
+
+BRIEFR treats ATT&CK ingest as a full weekly replace-and-remap operation:
+
+1. **The scheduler fires the weekly job.** A lock prevents the job from
+   overlapping itself. At startup, a sparse-table check can trigger an immediate
+   run.
+2. **The STIX bundle is downloaded once.** `_fetch_bytes` uses
+   `resilient_client.resilient_get` with a 180-second timeout suitable for the
+   large bundle. The raw JSON is parsed in memory.
+3. **Techniques are extracted from `attack-pattern` objects.** The parser skips
+   revoked and deprecated entries. It reads the ATT&CK external ID (e.g.
+   `T1190`), name, description (truncated to 500 characters), tactic from the
+   first `kill_chain_phases` entry, platforms, and the canonical ATT&CK URL.
+4. **Groups are extracted from `intrusion-set` objects.** Group IDs (`G0xxx`),
+   names, aliases, descriptions, and URLs are parsed. The correlation engine's
+   sector-extraction function annotates each group with sector tags.
+5. **Group–technique links come from `relationship` objects.** The parser
+   collects `uses` relationships between intrusion-set and attack-pattern STIX
+   IDs and resolves them to `(group_id, technique_id)` pairs.
+6. **CVE→technique mappings are merged from three sources.** The CTID CSV and
+   KEV–ATT&CK JSON are downloaded separately. The existing `cves.mitre_technique`
+   column provides a third input. The three sources are merged, deduplicated,
+   and filtered to CVEs that exist in BRIEFR's local corpus.
+7. **Tables are replaced and pairs are upserted.** The technique table is
+   replaced atomically. CVE–technique and group–technique pairs are upserted.
+   Sub-technique IDs that lack a matching Enterprise row fall back to the parent
+   technique or are skipped.
+8. **Failure is logged but the sync state is not changed.** If the weekly job
+   fails, the scheduler logs the error and existing rows remain in place until
+   the next successful run.
+
+## What it needs
+
+The authoritative integrations facts for MITRE ATT&CK are:
+
+| Adds | Key | Free-tier/quota | Failure |
+| --- | --- | --- | --- |
+| Techniques, groups, CVE maps | — | Unrestricted | Weekly job fails; logs |
+
+Operationally, MITRE ATT&CK needs:
+
+- the scheduler enabled so the weekly job can run;
+- network access from the backend to `raw.githubusercontent.com` (MITRE CTI
+  and mappings-explorer repositories);
+- `mitre_techniques`, `cve_technique_map`, `mitre_groups`, and
+  `group_technique_map` tables initialized; and
+- an existing local CVE corpus so `cve_technique_map` has rows to link against.
+
+No key is required. The STIX bundle and CTID mapping files are public. If the
+job fails — for example because GitHub is unreachable — the tables retain their
+last successful state and the weekly job retries on the next scheduled trigger.
+
+An optional `MITRE_CVE_MAPPINGS_JSON_URL` environment variable points to a
+custom CVE→ATT&CK JSON file. When present, it is preferred over the default
+CTID CSV.
+
+## How industry does it — and why BRIEFR does it this way
+
+ATT&CK is used across many tooling categories: SIEM detections, EDR rule
+packs, red-team playbooks, vulnerability-management prioritization, and threat
+modeling. Large programs may maintain custom ATT&CK overlays, map detections
+to techniques with coverage heat maps, and integrate ATT&CK with asset
+inventories and red-team exercise results.
+
+BRIEFR uses a self-contained weekly sync that fits its portal scope:
+
+- one weekly download rather than real-time ATT&CK subscription;
+- local tables the correlation engine, detection generator, and API can read
+  without an upstream call;
+- three-source CVE→technique mapping that supplements the official CTID data
+  with KEV context and existing per-CVE values already in the database;
+- startup-time sparse-table check so a fresh install is not missing ATT&CK data
+  for a week; and
+- soft failure that retains prior rows rather than blanking the technique
+  catalog on a transient network error.
+
+The trade-off is that BRIEFR does not offer ATT&CK heatmaps, custom overlays,
+per-asset technique coverage, or real-time ATT&CK navigator integration. It
+stores enough technique and group data to explain CVE–technique relationships,
+support detection generation, and inform the correlation engine's actor and
+campaign lanes.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the [Integrations](/docs/integrations) table and find the MITRE
+      ATT&CK row under "Frameworks and context." Confirm that no key is listed
+      and the failure behavior is "Weekly job fails; logs."
+    </li>
+    <li>
+      Open the [System design](/docs/developer-guide/system-design) and find
+      the weekly MITRE/ATLAS refresh job. Note the four tables it populates.
+    </li>
+    <li>
+      Use the fixture below to trace how a technique from the STIX bundle
+      reaches the Intel tab on a CVE drawer. This is a documentation check
+      only; do not download the STIX bundle from the docs site.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "source": "MITRE ATT&CK (STIX)",
+    "scheduler_job": "weekly_mitre_refresh",
+    "backend_path": "feeds/mitre.py",
+    "landing_zones": [
+      "mitre_techniques",
+      "cve_technique_map",
+      "mitre_groups",
+      "group_technique_map"
+    ],
+    "mapping_sources": ["CTID CSV", "KEV-ATT&CK JSON", "cves.mitre_technique column"],
+    "key_required": false,
+    "failure_mode": "weekly job logs error; prior rows retained"
+  }
+  ```
+</TryItYourself>

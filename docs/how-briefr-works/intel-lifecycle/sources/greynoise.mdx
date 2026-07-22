@@ -1,0 +1,223 @@
+---
+sidebar_position: 9
+sidebar_label: GreyNoise
+title: GreyNoise
+description: How BRIEFR uses GreyNoise for on-demand IP classification in CVE scan context and IOC lookup.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# GreyNoise
+
+## What it is
+
+GreyNoise is BRIEFR's on-demand IP classification source. It answers a specific
+question for each IP address found in CVE reference text or submitted through
+IOC lookup: is this IP a known internet scanner, a benign service, a malicious
+actor, or something GreyNoise has no record of?
+
+This page is about the tool path, not a GreyNoise product tutorial. The
+important BRIEFR design choice is timing: GreyNoise is intentionally **not**
+called on normal CVE drawer open. It runs only when an analyst explicitly
+requests scan context via a dedicated endpoint, or when an analyst submits an IP
+indicator through IOC lookup with the GreyNoise option enabled. That preserves
+the 50-per-week Community API quota.
+
+GreyNoise is not a scheduler mirror in BRIEFR. There is no local GreyNoise
+table, no watermark, and no nightly sync. It is a targeted on-demand lookup
+with a one-hour `feed_cache` window per IP.
+
+## Why we do it
+
+Not every IP that appears in a CVE description or reference URL is
+attacker-controlled. Some are well-known internet scanning platforms, security
+research hosts, or content-delivery nodes. GreyNoise is purpose-built to make
+that distinction: it classifies IPs as `malicious`, `benign`, or `unknown`, and
+also tracks noise (mass internet scanning) and riot (known benign infrastructure)
+flags.
+
+In BRIEFR, that classification adds two kinds of useful context:
+
+- **CVE scan context:** If a CVE description or source URL mentions an IP — for
+  example in a PoC analysis or exploitation report — `greynoise_scans_for_cve`
+  can classify those IPs. An analyst can distinguish "this IP is a known Shodan
+  scanner" from "this IP has no GreyNoise record."
+- **IOC lookup context:** When an analyst submits an IP indicator via
+  `POST /api/ioc/lookup` with `greynoise: true`, GreyNoise classification
+  appears as a source card alongside VirusTotal and AbuseIPDB results.
+
+The goal is not to prove an IP is malicious from GreyNoise alone. It is to give
+the analyst one more labeled data point, annotated with a template sentence, so
+the investigation context is richer without requiring a separate browser tab.
+
+## Where it lives in BRIEFR
+
+At the product level, GreyNoise has two on-demand paths:
+
+```text
+analyst requests CVE scan context -> GET /api/cves/{id}/greynoise-scans -> greynoise_scans_for_cve -> IP classification
+analyst submits IP IOC -> POST /api/ioc/lookup (greynoise: true) -> greynoise_for_ip -> IP classification
+```
+
+Both paths share the same underlying functions in `feeds/extended.py`:
+
+1. **CVE scan context path:** The endpoint `GET /api/cves/{cve_id}/greynoise-scans`
+   in `routers/cves/intel.py` extracts IPv4 addresses from the CVE's
+   `description` and `source_urls` columns using `extract_ipv4_from_cve`. For
+   each IP (up to five), it calls `greynoise_scans_for_cve`, which calls
+   `greynoise_for_ip` per address. This endpoint is not called on normal drawer
+   open, preserving quota.
+2. **IOC lookup path:** `routers/ioc.py:POST /api/ioc/lookup` checks
+   `body.greynoise` for IP-type indicators. When the flag is set and
+   `GREYNOISE_API_KEY` is configured, it calls `greynoise_for_ip` and stores the
+   result in `ioc_cache` alongside other provider results.
+3. **Cache:** `greynoise_for_ip` checks `feed_cache` for a `greynoise:{ip}` key
+   with a one-hour max-age before making a network call. A fresh cache hit is
+   returned immediately; a miss calls `fetch_greynoise_ip` and stores the result.
+4. **Quota guard:** `has_quota("greynoise")` is checked before the network call.
+   If the weekly quota is exhausted, the function returns `None` without spending
+   another call.
+
+<InTheCode
+  items={[
+    {path: 'backend/feeds/extended.py'},
+    {path: 'backend/routers/cves/intel.py'},
+    {path: 'backend/routers/ioc.py'},
+    {path: 'backend/source_rate_limits.py'},
+  ]}
+/>
+
+## How it works
+
+GreyNoise classification in BRIEFR follows a quota-aware on-demand model:
+
+1. **The analyst triggers a lookup.** Either the CVE scan-context endpoint is
+   called, or an IP IOC is submitted with `greynoise: true`. In both cases a key
+   check happens first: if `GREYNOISE_API_KEY` is not set, the endpoint returns
+   `{"configured": false, "scans": []}` or skips the GreyNoise step.
+2. **The cache is checked.** `greynoise_for_ip` reads `feed_cache` for
+   `greynoise:{ip}`. If a result less than one hour old exists, it is returned
+   without a network call.
+3. **Quota is checked.** `has_quota("greynoise")` confirms that the weekly
+   call budget has not been exhausted before spending a Community API call.
+4. **`fetch_greynoise_ip` calls the Community API.** The request goes to
+   `GET https://api.greynoise.io/v3/community/{ip}` with the API key in a
+   `key` header. `retries=0` prevents the resilient client from automatically
+   retrying quota-billed calls.
+5. **The response is normalized.** BRIEFR extracts `classification`, `name`,
+   `link`, `noise`, and `riot` from the JSON response into a consistent shape.
+6. **404 returns a sentinel record.** If GreyNoise has no record for the IP, the
+   API returns 404. BRIEFR converts that to a result with
+   `classification: "unknown"` and `name: "No GreyNoise record"` rather than an
+   empty result, so the drawer can show that the lookup completed rather than
+   appearing broken.
+7. **Auth and rate-limit errors are logged, not surfaced.** A 401/403 logs an
+   auth warning; a 429 logs a rate-limit warning. Both return `None` so the
+   caller can proceed without GreyNoise context.
+8. **The circuit breaker skips on open.** If repeated GreyNoise failures open
+   the circuit, `CircuitOpenError` is caught and logged, and the function returns
+   `None` for that IP.
+9. **Template sentences annotate results.** `greynoise_sentence` from
+   `templates/intelligence.py` produces a plain-English label for each
+   classification, added as a `sentence` field on each scan result.
+
+The result is that analysts who explicitly ask for GreyNoise context get labeled
+IP classification cards, while analysts who do not request it do not spend quota
+on an implicit lookup.
+
+## What it needs
+
+The authoritative integrations facts for GreyNoise are:
+
+| Adds | Key | Free-tier/quota | Failure |
+| --- | --- | --- | --- |
+| IP classification | `GREYNOISE_API_KEY` | 50/week | Unknown-record fallback |
+
+Operationally, GreyNoise needs:
+
+- `GREYNOISE_API_KEY` set in the environment; without it both lookup paths
+  return no GreyNoise data;
+- network access from the backend to `api.greynoise.io`;
+- the `feed_cache` table initialized for the one-hour per-IP cache; and
+- for CVE scan context, CVE rows with `description` or `source_urls` that
+  mention IPv4 addresses.
+
+The 50/week quota is a Community API limit. BRIEFR tracks it through the source
+quota system and skips lookups once the budget is exhausted. The quota resets
+on the provider's weekly schedule, not on a BRIEFR-controlled timer. BRIEFR
+caches each IP result for one hour so repeated drawer or IOC requests for the
+same IP do not each consume a quota unit.
+
+Because GreyNoise requires a key, unconfigured deployments simply do not receive
+GreyNoise context. The CVE scan-context endpoint returns `configured: false` and
+the IOC lookup path skips the GreyNoise step. No error is surfaced to the
+analyst for an intentionally unconfigured source.
+
+## How industry does it — and why BRIEFR does it this way
+
+Many threat-intelligence platforms and SIEM tools integrate GreyNoise to
+filter out background noise — mass-scanning IPs that are not actually
+targeting the organization — from alert and log data. Those integrations often
+run continuously, enriching IP fields in alerts as they arrive, and may use
+GreyNoise's paid Business or Enterprise tiers for higher quotas and additional
+metadata.
+
+BRIEFR uses a targeted, quota-aware model that fits its portal scope:
+
+- explicit analyst-initiated lookups rather than continuous background
+  enrichment;
+- a dedicated endpoint for CVE scan context that is not called on every drawer
+  open, explicitly preserving the 50/week quota;
+- a one-hour per-IP cache to prevent repeated drawer or IOC requests from
+  consuming multiple quota units for the same address;
+- a quota guard that prevents silent overrun;
+- a 404-sentinel design so the drawer can distinguish "no record" from
+  "lookup failed"; and
+- soft failure when the key is absent or the circuit is open, without surfacing
+  errors as product failures.
+
+The trade-off is that BRIEFR does not do continuous noise-filtering on all
+ingested IOCs or automatically classify every IP in every OTX pulse. It offers
+GreyNoise as a targeted analyst tool where the analyst's intent is explicit. That
+keeps quota usage predictable for a self-hosted instance that is unlikely to have
+a paid GreyNoise plan.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the [Integrations](/docs/integrations) table and find the GreyNoise
+      row. Confirm that a key is required, the quota is 50/week, and the failure
+      behavior is "Unknown-record fallback."
+    </li>
+    <li>
+      Read the [Enrich](/docs/how-briefr-works/intel-lifecycle/enrich) chapter
+      and find the paragraph that explains why GreyNoise scan context uses its
+      own endpoint rather than being bundled into the standard CVE drawer open.
+    </li>
+    <li>
+      Use the fixture below to trace how a GreyNoise result reaches the CVE
+      scan-context response. This is a documentation exercise only; do not call
+      the GreyNoise API from the docs site.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "source": "GreyNoise Community API",
+    "trigger": "GET /api/cves/{id}/greynoise-scans (explicit; not on drawer open)",
+    "ioc_path": "POST /api/ioc/lookup with greynoise: true",
+    "backend_path": "feeds/extended.py",
+    "cache": "greynoise:{ip} in feed_cache, 1h TTL",
+    "quota": "50/week",
+    "key_required": true,
+    "failure_modes": {
+      "key_absent": "configured: false returned; no lookup attempted",
+      "404": "unknown classification sentinel returned",
+      "circuit_open": "null result; lookup skipped"
+    }
+  }
+  ```
+</TryItYourself>
