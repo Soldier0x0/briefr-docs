@@ -80,7 +80,7 @@ ThreatFox IOCs without outbound enrichment on the match path.
   items={[
     {path: 'backend/scheduler.py'},
     {path: 'backend/feeds/otx.py'},
-    {path: 'backend/routers/cves.py'},
+    {path: 'backend/routers/cves', kind: 'tree'},
     {path: 'backend/routers/ioc.py'},
     {path: 'backend/enrichment/ioc.py'},
     {path: 'backend/correlation/engine.py'},
@@ -143,7 +143,7 @@ failure outcome for configured calls. The integrations page is the operator-leve
 source of truth for the key point: without `OTX_API_KEY`, the nightly job is
 skipped.
 
-## How industry does it - and why BRIEFR does it this way
+## How industry does it — and why BRIEFR does it this way
 
 Threat-intelligence platforms often use OTX-like sources as part of broad live
 pivoting: open an indicator or vulnerability, query many providers at once, and

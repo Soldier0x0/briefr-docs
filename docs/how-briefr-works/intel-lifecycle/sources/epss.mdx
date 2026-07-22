@@ -73,10 +73,10 @@ The main readers are documented in the system design:
   items={[
     {path: 'backend/scheduler.py'},
     {path: 'backend/feeds/epss.py'},
-    {path: 'backend/routers/cves.py'},
+    {path: 'backend/routers/cves', kind: 'tree'},
     {path: 'backend/scoring/risk.py'},
     {path: 'frontend/src/components/BriefCharts.jsx'},
-    {path: 'frontend/src/components/DetailDrawer.jsx'},
+    {path: 'frontend/src/components/DetailDrawer', kind: 'tree'},
   ]}
 />
 
@@ -126,7 +126,7 @@ Because no key is listed, EPSS setup is mostly about scheduler/source health and
 local persistence. If the source returns an empty batch, BRIEFR should show the
 absence of updated EPSS context instead of inventing movement or scores.
 
-## How industry does it - and why BRIEFR does it this way
+## How industry does it — and why BRIEFR does it this way
 
 Larger vulnerability programs often combine EPSS with scanner findings, asset
 criticality, exposure, compensating controls, ticket age, and remediation policy.

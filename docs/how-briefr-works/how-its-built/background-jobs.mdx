@@ -2,23 +2,404 @@
 sidebar_position: 6
 sidebar_label: Background jobs
 title: Background jobs
-description: Nightly correlation, OTX sync, retro-match, and maintenance crons.
+description: Correlation engine, intelligence backfills, Procrastinate durable queue, and maintenance crons in BRIEFR.
 ---
+
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
 
 # Background jobs
 
-:::note[Outline — Phase 3]
-Full chapter lands in the Track B content plan. Sections below are the required template; fill with sourced claims only.
-:::
-
 ## What it is
+
+BRIEFR runs two distinct layers of background work. The ingestion scheduler
+(covered in [Ingestion and scheduler](./ingestion-scheduler.mdx)) owns
+outbound feed pulls: NVD, KEV, EPSS, MITRE, cvelistV5, Vulnrichment, and
+the other corpus-building syncs that keep local data current. A second layer
+handles everything else: correlation analysis that links CVEs to threat
+campaigns, intelligence backfills that annotate existing CVEs with new
+signals, maintenance sweeps that prune stale data and check provider health,
+and — when Postgres is in use — a durable outbound queue for long-running or
+retry-eligible work.
+
+Together these are the background jobs covered in this chapter. They use the
+same APScheduler instance as the ingestion jobs, the same per-job
+`asyncio.Lock` pattern to prevent overlap, and the same last-run history
+written to `sync_state`. The difference is purpose: ingestion jobs import
+data; background jobs act on it.
 
 ## Why we do it
 
+The work in this layer shares one property: it is too expensive, too slow, or
+too bursty to run on the request path.
+
+- **Correlation analysis** over thousands of CVEs against OTX pulses and MITRE
+  techniques can take minutes. A page load cannot wait for it.
+- **Embeddings backfill** runs CPU-bound sentence-transformer inference on every
+  CVE that lacks a stored vector. That is not a sub-second operation.
+- **LLM product extraction** calls an external provider for each NVD-unanalyzed
+  CVE. Automatic retries and quota tracking belong in a durable queue, not in a
+  request handler.
+- **Maintenance sweeps** — cache retention, expired session purge, resource
+  metrics sampling — must run on a schedule, not reactively, to keep disk usage
+  and connection state predictable.
+- **IOC retro-matching** scans the entire watchlist against the local OTX and
+  ThreatFox mirrors. Running it on every IOC lookup would be unbounded.
+
+Separating this work into scheduled jobs means analysts get fast reads on
+pre-computed results, expensive operations are bounded in time and concurrency,
+and failures in any one job do not affect the others.
+
 ## Where it lives in BRIEFR
+
+```text
+scheduler.py          -> all job functions (analysis, backfill, maintenance)
+jobs/app.py           -> Procrastinate App factory (disabled unless PROCRASTINATE_ENABLED=1)
+jobs/tasks.py         -> Procrastinate task definitions (Blueprint)
+jobs/worker.py        -> in-process Procrastinate worker lifecycle
+jobs/context.py       -> outbound attribution contextvars for metering
+jobs/retry_policy.py  -> bounded retry delays for durable tasks (3 attempts)
+task_registry.py      -> fire-and-forget task tracking and shutdown drain
+scheduler_locks.py    -> per-job asyncio.Lock objects (shared with admin helpers)
+routers/admin/jobs.py -> /api/admin/scheduler/* and /api/admin/jobs/outbound/*
+```
+
+`scheduler.py` defines every job function. `scheduler_locks.py` holds a
+named `asyncio.Lock` for each job that could overlap with a manual admin
+trigger. `jobs/` is the Procrastinate layer; it is entirely optional and
+does not affect the scheduler jobs that run without it.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/scheduler_locks.py'},
+    {path: 'backend/task_registry.py'},
+    {path: 'backend/jobs/', kind: 'tree'},
+    {path: 'backend/routers/admin/jobs.py'},
+  ]}
+/>
 
 ## How it works
 
+### Correlation jobs
+
+BRIEFR runs two nightly analysis jobs and one optional continuous job that
+together keep the threat correlation layer current.
+
+**`nightly_correlation`** fires daily at 01:00 IST by default
+(`CORRELATION_HOUR=1`, `CORRELATION_MINUTE=0`, timezone
+`CORRELATION_TIMEZONE=Asia/Kolkata`). It uses a `CronTrigger` and a named
+lock, so a manual admin trigger cannot race a scheduled run. When an
+`OTX_API_KEY` is configured, the job pre-fetches OTX pulse IOCs before the
+correlation pass to warm the infrastructure-matching step. The correlation
+engine then processes the full CVE corpus, producing infrastructure pairs,
+actor findings, temporal anomalies, and campaigns. It records those counts in
+the log on success.
+
+**`otx_nightly_correlation`** fires daily at 02:00 IST (`OTX_CORRELATION_HOUR=2`,
+`OTX_CORRELATION_MINUTE=0`). It is a no-op when `OTX_API_KEY` is absent. When
+the key is present, it runs the OTX-specific correlation pass: fetching pulse
+data for CVEs seen in the corpus, caching pulse IOCs locally, and committing
+the results. Its CronTrigger and lock prevent it from running concurrently with
+itself or a manual trigger.
+
+**`otx_continuous_sync`** is registration-gated: it is added to the scheduler
+only when `OTX_CONTINUOUS_SYNC_ENABLED` is active. It runs on a short
+interval, pulling new OTX pulses and prefetching their IOCs within a configured
+hourly API budget. It logs API call counts, CVE pulse batches stored, and pulse
+IOCs fetched.
+
+All three correlation jobs write a last-run record to `sync_state` under
+`scheduler.last_run.<job_id>` after each run, including `had_error`,
+`duration_seconds`, and a truncated error message when applicable.
+
+### Catch-up tick and backfill jobs
+
+Five jobs handle intelligence enrichment that catches up with gaps in the
+existing corpus.
+
+**`catchup_tick`** runs every 5 minutes with an `IntervalTrigger`. It is a
+dispatcher: when catch-up mode is active and new work is eligible, it kicks
+`embeddings_backfill`, a correlation precompute slice, `llm_product_extraction`,
+and `cpe_catalog_sync` in sequence. When catch-up mode is inactive or winding
+down, the tick exits immediately. It uses its own named lock so ticks do not
+overlap.
+
+**`embeddings_backfill`** runs every 6 hours (`EMBEDDINGS_SYNC_INTERVAL_HOURS`,
+default `6`). It is a no-op at runtime unless `EMBEDDINGS_ENABLED=1` — the
+gate is checked on each fire so an operator can toggle the feature without
+restarting the scheduler. When enabled, it runs three sequential backfill
+passes: one for CVE descriptions, one for MITRE techniques, and one for
+correlation campaigns. It logs the total vectors written and the model name.
+CPU-bound inference runs scheduler-side; it never runs on the request path.
+
+**`llm_product_extraction`** runs every 6 hours
+(`LLM_PRODUCT_EXTRACTION_INTERVAL_HOURS`, default `6`). It is a no-op unless
+`LLM_PRODUCT_EXTRACTION_ENABLED=1` and an LLM provider key is configured.
+When Procrastinate is enabled (see [Durable queue](#durable-queue-procrastinate)
+below), each scheduled fire defers a `jobs:llm_product_extraction` task
+to the durable queue instead of running inline. An `AlreadyEnqueued` result
+is treated as success; the job does not re-enqueue a task that is already
+pending. When Procrastinate is disabled, extraction runs inline under the
+named lock.
+
+**`detection_context_sync`** runs every 6 hours
+(`DETECTION_CONTEXT_SYNC_INTERVAL_HOURS`, default `6`). It backfills static
+metadata into the DetectionContext cache. No-op unless
+`DETECTION_CONTEXT_SYNC_ENABLED=1`. Never runs on the request path.
+
+**`detection_context_llm`** is registration-gated: added to the scheduler only
+when `DETECTION_CONTEXT_LLM_ENABLED=1`. It fires every 12 hours
+(`DETECTION_CONTEXT_LLM_INTERVAL_HOURS`, default `12`) and runs LLM artifact
+extraction into the DetectionContext cache. Also requires an LLM provider key.
+
+**`cpe_catalog_sync`** runs every 6 hours (`CPE_CATALOG_SYNC_INTERVAL_HOURS`,
+default `6`). No-op unless `CPE_CATALOG_SYNC_ENABLED=1`. It is also kicked
+by `catchup_tick` when catch-up mode is active.
+
+### Maintenance and housekeeping
+
+Nine jobs handle recurring maintenance. None of them pull external feeds; they
+act only on local state.
+
+| Job ID | Default cadence | What it does |
+| --- | --- | --- |
+| `ioc_retro_match` | Daily at 04:00 IST (`IOC_RETRO_MATCH_HOUR=4`, `IOC_RETRO_MATCH_MINUTE=0`) | Scans the full IOC watchlist against the local OTX and ThreatFox mirrors. No external API calls. |
+| `kev_backlog_reconcile` | Monday 03:30 IST (`KEV_BACKLOG_RECONCILE_HOUR=3`, `KEV_BACKLOG_RECONCILE_MINUTE=30`) | Finds gaps in the KEV detection backlog for operator stacks and fills them. |
+| `scheduled_backup` | Interval (`BACKUP_INTERVAL_HOURS`) | Creates a database backup archive (`pg_dump --format=custom`) and prunes old backups. No-op when `BACKUP_ENABLED=0`. |
+| `backup_deadman_check` | Half of `BACKUP_INTERVAL_HOURS` | Warns via webhook when a backup archive has not been created within 2× the configured interval. |
+| `watchlist_monitor_alerts` | Every 1 hour | Fires webhook alerts for significant changes to pinned CVEs in operator watchlists. |
+| `api_key_health_check` | Every 6 hours | Pings configured provider keys and records health results in the database. |
+| `session_cleanup` | Every 24 hours | Purges expired built-in login sessions from the `sessions` table. |
+| `cache_retention_cleanup` | Every 24 hours | Sweeps `ioc_cache`, `feed_cache`, and overlay tables, deleting rows past their physical retention window. |
+| `resource_metrics_sample` | Every 60 seconds (`RESOURCE_SAMPLE_INTERVAL_SECONDS=60`, min 30) | Samples BRIEFR and Postgres utilization metrics and writes them to the database. |
+
+`ioc_retro_match`, `kev_backlog_reconcile`, and `resource_metrics_sample` all
+have named locks in `scheduler_locks.py`. `scheduled_backup` also has a named
+lock because the admin panel can trigger it manually. `session_cleanup`,
+`cache_retention_cleanup`, `backup_deadman_check`, `watchlist_monitor_alerts`,
+and `api_key_health_check` rely on APScheduler's `max_instances=1` alone;
+they are short-running or naturally idempotent enough that in-process lock
+serialization adds no benefit.
+
+### Durable queue: Procrastinate
+
+When `PROCRASTINATE_ENABLED=1` and `DATABASE_URL` points at a PostgreSQL
+instance, BRIEFR activates an optional durable-job layer built on
+[Procrastinate](https://procrastinate.readthedocs.io/). This layer is fully
+optional; all scheduler jobs run without it on SQLite.
+
+`jobs/app.py` creates a process-wide `procrastinate.App` backed by a
+`PsycopgConnector`. Task definitions live in `jobs/tasks.py` as a
+`Blueprint`, registered into the App under the `jobs` namespace. Three tasks
+are defined:
+
+| Task name | Queue | Purpose |
+| --- | --- | --- |
+| `jobs:health_ping` | `briefr` | No-op canary — proves the defer→worker→success path is alive. |
+| `jobs:stack_backfill` | `briefr` | Advances one Tier A stack backfill run. |
+| `jobs:llm_product_extraction` | `briefr` | Runs LLM product extraction from the durable queue. |
+
+The in-process worker starts in `jobs/worker.py` at backend startup when
+Procrastinate is enabled. It runs on the `briefr` queue with `concurrency=1`,
+wrapped in a fire-and-forget `asyncio.Task` registered in the task registry
+(see below) so it is drained at shutdown.
+
+`jobs/retry_policy.py` defines the retry schedule for durable tasks. When an
+LLM extraction run fails with a timeout-like error, the task self-defers with a
+`queueing_lock` so at most one retry can queue at a time. The retry delays are
+`(180, 240, 300)` seconds, giving three attempts. Retries are exhausted after
+the third attempt. Non-timeout errors do not retry; they propagate and are
+recorded as failures in the Procrastinate job table.
+
+`jobs/context.py` provides an `outbound_context()` context manager that sets
+attribution fields (`actor_type`, `queue_task`, `trigger`) as `ContextVar`
+values for the duration of a job run. Those fields flow into outbound call
+metering, visible at `GET /api/admin/api-usage/metering`.
+
+Procrastinate job state is readable at `GET /api/admin/jobs/outbound`. An
+admin can also post a canary task at `POST /api/admin/jobs/outbound/ping` to
+verify that the queue write, worker, and success path are all functioning.
+
+### Fire-and-forget task registry
+
+Every spawned `asyncio.Task` that runs outside a request handler is tracked in
+`task_registry.py`. `spawn_background_task()` creates a task and registers it
+with `register_background_task()`, which holds a strong reference and attaches
+a `done_callback` to remove the reference when the task finishes.
+
+At backend shutdown, `drain_background_tasks()` waits up to
+`SHUTDOWN_DRAIN_TIMEOUT_SECONDS` (default `10`) for all registered tasks to
+finish. Tasks that are still running when the timeout expires are logged as
+warnings but not cancelled. This ensures that in-flight ingest or snapshot
+writes are not killed mid-operation when uvicorn stops.
+
+The Procrastinate worker and all scheduler-kicked background coroutines
+(wrapped by `_schedule_background()` in `scheduler.py`) register here so the
+shutdown drain covers them.
+
+### Last-run history and live progress
+
+Every job function calls `_write_job_last_run()` after it completes. This
+writes a JSON entry to `sync_state` under `scheduler.last_run.<job_id>`. The
+stored format is a ring of five entries, each containing:
+
+| Field | Content |
+| --- | --- |
+| `started_at` | ISO-8601 UTC timestamp when the run began. |
+| `duration_seconds` | Wall-clock seconds the run took. |
+| `records_upserted` | Count of records written (job-specific; not all jobs set this). |
+| `had_error` | Boolean: `true` when the run raised an uncaught exception. |
+| `error_message` | Truncated exception message, up to 500 characters. |
+| `run_id` | Structured log run ID for correlating log lines. |
+
+When `had_error` is `true`, `_write_job_last_run()` also attempts to emit a
+job error notification via `notifications.emit`, so operators with notification
+webhooks receive an alert without polling the admin panel.
+
+While a job is running, it may write intermediate messages to an in-memory
+dict keyed by job ID. Long-running jobs such as `nightly_correlation` and
+`llm_product_extraction` use this to show progress — for example
+`"Pre-fetching OTX pulse IOCs to warm Level 1 infrastructure correlation…"`
+— in the admin scheduler UI without polling the database. The message is
+removed from the dict when the job finishes.
+
+Admins can read all accumulated last-run history at
+`GET /api/admin/scheduler/history`. The response lists every job that has ever
+completed, with its latest run metadata and the full ring of five entries. The
+admin scheduler UI also allows individual jobs to be paused or resumed:
+paused state is persisted under `scheduler.paused.<job_id>` in `sync_state`
+and re-applied when the scheduler restarts.
+
 ## What it needs
 
+| Setting or surface | What to check |
+| --- | --- |
+| `BRIEFR_SCHEDULER_ENABLED` | Must be `1` on exactly one backend instance. Background jobs run only when the scheduler is enabled. |
+| `CORRELATION_HOUR`, `CORRELATION_MINUTE` | Nightly correlation fire time (IST). Defaults: `1`, `0`. |
+| `OTX_CORRELATION_HOUR`, `OTX_CORRELATION_MINUTE` | OTX nightly correlation fire time (IST). Defaults: `2`, `0`. |
+| `IOC_RETRO_MATCH_HOUR`, `IOC_RETRO_MATCH_MINUTE` | IOC retro-match fire time. Defaults: `4`, `0`. |
+| `KEV_BACKLOG_RECONCILE_HOUR`, `KEV_BACKLOG_RECONCILE_MINUTE` | Weekly KEV reconcile fire time (Monday). Defaults: `3`, `30`. |
+| `EMBEDDINGS_ENABLED` | Set `1` to activate the embeddings backfill job. Default: `0` (no-op). Requires `EMBEDDINGS_SYNC_INTERVAL_HOURS`. |
+| `LLM_PRODUCT_EXTRACTION_ENABLED` | Set `1` plus a provider key to activate LLM product extraction. Default: `0`. |
+| `DETECTION_CONTEXT_SYNC_ENABLED` | Set `1` to activate DetectionContext static backfill. Default: `0`. |
+| `DETECTION_CONTEXT_LLM_ENABLED` | Set `1` to register and activate the LLM artifact extraction job. Requires a provider key. Default: off. |
+| `CPE_CATALOG_SYNC_ENABLED` | Set `1` to activate CPE catalog sync. Default: `0`. |
+| `BACKUP_INTERVAL_HOURS` | How often the scheduled backup runs. Must be `>= 1`. |
+| `BACKUP_ENABLED` | Set `0` to make `scheduled_backup` a no-op. |
+| `RESOURCE_SAMPLE_INTERVAL_SECONDS` | How often resource metrics are sampled. Default: `60`. Minimum: `30`. |
+| `SHUTDOWN_DRAIN_TIMEOUT_SECONDS` | How long `drain_background_tasks()` waits at shutdown for in-flight tasks. Default: `10`. |
+| `PROCRASTINATE_ENABLED` | Set `1` on a Postgres deployment to activate the durable queue. LLM extraction then defers to Procrastinate instead of running inline. |
+| `GET /api/admin/scheduler/history` | Per-job last-run metadata: start time, duration, error state, and the ring of five entries. Requires admin session. |
+| `GET /api/admin/jobs/outbound` | Recent Procrastinate job rows (status, task name, queued at). Empty when Procrastinate is disabled. |
+
 ## How industry does it — and why BRIEFR does it this way
+
+<AtEnterpriseScale>
+  <div>
+    Large platforms separate analysis and maintenance work into dedicated
+    microservices or worker pools. Correlation engines run on a fleet of
+    workers consuming from a message broker. Embeddings are computed in a
+    GPU-backed service separate from the application. Durable queues — Celery
+    with Redis, RabbitMQ, or a cloud-managed queue — are distinct
+    infrastructure components. Retry and backoff logic lives in the queue
+    system, not in the application. Maintenance jobs run in purpose-built
+    administrative services, not alongside the API.
+  </div>
+
+  <div>
+    BRIEFR consolidates all of this into one backend process. The APScheduler
+    instance that fires NVD and KEV syncs also fires correlation runs,
+    backfill jobs, and cache sweeps. Procrastinate, when enabled, runs its
+    worker as an asyncio task inside the same process rather than as a
+    separate worker service. There is no broker to operate, no separate worker
+    pool to provision, and no external retry infrastructure to debug. A fresh
+    self-hosted instance gets the full background-job layer as soon as the
+    backend starts.
+  </div>
+</AtEnterpriseScale>
+
+The trade-off is straightforward: operational simplicity at the cost of
+independent scalability. A small team can run correlation, embeddings, LLM
+extraction, and all maintenance from one process without configuring a
+message broker or managing multiple service units.
+
+The limit becomes visible if any individual job's resource usage grows to the
+point where it competes with API request handling inside the same process. At
+that point the natural step is to move the specific job — embeddings inference
+or LLM extraction being the most likely candidates — out of the scheduler and
+into a dedicated worker, keeping the rest of the background layer in place.
+That is outside the current deployment model but is a targeted escalation path
+rather than a full architecture change.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      On a self-hosted BRIEFR instance where you have an admin session, request{' '}
+      <code>GET /api/admin/scheduler/history</code>. You are reading job run
+      metadata only; no jobs are triggered by this request.
+    </li>
+    <li>
+      Find the entry for <code>nightly_correlation</code>. Confirm that the
+      response includes <code>last_run_utc</code>, <code>duration_seconds</code>,{' '}
+      <code>had_error</code>, and <code>run_history</code> (a list of up to five
+      past runs). If the job has not yet fired, the entry will be absent.
+    </li>
+    <li>
+      Also look for a maintenance job such as <code>cache_retention_cleanup</code>
+      or <code>session_cleanup</code>. These run daily; their entries confirm that
+      the scheduler is running and that last-run writes to <code>sync_state</code>
+      are working as expected.
+    </li>
+  </ol>
+
+  ```json
+  [
+    {
+      "job_id": "nightly_correlation",
+      "last_run_utc": "2026-07-22T19:30:01",
+      "duration_seconds": 42.3,
+      "records_upserted": 0,
+      "had_error": false,
+      "error_message": "",
+      "run_history": [
+        {
+          "started_at": "2026-07-22T19:30:01",
+          "duration_seconds": 42.3,
+          "records_upserted": 0,
+          "had_error": false,
+          "error_message": "",
+          "run_id": "a1b2c3d4"
+        }
+      ]
+    },
+    {
+      "job_id": "cache_retention_cleanup",
+      "last_run_utc": "2026-07-22T20:15:00",
+      "duration_seconds": 0.18,
+      "records_upserted": 0,
+      "had_error": false,
+      "error_message": "",
+      "run_history": [
+        {
+          "started_at": "2026-07-22T20:15:00",
+          "duration_seconds": 0.18,
+          "records_upserted": 0,
+          "had_error": false,
+          "error_message": "",
+          "run_id": "e5f6a7b8"
+        }
+      ]
+    }
+  ]
+  ```
+
+  Treat this as a redacted shape example. The useful checks are that{' '}
+  <code>had_error</code> is <code>false</code> for recently-run jobs and that{' '}
+  <code>duration_seconds</code> looks reasonable for each job's role —
+  maintenance jobs are typically sub-second while a correlation run is likely
+  to take tens of seconds.
+</TryItYourself>

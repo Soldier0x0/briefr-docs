@@ -21,3 +21,7 @@ yarn-error.log*
 
 # Local private checkouts (never commit)
 .vendor/
+
+# Agent session scratch (never commit)
+.superpowers/
+.artifacts/

@@ -2,23 +2,490 @@
 sidebar_position: 8
 sidebar_label: Webhooks and operations
 title: Webhooks and operations
-description: Alerts, backups, health checks, and multi-worker operations in BRIEFR.
+description: Outbound alerts, backup, health monitoring, and operational hygiene in BRIEFR.
 ---
+
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
 
 # Webhooks and operations
 
-:::note[Outline — Phase 3]
-Full chapter lands in the Track B content plan. Sections below are the required template; fill with sourced claims only.
-:::
-
 ## What it is
+
+Webhooks and operations covers two related but distinct concerns in a running
+BRIEFR instance.
+
+**Outbound webhooks** are push notifications that BRIEFR sends to operator-
+configured destinations whenever a significant event occurs. Those events are
+not general-purpose — they represent the signals most relevant to a security
+team: a CVE on the team stack just entered the CISA Known Exploited
+Vulnerabilities catalog, a pinned CVE's EPSS score jumped, a watchlist IOC
+was matched in fresh threat feeds, a new KEV gap appeared in the detection
+backlog, or a scheduled backup has gone missing. Each event type maps to one
+or more supported channel kinds: Discord webhooks, Telegram bots, or any
+HTTPS endpoint that accepts a JSON POST.
+
+**Operations** covers the supporting systems that keep BRIEFR healthy without
+operator intervention: scheduled database backups with optional
+archive-level encryption, API key health pings that confirm configured
+provider keys are still valid, a structured log buffer viewable from the admin
+interface, and an operator notification center that aggregates audit events,
+job errors, and API key failures into a single surface.
+
+Together these systems mean that an operator who configured BRIEFR and walked
+away can trust that failures will announce themselves rather than accumulate
+silently.
 
 ## Why we do it
 
+A threat intelligence platform that fails quietly is not useful. The signals
+BRIEFR tracks — newly exploited vulnerabilities, rising EPSS scores, IOC
+matches from ThreatFox and OTX — lose their value if the team has no way to
+hear about them promptly.
+
+Equally, a self-hosted service that loses its database without the operator
+knowing, or that silently exhausts a VirusTotal API key quota so IOC lookups
+degrade, puts the team in a worse position than if the tool did not exist at
+all.
+
+The webhook engine exists because scheduled jobs and background enrichment
+run without user interaction, so the output of those jobs needs a push path
+to the people who care. The operations layer exists because the tool needs to
+monitor itself: backup archives should be fresh, provider keys should be
+healthy, and job failures should surface somewhere actionable.
+
 ## Where it lives in BRIEFR
+
+```text
+backend/
+  webhooks/
+    __init__.py       — public re-exports
+    engine.py         — dispatch_event, deliver_to_destination, send_alert
+    destinations.py   — WebhookDestination dataclass, env + DB loading, SSRF validation on create
+    ssrf.py           — safe_webhook_request, blocked-network checks, header sanitization
+    sender.py         — thin backward-compatible wrappers used by older alert callers
+    alerts.py         — alert rule functions: KEV-on-stack, KEV backlog, watchlist, backup dead-man
+
+  backup/
+    manager.py        — run_backup, restore_backup, list_backups, ensure_db_or_restore
+    postgres_util.py  — pg_dump / pg_restore helpers for the PostgreSQL backend
+
+  monitoring/
+    api_key_health.py — per-provider health ping and sync_state persistence
+    notifications.py  — operator notification center (audit log + job errors + key health)
+```
+
+<InTheCode
+  items={[
+    {path: 'backend/webhooks/engine.py'},
+    {path: 'backend/webhooks/destinations.py'},
+    {path: 'backend/webhooks/ssrf.py'},
+    {path: 'backend/webhooks/alerts.py'},
+    {path: 'backend/backup/manager.py'},
+    {path: 'backend/monitoring/api_key_health.py'},
+    {path: 'backend/monitoring/notifications.py'},
+  ]}
+/>
 
 ## How it works
 
+### Outbound webhook engine
+
+#### Destinations and configuration
+
+BRIEFR supports three destination kinds: `discord`, `telegram`, and
+`generic`. A `discord` destination sends to a Discord webhook URL; a
+`telegram` destination sends to a bot identified by token and chat ID; a
+`generic` destination POSTs a JSON payload to any HTTPS URL.
+
+Destinations come from two sources and are merged at runtime:
+
+- **Environment variables** seed the three fixed-ID destinations. Set
+  `DISCORD_WEBHOOK_URL` for the `discord` destination, `TELEGRAM_BOT_TOKEN`
+  and `TELEGRAM_CHAT_ID` for `telegram`, and `WEBHOOK_GENERIC_URL` for
+  `generic`.
+- **The `webhook_destinations` table** holds operator-added destinations and
+  DB-side overrides (toggle enabled, change subscribed event types, relabel)
+  for env-seeded ones. On startup, `sync_env_destinations_to_db` upserts
+  env destinations into the table; the DB record's `enabled` flag and
+  `event_types` then take precedence over the env default.
+
+Each destination carries a list of event types it subscribes to. If none are
+configured, the destination receives all six event types: `kev_alert`,
+`kev_backlog`, `ioc_watchlist_hit`, `backup_failure`, `health`, and
+`watchlist_alert`. Legacy aliases (`kev_stack`, `backup_deadman`) are
+normalized automatically.
+
+#### Dispatch flow
+
+`dispatch_event(event_type, message, dedupe_key=...)` is the central
+function. It:
+
+1. Normalizes the event type and rejects unknown values immediately.
+2. Loads and filters the active destination list.
+3. For each destination subscribed to the event type, checks the dedupe key
+   (if provided) before sending. The check is a claim-before-send database
+   write (IDEM-001): the engine claims the `(destination_id, event_type,
+   dedupe_key)` triple atomically before attempting delivery. If the claim is
+   already taken, the destination is skipped as a duplicate. If delivery then
+   fails, the claim is released so the next run can retry.
+4. Calls the destination-specific delivery function.
+5. Records the delivery outcome (`ok` or `failed`, plus any error text) in
+   the `webhook_delivery_log` table.
+6. If a delivery fails, emits an in-app webhook failure notification through
+   the notifications subsystem.
+
+The aggregate return value classifies the overall outcome: `ok` when all
+targeted destinations received the message, `partial` when some but not all
+did, `skipped` when deduplication or an empty subscriber list prevented
+delivery, or `failed` when no delivery succeeded.
+
+#### Per-channel formatting
+
+Each channel kind has its own formatting and size limits:
+
+| Kind | Delivery | Content limit |
+| --- | --- | --- |
+| `discord` | POST to webhook URL, `{"content": "..."}` | 2 000 characters |
+| `telegram` | POST to `api.telegram.org/bot{token}/sendMessage` | 4 096 characters |
+| `generic` | POST JSON `{"text": "...", "event_type": "...", "source": "briefr", "dedupe_key": "..."}` | No hard limit |
+
+Messages that exceed channel limits are truncated with a trailing ellipsis
+rather than dropped.
+
+#### SSRF protection
+
+Every outbound webhook request passes through `safe_webhook_request` in
+`ssrf.py`. The function enforces several constraints before any bytes leave
+the host:
+
+- **HTTPS only.** URLs with any other scheme raise `SSRFError` immediately.
+- **Hostname resolution.** The destination hostname is resolved synchronously.
+  Every returned IP address is checked against a blocklist that covers
+  RFC 1918 private ranges (10/8, 172.16/12, 192.168/16), Carrier-Grade NAT
+  (100.64/10), loopback (127/8, ::1), link-local (169.254/16), and
+  IPv6 ULA (fc00::/7). Any address in a blocked range raises `SSRFError`.
+- **IP pinning.** The resolved IP is pinned for the actual TCP connection.
+  The original hostname is preserved in the `Host` header and used for SNI
+  (so TLS certificate validation checks the hostname, not the IP literal,
+  matching how CDN-hosted services issue certificates).
+- **Redirects disabled.** The shared webhook `httpx.AsyncClient` is
+  configured with `follow_redirects=False`. A redirect response is treated
+  as an error rather than followed.
+- **Header sanitization.** Operator-supplied outbound headers pass through
+  `sanitize_outbound_headers`, which strips a fixed blocklist
+  (`FORBIDDEN_OUTBOUND_HEADERS` in `ssrf.py`): `authorization`,
+  `x-briefr-admin-key`, `x-api-key`, `x-virustotal-api-key`,
+  `x-nvd-api-key`, `x-github-token`, `x-groq-api-key`,
+  `x-abuseipdb-api-key`, `x-greynoise-api-key`, and `x-circl-api-key`.
+  Any header whose name starts with `x-briefr-` is also stripped. This is
+  not an exhaustive list of every provider credential header BRIEFR uses
+  internally — only the names in that set (plus the `x-briefr-*` prefix rule)
+  are removed from outbound webhook requests.
+
+These measures prevent a misconfigured or malicious destination URL from
+reaching internal services, probing metadata endpoints, or extracting
+credentials from the BRIEFR process.
+
+#### Retries and rate limiting
+
+Failed deliveries are retried up to two times (`WEBHOOK_RETRIES = 2`) with
+exponential backoff starting at 1.5 seconds. Only server-side transient
+errors (HTTP 500, 502, 503, 504) trigger a retry. Client errors (4xx) and
+non-error responses do not. Rate limit responses (HTTP 429) cause the engine
+to re-apply any `Retry-After` guidance from the upstream channel and
+continue without consuming a retry count. Each delivery is coordinated
+through the shared API slot queue to avoid bursting the same upstream.
+
+#### Alert rules
+
+`alerts.py` implements the event-generating rules that call `dispatch_event`.
+Four are wired into the scheduler:
+
+**KEV-on-stack alerts** (`kev_alert`): when the KEV ingest job adds a CVE
+to the CISA catalog, the scheduler checks whether that CVE matches any term
+in the operator-configured stack. If it does, one `kev_alert` message per
+CVE is dispatched with severity, KEV due date, matched stack terms, and a
+short description. Deduplication uses the CVE ID as the key, so each CVE
+alerts at most once per destination.
+
+**KEV backlog alerts** (`kev_backlog`): when a newly KEV'd CVE maps to a
+MITRE ATT&CK technique and no detection rule (saved or community) covers it,
+a backlog row is created and one `kev_backlog` message is sent per
+`(cve_id, technique_id)` pair.
+
+**Watchlist alerts** (`watchlist_alert`): two sub-rules exist. One fires
+when a pinned CVE enters CISA KEV; the other fires when a pinned CVE's EPSS
+score increases by at least 0.05, or when a public proof-of-concept reference
+is first detected for it. Both send in-app notifications in addition to
+webhooks and use a compound dedupe key so the same change does not produce
+repeated messages.
+
+**IOC watchlist hit alerts** (`ioc_watchlist_hit`): when the IOC retro-
+matching job finds a user's watchlist IOC in OTX or ThreatFox data, a hit
+message is dispatched that includes the IOC value and type, the intelligence
+source, ThreatFox confidence and malware family when available, and any linked
+campaign context.
+
+**Backup dead-man** (`backup_failure`): the scheduler runs
+`check_backup_deadman` on a regular cadence. If backups are enabled and the
+most recent successful backup is older than `2 × BACKUP_INTERVAL_HOURS`, a
+`backup_failure` message is sent. When a fresh backup later arrives, the
+dead-man dedupe key is cleared so the next stale period can alert again.
+
+### Backup system
+
+#### What a backup contains
+
+Each backup is a compressed tar archive (`briefr-YYYYMMDDTHHMMSSZ.tar.gz`)
+containing:
+
+- **SQLite backend:** a WAL-safe online copy of `briefr.db` taken via
+  `sqlite3.Connection.backup()`, plus a `manifest.json` with SHA-256
+  digest and both before-and-after `PRAGMA integrity_check` results. The
+  `.env` file is included when it exists.
+- **PostgreSQL backend:** a `pg_dump --format=custom` archive
+  (`briefr.pgdump`) inside the tarball, plus a `manifest.json` with
+  the dump SHA-256 and a `backend: "postgresql"` marker.
+
+The manifest format version differentiates SQLite (`"version": 1`) from
+PostgreSQL (`"version": 2`) archives so that the restore path can select the
+correct tool.
+
+#### Age encryption
+
+Archives can be encrypted at rest using the [age](https://age-encryption.org)
+X25519 algorithm (via `pyrage`). When `BACKUP_AGE_KEY_FILE` points to an
+age identity file, every archive written gets the `.age` suffix and is
+encrypted to the corresponding public key. The identity file is required for
+restore; the backup manager enforces that it lives outside `BACKUP_DIR` so
+the decryption key is never co-located with the archives it protects.
+
+If `BACKUP_AGE_KEY_FILE` is unset, BRIEFR checks the production default
+path (`/var/lib/briefr/keys/backup-age.key`) and enables encryption silently
+when that file exists. Setting the variable to an empty string disables
+encryption explicitly.
+
+#### Scheduling and retention
+
+`BACKUP_INTERVAL_HOURS` (default `6`) controls how often the scheduler runs
+`run_backup`. The backup manager enforces the interval itself: if the newest
+archive is younger than `BACKUP_INTERVAL_HOURS`, a scheduled run returns
+`skipped` rather than creating a redundant archive. Manual, pre-update, and
+pre-restore runs bypass the interval check.
+
+Archives are kept by count. `BACKUP_RETENTION_COUNT` (default `100`) is the
+maximum number of archives on disk; older archives are pruned after each
+successful run.
+
+#### Auto-restore on startup (SQLite only)
+
+On **SQLite** backends only, `main.py` calls `ensure_db_or_restore` during
+lifespan startup (`if not is_postgres()`). That function runs an integrity
+check against the live `briefr.db` file; if the check fails, BRIEFR scans
+the backup directory for the newest valid archive, decrypts it when needed,
+verifies the extracted content, and restores it — all before the first API
+request is served. PostgreSQL deployments skip this path entirely (startup
+runs Alembic migrations instead). This SQLite auto-restore is the only
+automatic recovery path; intentional operator restores use the
+`briefr-restore.sh` script or the admin UI wizard.
+
+### API key health monitoring
+
+BRIEFR pings each configured provider API once per scheduler cycle and persists
+the result in `sync_state`. The providers checked are: NVD, Groq, Gemini,
+Cerebras, OpenRouter, VirusTotal, GitHub, OTX, GreyNoise, and AbuseIPDB.
+
+Each check performs a minimal HTTP probe — a rate-limit endpoint, a model
+listing, or a cheap lookup on a known-safe value — against that provider's
+API. The probe uses the shared resilient HTTP client with
+`ignore_circuit=True` and `record_circuit=False`, which means health pings do
+not open or clear the feed-health circuit breakers used by real ingest traffic.
+The result (latency, HTTP status, error text, and checked-at timestamp) is
+written to `sync_state` under `api_key_health:{provider}`.
+
+When a configured provider's ping fails, BRIEFR emits an in-app notification
+with a stable dedupe key built from the provider name and a digit-normalized
+error text. Digit normalization (`\d+` → `#`) keeps a single failing provider
+from generating a new notification on every check cycle when the only change
+is a timestamp or port number in the error message.
+
+The aggregate payload is available at `GET /api/admin/api_key_health` and is
+also included in the operator notifications center.
+
+### Operator notifications center
+
+`monitoring/notifications.py` aggregates three streams into the operator view
+at `GET /api/admin/notifications`:
+
+- **Audit log entries** — recent `(actor, action, target)` rows from
+  `audit_log`, with sensitive targets masked through `redact.mask_audit_log_target`.
+- **Job errors** — `sync_state` rows whose `job_last_run:` value contains
+  `"had_error": true`.
+- **API key alerts** — any configured provider whose most recent health check
+  returned healthy `false`.
+
+### Application log buffer
+
+BRIEFR maintains an in-process ring buffer of the last 500 `INFO`-level and
+above structured JSON log lines (`structured_logging._RingBufferHandler`).
+The buffer is available at `GET /api/admin/logs` and filterable by level,
+logger name, request ID, and category. Categories (Application, Scheduler,
+Backup, Webhooks, Security) are derived from the logger name prefix. Secret-
+like `extra` keys (`password`, `api_key`, `*_TOKEN`, and similar) are stored
+as `[REDACTED]` in buffer entries.
+
 ## What it needs
 
+### Webhook configuration
+
+| Setting | Purpose | Notes |
+| --- | --- | --- |
+| `DISCORD_WEBHOOK_URL` | Enables the `discord` destination | HTTPS URL from Discord server → Integrations → Webhooks |
+| `DISCORD_WEBHOOK_ENABLED` | Toggle the Discord destination | Default `1`; set `0` to disable without removing the URL |
+| `DISCORD_WEBHOOK_EVENTS` | Comma-separated event types for Discord | Defaults to all six types |
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | Required to enable the `telegram` destination |
+| `TELEGRAM_CHAT_ID` | Target chat or channel ID | Required alongside the bot token |
+| `TELEGRAM_WEBHOOK_ENABLED` | Toggle Telegram | Default `1` |
+| `TELEGRAM_WEBHOOK_EVENTS` | Event types for Telegram | Defaults to all six types |
+| `WEBHOOK_GENERIC_URL` | HTTPS URL for the `generic` destination | Must pass SSRF validation at save time |
+| `WEBHOOK_GENERIC_LABEL` | Display label for the generic destination | Default `Generic HTTPS` |
+| `WEBHOOK_GENERIC_ENABLED` | Toggle the generic destination | Default `1` |
+| `WEBHOOK_GENERIC_EVENTS` | Event types for generic | Defaults to all six types |
+
+### Backup configuration
+
+| Setting | Purpose | Default |
+| --- | --- | --- |
+| `BACKUP_ENABLED` | Whether scheduled backups run | `1` |
+| `BACKUP_DIR` | Directory for archive files | `/var/lib/briefr/backups` |
+| `BACKUP_INTERVAL_HOURS` | Minimum hours between scheduled backups | `6` |
+| `BACKUP_RETENTION_COUNT` | Maximum archives kept on disk | `100` |
+| `BACKUP_AGE_KEY_FILE` | Path to age identity file for encryption | Auto-detected at `/var/lib/briefr/keys/backup-age.key` |
+| `BACKUP_LOG_MAX_BYTES` | Per-file cap for in-process backup log rotation | `5242880` (5 MiB) |
+| `BACKUP_LOG_BACKUP_COUNT` | Number of compressed backup log history files | `5` |
+
+The dead-man alert threshold is derived: `2 × BACKUP_INTERVAL_HOURS`. No
+separate setting is needed.
+
+### Operational surfaces to watch
+
+| Surface | What to check |
+| --- | --- |
+| `GET /api/health` | Overall CVE count, sync watermarks, ingest flags, feed source health |
+| `GET /api/admin/api_key_health` | Per-provider health status, last checked timestamp, error detail |
+| `GET /api/admin/notifications` | Aggregated audit events, job errors, and API key failures |
+| `GET /api/admin/logs` | Structured log ring buffer; filterable by level and category |
+| `GET /api/admin/webhooks` | Configured destinations, enabled state, subscribed event types |
+| Delivery log | `webhook_delivery_log` table; 30-day TTL (`WEBHOOK_DELIVERY_LOG_RETENTION_DAYS`); visible in Admin → Webhooks |
+
 ## How industry does it — and why BRIEFR does it this way
+
+<AtEnterpriseScale>
+  <div>
+    Large platforms separate alerting from the application itself: an external
+    PagerDuty, OpsGenie, or Alertmanager deployment receives events over a
+    versioned API, applies escalation policies, deduplicates across time
+    windows, and routes to on-call schedules. Backup is similarly external:
+    a dedicated job scheduler (cron, Kubernetes CronJob, or a managed cloud
+    backup service) runs separately from the application, stores archives in
+    object storage, and monitors its own completions with a dead-man SaaS. API
+    key health is typically a metric emitted to a time-series store and
+    visualized on a dashboard rather than a feature of the application itself.
+  </div>
+
+  <div>
+    BRIEFR is aimed at a small security team self-hosting a single instance.
+    Requiring an external alerting platform, a managed backup service, and a
+    metrics stack would push the operational cost well above what the team is
+    trying to avoid by self-hosting. Instead, BRIEFR inlines those concerns
+    at the lowest useful level: push alerts go directly to Discord or Telegram
+    (channels the team likely already uses), backups run on the same APScheduler
+    that drives ingest, and API key health is a lightweight probe stored in the
+    same `sync_state` table the rest of the application writes to.
+  </div>
+</AtEnterpriseScale>
+
+The trade-off is depth. A purpose-built alerting pipeline can apply time-window
+deduplication, multi-hop escalation, and team routing policies that BRIEFR's
+per-event dedupe key does not replicate. A managed backup service provides
+off-site storage and independent monitoring that BRIEFR expects the operator to
+arrange separately (the operations guide recommends rclone or S3 for off-site
+copies). The SSRF protections on generic webhooks reduce risk but do not
+eliminate the responsibility of validating what the destination URL points at.
+
+What BRIEFR does provide within these constraints is coherent: a webhook that
+fires once per event per destination, never re-delivers a successfully deduped
+message, never forwards internal API credentials to the destination, and reports
+its own delivery failures through the same notification surface.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      On a self-hosted BRIEFR instance, open Admin → Webhooks and add a
+      destination. Use an HTTPS URL you control — a test Discord webhook or
+      a request-bin endpoint works well. Do not use an HTTP URL; BRIEFR
+      rejects non-HTTPS destinations at save time.
+    </li>
+    <li>
+      Once the destination is saved, send a test message from the Webhooks
+      admin panel. Confirm that the message arrives at the destination within
+      the 10-second request timeout, then check Admin → Webhooks → Delivery log
+      to see the recorded outcome.
+    </li>
+    <li>
+      Request <code>GET /api/admin/api_key_health</code> (admin session
+      required) and confirm that each configured provider shows a
+      <code>healthy</code>, <code>last_checked_at</code>, and
+      <code>latency_ms</code> field. A <code>null</code> in{' '}
+      <code>last_checked_at</code> means the key health job has not run yet
+      since the last restart.
+    </li>
+    <li>
+      Request <code>GET /api/health</code> and check that the response does
+      not report any feed source with <code>circuit_open: true</code>. Feed
+      circuit state lives on the health endpoint only —{' '}
+      <code>GET /api/admin/notifications</code> aggregates audit log entries,
+      job errors, and unhealthy API key alerts, not feed circuit status.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "providers": [
+      {
+        "provider": "virustotal",
+        "configured": true,
+        "key_suffix": "Ab12…Xy89",
+        "healthy": true,
+        "last_checked_at": "2026-07-22T01:00:00+00:00",
+        "latency_ms": 312,
+        "status_code": 200,
+        "error": null
+      },
+      {
+        "provider": "groq",
+        "configured": true,
+        "key_suffix": "gsk_…zZz9",
+        "healthy": false,
+        "last_checked_at": "2026-07-22T01:00:00+00:00",
+        "latency_ms": 4100,
+        "status_code": null,
+        "error": "ConnectTimeout: timed out connecting to api.groq.com"
+      }
+    ],
+    "configured_count": 2,
+    "healthy_count": 1,
+    "checked_at": "2026-07-22T01:00:00+00:00"
+  }
+  ```
+
+  Treat the JSON as a redacted shape example. The useful lesson is the
+  difference between a passing probe (`healthy: true`, numeric status code)
+  and a failing one (`healthy: false`, error text, possibly null status
+  code). Both are surfaced in the operator notifications center without
+  requiring an external monitoring service.
+</TryItYourself>

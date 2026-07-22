@@ -77,7 +77,7 @@ health registry.
     {path: 'backend/db/cve.py'},
     {path: 'backend/database.py'},
     {path: 'backend/resilient_client.py'},
-    {path: 'backend/routers/cves.py'},
+    {path: 'backend/routers/cves', kind: 'tree'},
   ]}
 />
 
@@ -138,7 +138,7 @@ When NVD fails, BRIEFR does not turn the UI into a live retry loop. The sync
 aborts and logs the error, source health records the failure, and existing local
 rows remain what downstream pages can read until the next successful run.
 
-## How industry does it - and why BRIEFR does it this way
+## How industry does it — and why BRIEFR does it this way
 
 Many vulnerability platforms treat NVD as one input among commercial feeds,
 vendor advisories, internal asset data, ticketing systems, and scanners. Large
