@@ -22,6 +22,10 @@ column is the shipped behavior, from the system design's dependency map.
 
 ## Feeds in
 
+For a deeper look at how each source is ingested, normalized, and validated,
+see [Sources](/docs/how-briefr-works/intel-lifecycle/sources) in the
+How BRIEFR Works section.
+
 ### Vulnerability core
 
 | Source | Adds | Key | Free tier | On failure |

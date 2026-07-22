@@ -230,7 +230,7 @@ or disabled).
 The search endpoint can be called with either a session cookie (browser) or a dedicated
 search API token. Tokens are created by an admin, stored bcrypt-hashed in the
 `search_api_tokens` table (Alembic migration `033_search_api_tokens`), and issued once
-in plaintext (prefix `briefr_search_`). Verification uses a 24-character lookup prefix
+in plaintext (prefix `briefr_search_`). Verification uses a 26-character lookup prefix
 for fast indexed lookup, then bcrypt comparison. Tokens carry scopes; the default scope
 set is `["search:semantic", "cves:related", "cves:read"]`.
 

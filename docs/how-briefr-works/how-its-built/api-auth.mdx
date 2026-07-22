@@ -280,7 +280,7 @@ semantic search service — use scoped Bearer tokens:
 
 - Tokens are created at `POST /api/admin/search-tokens` and listed at
   `GET /api/admin/search-tokens`. The raw token value is returned once at
-  creation; only the prefix and SHA-256 hash are stored.
+  creation; only the prefix and bcrypt hash are stored.
 - Tokens are soft-revoked at `DELETE /api/admin/search-tokens/{token_id}`.
 - A search token may only call a restricted allowlist of read-only routes:
   `GET /api/search/semantic`, `GET /api/cves/{CVE-ID}`,

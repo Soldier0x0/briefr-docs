@@ -201,7 +201,7 @@ through the shared API slot queue to avoid bursting the same upstream.
 #### Alert rules
 
 `alerts.py` implements the event-generating rules that call `dispatch_event`.
-Four are wired into the scheduler:
+Five are wired into the scheduler:
 
 **KEV-on-stack alerts** (`kev_alert`): when the KEV ingest job adds a CVE
 to the CISA catalog, the scheduler checks whether that CVE matches any term
