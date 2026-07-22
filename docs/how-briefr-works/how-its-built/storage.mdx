@@ -185,17 +185,25 @@ retention window:
 | `wallboard:snapshot` | 24 hours |
 | Default (other keys) | 168 hours |
 
-CIRCL missed lookups are cached under `circl_miss:*` keys for 48 hours. That prevents the
-same IDs from re-hammering a rate-limited upstream on every sync cycle.
+CIRCL missed lookups are cached under `circl_miss:*` keys with a 24-hour read TTL (physical
+retention is 48 hours). That prevents the same IDs from re-hammering a rate-limited upstream
+on every sync cycle.
 
 ### Sync state
 
-`sync_state` is a key-value table for durable scheduler bookmarks. Its three primary keys
-are `nvd_last_mod_end` (the NVD incremental sync watermark used by the hourly NVD job),
-`epss_backfill_done`, and `atlas_upstream_version`. Jobs read the watermark before each
-run and update it after a successful sync. Operator-paused job flags and staggered
-next-run offsets are also stored here under `scheduler.paused.*` and
-`scheduler.next_run.*` keys so they survive a backend restart.
+`sync_state` is a key-value table for durable scheduler bookmarks. Its three primary ingest
+watermark keys are `nvd_last_mod_end` (the NVD incremental sync watermark used by the
+hourly NVD job), `epss_backfill_done`, and `atlas_upstream_version`. Jobs read the watermark
+before each run and update it after a successful sync.
+
+Operator-paused job flags persist under `scheduler.paused.{job_id}` (`"1"` or `"0"`) and are
+re-applied when the scheduler starts. Job run history (a ring of five JSON entries with
+`started_at`, `duration_seconds`, `had_error`, and related fields) is stored under
+`scheduler.last_run.{job_id}`. Ingest next-run times are **not** written to `sync_state`;
+at startup `_restore_ingest_next_runs` reads `scheduler.last_run.{job_id}` for
+`nvd_incremental_sync`, `kev_metadata_sync`, and `epss_score_sync` and recomputes each job's
+`next_run_time` as `max(now, last_run + interval)` so a restart does not immediately
+re-fire every ingest job.
 
 ### Embeddings
 
