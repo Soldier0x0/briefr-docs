@@ -79,7 +79,7 @@ newly flagged KEV CVEs matching `BRIEFR_STACK_TERMS` can dispatch a deduped
   items={[
     {path: 'backend/scheduler.py'},
     {path: 'backend/feeds/kev.py'},
-    {path: 'backend/routers/cves.py'},
+    {path: 'backend/routers/cves', kind: 'tree'},
     {path: 'backend/scoring/risk.py'},
     {path: 'backend/webhooks/engine.py'},
   ]}
@@ -132,7 +132,7 @@ about scheduler health and downstream usage. If the source fails, the documented
 behavior is an empty batch. Analysts should treat missing new KEV data as a
 source-health question, not as proof that no CVEs are known exploited.
 
-## How industry does it - and why BRIEFR does it this way
+## How industry does it — and why BRIEFR does it this way
 
 Many teams use KEV as one input to vulnerability management programs, ticket
 queues, scanner prioritization, and remediation service-level objectives. In
