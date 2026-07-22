@@ -138,7 +138,7 @@ CPU-bound inference runs scheduler-side; it never runs on the request path.
 (`LLM_PRODUCT_EXTRACTION_INTERVAL_HOURS`, default `6`). It is a no-op unless
 `LLM_PRODUCT_EXTRACTION_ENABLED=1` and an LLM provider key is configured.
 When Procrastinate is enabled (see [Durable queue](#durable-queue-procrastinate)
-below), each scheduled fire defers a `jobs:llm_product_extraction_tick` task
+below), each scheduled fire defers a `jobs:llm_product_extraction` task
 to the durable queue instead of running inline. An `AlreadyEnqueued` result
 is treated as success; the job does not re-enqueue a task that is already
 pending. When Procrastinate is disabled, extraction runs inline under the
@@ -160,7 +160,7 @@ by `catchup_tick` when catch-up mode is active.
 
 ### Maintenance and housekeeping
 
-Eight jobs handle recurring maintenance. None of them pull external feeds; they
+Nine jobs handle recurring maintenance. None of them pull external feeds; they
 act only on local state.
 
 | Job ID | Default cadence | What it does |
@@ -175,11 +175,11 @@ act only on local state.
 | `cache_retention_cleanup` | Every 24 hours | Sweeps `ioc_cache`, `feed_cache`, and overlay tables, deleting rows past their physical retention window. |
 | `resource_metrics_sample` | Every 60 seconds (`RESOURCE_SAMPLE_INTERVAL_SECONDS=60`, min 30) | Samples BRIEFR and Postgres utilization metrics and writes them to the database. |
 
-`ioc_retro_match` and `kev_backlog_reconcile` both have named locks in
-`scheduler_locks.py`. `scheduled_backup` also has a named lock because the
-admin panel can trigger it manually. `session_cleanup`, `cache_retention_cleanup`,
-`backup_deadman_check`, `watchlist_monitor_alerts`, `api_key_health_check`, and
-`resource_metrics_sample` rely on APScheduler's `max_instances=1` alone;
+`ioc_retro_match`, `kev_backlog_reconcile`, and `resource_metrics_sample` all
+have named locks in `scheduler_locks.py`. `scheduled_backup` also has a named
+lock because the admin panel can trigger it manually. `session_cleanup`,
+`cache_retention_cleanup`, `backup_deadman_check`, `watchlist_monitor_alerts`,
+and `api_key_health_check` rely on APScheduler's `max_instances=1` alone;
 they are short-running or naturally idempotent enough that in-process lock
 serialization adds no benefit.
 
