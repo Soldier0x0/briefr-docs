@@ -5,20 +5,264 @@ title: Ingestion and scheduler
 description: Outbound feed jobs and the APScheduler owner model in BRIEFR.
 ---
 
-# Ingestion and scheduler
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
 
-:::note[Outline — Phase 3]
-Full chapter lands in the Track B content plan. Sections below are the required template; fill with sourced claims only.
-:::
+# Ingestion and scheduler
 
 ## What it is
 
+The ingestion scheduler is how BRIEFR keeps its local CVE and threat corpus fresh without
+blocking the analyst UI. It runs inside the backend process as an APScheduler
+`AsyncIOScheduler`, registers 26 recurring jobs plus up to 3 optional registration-gated
+jobs, and drives every outbound feed pull that BRIEFR performs automatically.
+
+Each job targets one source group: NVD incremental syncs, KEV catalog updates, EPSS score
+snapshots, MITRE ATT&CK and ATLAS weekly refreshes, cvelistV5 deltas, CISA Vulnrichment
+enrichments, ThreatFox IOC mirrors, VulnCheck KEV tier syncs, exploit-availability sources,
+nightly OTX correlation, incident feed snapshot refresh, and a set of operations jobs for
+backups, embeddings, detection context, and resource metrics.
+
+The scheduler runs in exactly one backend instance. Any additional API workers disable
+their scheduler by setting `BRIEFR_SCHEDULER_ENABLED=0`.
+
 ## Why we do it
+
+BRIEFR's analyst screens need fast, reliable reads. If a CVE detail page had to call NVD,
+CISA KEV, and EPSS for every request, page load times would depend on the slowest
+upstream, and a brief outage would break the UI directly.
+
+Scheduled ingestion decouples those concerns:
+
+- **The UI reads local data.** Feed pages, brief panels, and wallboard tiles read from
+  the database or cached snapshots — not from public APIs.
+- **Jobs own upstream calls.** The scheduler runs feeds on repeating intervals in the
+  background. A feed failure affects only that job's run; the analyst workflow continues
+  on the prior stored data.
+- **Cadence is configurable.** NVD runs hourly by default. KEV runs every fifteen
+  minutes. EPSS runs every six hours. A weekly cron handles MITRE and ATLAS. Each
+  interval is controlled by an environment variable, not by code changes.
+
+The result is a corpus that is kept reasonably current in the background, but whose
+freshness or staleness is never directly in the critical path for normal UI rendering.
 
 ## Where it lives in BRIEFR
 
+At a high level, the flow is:
+
+```text
+main.py (lifespan) -> start_scheduler() -> APScheduler (AsyncIOScheduler)
+                                              |
+                               Interval jobs (NVD, KEV, EPSS, …)
+                               Cron jobs     (MITRE, OTX, correlation, …)
+                                              |
+                                        feeds/*.py
+                                              |
+                               database / feed_cache / sync_state
+```
+
+`scheduler.py` is the single registration point. Every recurring job calls
+`scheduler.add_job()` with `max_instances=1` and `coalesce=True`. APScheduler itself
+prevents a second concurrent instance of the same job from starting.
+
+Beyond that, `scheduler_locks.py` holds a named `asyncio.Lock` for each ingest job.
+Both the scheduler and the admin manual-refresh routes import the same lock objects from
+that module, so a manual admin refresh of a feed cannot race against a scheduled run of
+the same job.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/scheduler_locks.py'},
+    {path: 'backend/feeds/', kind: 'tree'},
+  ]}
+/>
+
 ## How it works
+
+### Startup
+
+When `main.py` initializes, it reads `BRIEFR_SCHEDULER_ENABLED` (default `1`). If
+enabled, it calls `start_scheduler()`, which creates an `AsyncIOScheduler`, registers all
+jobs, starts the scheduler, and then immediately queues two background tasks:
+
+- **Paused-job restore:** re-applies any `scheduler.paused.*` flags saved in `sync_state`
+  so operator-paused jobs survive a restart.
+- **Next-run restore:** re-applies saved next-run times so staggered one-shot offsets are
+  not reset on restart.
+
+After the scheduler starts, `maybe_run_on_startup()` checks the CVE row count. If the
+count is below 10, it schedules a full ingest immediately. Otherwise it runs a lighter
+deferred startup pass for EPSS backfill and summary catch-up.
+
+### Job registration
+
+Every job is registered with the same three base options:
+
+| Option | Value | Effect |
+| --- | --- | --- |
+| `max_instances` | `1` | APScheduler will not launch a second fire of the same job while one is running. |
+| `coalesce` | `True` | Missed fires that stacked up while the job was running collapse into one. |
+| `replace_existing` | `True` | A restart re-registers the job rather than duplicating it. |
+
+High-cadence feeds use `IntervalTrigger`:
+
+| Job ID | Default interval | Env key |
+| --- | --- | --- |
+| `nvd_incremental_sync` | Every 1 hour | `NVD_SYNC_INTERVAL_HOURS` |
+| `kev_metadata_sync` | Every 15 minutes | `KEV_SYNC_INTERVAL_MINUTES` |
+| `epss_score_sync` | Every 6 hours | `EPSS_SYNC_INTERVAL_HOURS` |
+| `cvelistv5_incremental_sync` | Configurable minutes | `CVELISTV5_SYNC_INTERVAL_MINUTES` |
+| `vulnrichment_snapshot_sync` | Configurable hours | `VULNRICHMENT_SYNC_INTERVAL_HOURS` |
+| `threatfox_sync` | Every 24 hours | `THREATFOX_SYNC_INTERVAL_HOURS` |
+| `vulncheck_kev_sync` | Every 24 hours | `VULNCHECK_KEV_SYNC_INTERVAL_HOURS` |
+| `incident_feed_refresh` | Every 30 minutes | `INCIDENT_FEED_REFRESH_MINUTES` |
+
+Lower-cadence or time-of-day jobs use `CronTrigger`:
+
+| Job ID | Default schedule |
+| --- | --- |
+| `weekly_mitre_refresh` | Every Sunday at 02:00 (`MITRE_REFRESH_HOUR`/`MITRE_REFRESH_MINUTE`) |
+| `kev_backlog_reconcile` | Every Monday at 03:30 |
+| `ioc_retro_match` | Daily at 04:00 (`IOC_RETRO_MATCH_HOUR`/`IOC_RETRO_MATCH_MINUTE`) |
+| `nightly_correlation` | Daily at 01:00 IST (`CORRELATION_HOUR`/`CORRELATION_MINUTE`) |
+| `otx_nightly_correlation` | Daily at 02:00 IST (`OTX_CORRELATION_HOUR`/`OTX_CORRELATION_MINUTE`) |
+
+The scheduler timezone defaults to `Asia/Kolkata`, overridable with `SCHEDULER_TIMEZONE`.
+
+Three jobs are registration-gated and only added when their feature flag is active:
+`otx_continuous_sync`, `exploit_sources_sync`, and `detection_context_llm`.
+
+### The lock model
+
+APScheduler's `max_instances=1` prevents a scheduled fire from overlapping a prior
+scheduled fire of the same job. It does not prevent the admin UI from manually triggering
+a refresh while a scheduled run is in progress.
+
+The per-job `asyncio.Lock` in `scheduler_locks.py` closes that gap. Every ingest job
+function follows the same pattern: check the lock before acquiring it, skip if already
+held, then acquire the lock for the duration of the run.
+
+Because both `scheduler.py` and `routers/admin.py` import the same lock objects from
+`scheduler_locks.py`, a manual refresh and a scheduled run of the same job cannot proceed
+at the same time. `scheduler_locks.py` also exposes `any_locked()` (used to check whether
+any ingest is in flight) and `locked_jobs()` (returns the list of currently-held job IDs).
+
+Not every job has a named lock. Six short-running or naturally idempotent jobs —
+including `incident_feed_refresh`, `backup_deadman_check`, `session_cleanup`, and
+`cache_retention_cleanup` — rely on APScheduler's `max_instances=1` alone. The module
+comment makes this explicit: locks here consolidate ones that already existed; they do not
+add new ones.
+
+### Last-run history and live progress
+
+Each job writes to `sync_state` when it completes, recording a ring of five entries under
+the key `scheduler.last_run.<job_id>`. Each entry includes start time, duration in
+seconds, records upserted, whether the run had an error, and a truncated error message.
+The admin scheduler UI reads these entries to show per-job history.
+
+While a job is running it may write intermediate progress messages to an in-memory dict
+keyed by job ID. The admin UI reads those messages to show what a long-running job is
+currently doing without polling the database.
+
+### Database concurrency
+
+Multiple jobs can run concurrently if their intervals align. To prevent them from
+saturating the database connection pool simultaneously, background jobs are wrapped in a
+semaphore with a default limit of 3 concurrent jobs (`SCHEDULER_DB_CONCURRENCY`).
 
 ## What it needs
 
+The scheduler is built into BRIEFR. Operators should keep these settings visible:
+
+| Setting | What to check |
+| --- | --- |
+| `BRIEFR_SCHEDULER_ENABLED` | Must be `1` on exactly one backend instance. Set `0` on additional API-only workers. |
+| `NVD_SYNC_INTERVAL_HOURS` | How often NVD incremental sync runs. Default: `1`. |
+| `KEV_SYNC_INTERVAL_MINUTES` | How often KEV catalog is refreshed. Default: `15`. |
+| `EPSS_SYNC_INTERVAL_HOURS` | How often EPSS scores are updated. Default: `6`. |
+| `SCHEDULER_TIMEZONE` | Timezone for cron and interval jobs. Default: `Asia/Kolkata`. |
+| `SCHEDULER_DB_CONCURRENCY` | Max concurrent jobs holding DB pool connections. Default: `3`. |
+| `GET /api/health` | Shows current ingest lock state and configured intervals under the `ingest` key. |
+
+Optional feed keys only affect what specific jobs can do — they do not affect whether the
+scheduler itself starts. Jobs skip or return empty results when a required key is absent;
+they do not stop the scheduler process.
+
 ## How industry does it — and why BRIEFR does it this way
+
+<AtEnterpriseScale>
+  <div>
+    Large vulnerability management platforms typically decouple scheduling from ingestion:
+    a job orchestrator such as Airflow, Celery, or a cloud workflow engine triggers workers
+    that run in separate containers. The scheduler itself holds no application state. Locks
+    are distributed, living in Redis or a database row, so any worker in the fleet can run
+    any job safely.
+  </div>
+
+  <div>
+    BRIEFR keeps the scheduler inside the backend process on purpose. APScheduler runs in
+    the same event loop as FastAPI. Locks are in-process <code>asyncio.Lock</code> objects
+    — no Redis or distributed lock manager is required. That is only safe because exactly
+    one backend instance owns the scheduler. The trade-off is explicit: if you run more
+    API workers for concurrency, keep <code>BRIEFR_SCHEDULER_ENABLED=1</code> on one of
+    them and <code>BRIEFR_SCHEDULER_ENABLED=0</code> on the rest. Duplicating scheduler
+    ownership would duplicate ingest jobs and bypass the in-process locks that were meant
+    to serialize them.
+  </div>
+</AtEnterpriseScale>
+
+The practical advantage is simplicity. There is no broker to operate, no separate worker
+pool to provision, and no distributed lock to debug. A fresh self-hosted BRIEFR instance
+begins ingesting as soon as the backend starts.
+
+The practical limit is scale. If BRIEFR were deployed across many hosts, in-process locks
+and a single scheduler owner would not be sufficient. For the target deployment — a focused
+security team on one box or a small cluster — the model is a good fit.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      On a self-hosted BRIEFR instance, request <code>GET /api/health</code>.
+      You are only reading status data; do not trigger a manual refresh for this
+      chapter.
+    </li>
+    <li>
+      Look under the <code>ingest</code> key. Confirm that the response includes
+      per-source lock state (<code>nvd_in_progress</code>,{' '}
+      <code>kev_in_progress</code>, <code>epss_in_progress</code>) and the
+      configured intervals for NVD, KEV, EPSS, and the scheduler timezone.
+    </li>
+    <li>
+      Compare the <code>ingest_intervals</code> values against the environment
+      variables in your deployment. If <code>NVD_SYNC_INTERVAL_HOURS</code> is
+      unset, the default should be <code>1</code>. If <code>KEV_SYNC_INTERVAL_MINUTES</code>{' '}
+      is unset, the default should be <code>15</code>.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "ingest": {
+      "nvd_in_progress": false,
+      "kev_in_progress": false,
+      "epss_in_progress": false,
+      "mitre_in_progress": false,
+      "any_in_progress": false,
+      "intervals": {
+        "nvd_hours": 1,
+        "kev_minutes": 15,
+        "epss_hours": 6,
+        "timezone": "Asia/Kolkata"
+      }
+    }
+  }
+  ```
+
+  Treat this as a redacted fixture shape. The useful lesson is how BRIEFR exposes
+  ingest lock state and configured cadences without requiring you to trigger a live
+  sync or call any external feed from the docs site.
+</TryItYourself>
