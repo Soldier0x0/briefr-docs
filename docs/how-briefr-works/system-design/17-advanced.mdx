@@ -1,0 +1,38 @@
+---
+sidebar_position: 19
+slug: /how-briefr-works/system-design/17-advanced
+title: "Unit 17: Advanced topics"
+description: A gap unit — CQRS, event sourcing, active-active, and feature stores. BRIEFR has sparse examples; the curriculum points to curated externals.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+
+# Unit 17: Advanced topics
+
+<CoverageBadge coverage="gap" />
+
+> **Fill in Task 6.** This stub holds the `SystemDesignGap` template for the advanced topics unit.
+
+## Gap unit outline
+
+**Topic:** Advanced topics — CQRS, event sourcing, active-active replication, and ML feature stores.
+
+**What it covers:**
+- Command Query Responsibility Segregation (CQRS): separate read and write models
+- Event sourcing: storing events as the source of truth
+- Active-active multi-region replication and conflict resolution
+- ML feature stores: low-latency feature serving at scale
+
+**Why it matters:** These patterns solve specific problems that emerge at larger scale or in domains where audit trails, global low-latency reads, or ML serving are first-class requirements.
+
+**In BRIEFR:** Limited surface. Vector search on one box is a narrow example of ML feature serving. BRIEFR's architecture is intentionally not event-sourced. No active-active replication is implemented.
+
+**Why BRIEFR skips this:** Single self-hosted deployment; single-writer; product constraints and scope — YAGNI vs enterprise complexity.
+
+**When you would need it:** Financial audit trails requiring full history; global products with users in multiple regions; production ML systems requiring feature consistency between training and serving.
+
+**Fill in Task 6:** Add `<SystemDesignGap>` component with 2–4 curated resources (DDIA Chapters 10–12, event-sourcing literature, Feast feature store docs).
+
+---
+
+**Return here:** [Unit 18 — Design review & critique](/docs/how-briefr-works/system-design/18-design-review)

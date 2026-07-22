@@ -1,0 +1,32 @@
+---
+sidebar_position: 11
+slug: /how-briefr-works/system-design/09-async
+title: "Unit 9: Messaging, eventing, async"
+description: BRIEFR's scheduler and background job model — plus the message-broker and saga patterns the product intentionally omits.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+
+# Unit 9: Messaging, eventing, async
+
+<CoverageBadge coverage="partial" />
+
+> **Fill in Task 5/6.** This stub holds the outline for the Messaging, eventing, async unit.
+
+## BRIEFR section (fill in Task 5)
+
+- BRIEFR's scheduler and background job design
+- Procrastinate-style worker model: task queues on Postgres
+- Retry and back-off in async pipelines
+- Links to [Ingestion and scheduler](/docs/how-briefr-works/how-its-built/ingestion-scheduler) and [Background jobs](/docs/how-briefr-works/how-its-built/background-jobs)
+
+## External section (fill in Task 6)
+
+- Message brokers: Kafka and Pulsar for high-throughput event streams
+- Outbox pattern and transactional messaging
+- Saga pattern for distributed transaction coordination
+- Curated resources (Kafka docs, DDIA Chapter 11)
+
+---
+
+**Next:** [Unit 10 — Caching & performance](/docs/how-briefr-works/system-design/10-caching)

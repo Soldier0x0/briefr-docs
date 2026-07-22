@@ -1,0 +1,38 @@
+---
+sidebar_position: 9
+slug: /how-briefr-works/system-design/07-distributed
+title: "Unit 7: Distributed systems basics"
+description: A gap unit — BRIEFR runs on one box by design. Learn what distributed systems cover, why BRIEFR skips it, and where to study it.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+
+# Unit 7: Distributed systems basics
+
+<CoverageBadge coverage="gap" />
+
+> **Fill in Task 6.** This stub holds the `SystemDesignGap` template for the distributed systems unit.
+
+## Gap unit outline
+
+**Topic:** Distributed systems basics — consensus, leader election, clock skew, exactly-once delivery.
+
+**What it covers:**
+- Consensus algorithms (Paxos, Raft) and why they exist
+- Leader election and split-brain avoidance
+- Logical clocks, vector clocks, and clock skew
+- Exactly-once delivery guarantees
+
+**Why it matters:** Once a system spans more than one node, many guarantees that feel natural on a single machine (shared memory, synchronized clocks, atomic writes) disappear. Distributed algorithms restore them at the cost of complexity.
+
+**In BRIEFR:** BRIEFR runs on a single box with a single writer. There is no distributed state, no consensus requirement, and no leader election. Local locks and a single scheduler owner are the deliberate alternative.
+
+**Why BRIEFR skips this:** Single self-hosted deployment; failure domain is one box by product choice; ops and cognitive cost of consensus clusters are not justified for a CVE portal.
+
+**When you would need it:** Multiple stateful nodes requiring coordination; active-active multi-region; split-brain scenarios for services that must stay up across node failures.
+
+**Fill in Task 6:** Add `<SystemDesignGap>` component with 2–4 curated resources (DDIA Chapters 8–9, Raft paper, etc.).
+
+---
+
+**Return here:** [Unit 8 — APIs & service contracts](/docs/how-briefr-works/system-design/08-apis)

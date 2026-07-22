@@ -1,0 +1,33 @@
+---
+sidebar_position: 12
+slug: /how-briefr-works/system-design/10-caching
+title: "Unit 10: Caching & performance"
+description: BRIEFR's feed and IOC cache strategy — TTLs, invalidation, and the large-scale caching patterns outside the product's scope.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+
+# Unit 10: Caching & performance
+
+<CoverageBadge coverage="partial" />
+
+> **Fill in Task 5/6.** This stub holds the outline for the Caching & performance unit.
+
+## BRIEFR section (fill in Task 5)
+
+- `feed_cache` and `ioc_cache`: what is cached, at what TTL, and why
+- Cache invalidation strategy in BRIEFR
+- In-process vs shared cache trade-offs at single-box scale
+- Link to [Search and embeddings](/docs/how-briefr-works/how-its-built/search-embeddings) for embedding cache
+
+## External section (fill in Task 6)
+
+- CDN caching layers and edge cache invalidation
+- Cache stampede (thundering herd) and probabilistic early expiration
+- Distributed cache (Redis, Memcached) at mega-scale
+- Tail-latency causes and mitigations (hedged requests, jitter)
+- Curated resources
+
+---
+
+**Next:** [Unit 11 — Search & retrieval](/docs/how-briefr-works/system-design/11-search)

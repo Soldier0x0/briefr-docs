@@ -1,0 +1,38 @@
+---
+sidebar_position: 16
+slug: /how-briefr-works/system-design/14-multi-tenancy
+title: "Unit 14: Multi-tenancy & SaaS"
+description: A gap unit — BRIEFR is a single-tenant self-hosted deployment by design. Learn what multi-tenancy covers and when you would need it.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+
+# Unit 14: Multi-tenancy & SaaS
+
+<CoverageBadge coverage="gap" />
+
+> **Fill in Task 6.** This stub holds the `SystemDesignGap` template for the multi-tenancy unit.
+
+## Gap unit outline
+
+**Topic:** Multi-tenancy & SaaS architecture — shared database tenancy, tenant isolation, and billing-aware design.
+
+**What it covers:**
+- Shared-schema vs separate-schema vs separate-database tenancy models
+- Tenant isolation: data, compute, and network
+- Noisy-neighbor problems and per-tenant resource throttling
+- Billing and usage metering as architectural concerns
+
+**Why it matters:** SaaS products serving multiple independent customers must isolate data and behavior between tenants without the cost of fully separate deployments per customer.
+
+**In BRIEFR:** BRIEFR is a single-tenant self-hosted deployment. Each organization runs its own instance. There is no shared infrastructure across organizations, so noisy-neighbor and tenant-isolation problems simply do not arise.
+
+**Why BRIEFR skips this:** Single-deployment self-host model; each operator owns their own box; multi-tenancy complexity is a deliberate non-goal for this scope.
+
+**When you would need it:** Building a SaaS product where you host the service centrally for many customers; reducing per-customer deployment overhead; offering tiered plans with different resource limits.
+
+**Fill in Task 6:** Add `<SystemDesignGap>` component with 2–4 curated resources (SaaS tenancy patterns, Stripe architecture, etc.).
+
+---
+
+**Return here:** [Unit 15 — Case study: BRIEFR](/docs/how-briefr-works/system-design/15-case-study)
