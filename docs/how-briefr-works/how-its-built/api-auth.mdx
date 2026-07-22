@@ -5,20 +5,409 @@ title: API and auth
 description: FastAPI routes, session auth, and admin boundaries in BRIEFR.
 ---
 
-# API and auth
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
 
-:::note[Outline — Phase 3]
-Full chapter lands in the Track B content plan. Sections below are the required template; fill with sourced claims only.
-:::
+# API and auth
 
 ## What it is
 
+BRIEFR exposes a FastAPI HTTP API under the `/api/` prefix. Every route served
+by that API — CVE queries, intel feeds, admin operations, and session management
+— is protected by a layered set of middleware, session gates, and role checks.
+
+Authentication uses a single built-in login system added in June 2026. There is
+no external identity provider, no OAuth flow, and no shared API key. When an
+analyst opens the app, they log in with a username and password. The backend
+issues two cookies: a short-lived signed JWT access token (`briefr_at`) and a
+longer-lived opaque refresh token (`briefr_rt`). Every subsequent API call
+presents the access token cookie; the browser silently exchanges the refresh
+token for a new access token when the short-lived one expires.
+
+Three distinct caller types each have a dedicated auth channel:
+
+- **Authenticated users** — the analyst UI uses session cookies.
+- **Kiosk displays** — read-only wallboard routes use an optional
+  `WALLBOARD_TOKEN` exchanged for a signed httpOnly cookie, or presented
+  directly in an `X-BRIEFR-Wallboard-Token` header.
+- **Service integrations** — the semantic search service uses a scoped
+  `briefr_search_…` Bearer token verified against the database.
+
 ## Why we do it
+
+BRIEFR's threat intel platform is intended for small security teams. A shared
+admin key — the mechanism it replaced — fails open when not set and cannot be
+rotated without coordinating every client. It offers no per-user identity, no
+per-session revocation, and no audit trail.
+
+The two-token session model addresses those gaps:
+
+- **Short-lived access tokens.** The `briefr_at` JWT expires after 15 minutes
+  by default. A stolen token has a narrow window before it becomes useless.
+- **Opaque refresh tokens.** The `briefr_rt` value is a random string; only its
+  SHA-256 hash is stored in the database. A database leak does not hand out
+  usable tokens. The refresh cookie path is narrowed to `/api/auth`, so it is
+  not sent on every API call.
+- **Rotation and replay detection.** Each use of a refresh token revokes the
+  old session row and creates a new one. If an already-revoked token is
+  presented again, the system treats it as a stolen credential and revokes
+  every active session for that user account.
+- **Live `is_active` check.** `require_user` reads the user row from the
+  database on every request (AUTH-001). A deactivated account cannot continue
+  making requests even with a valid JWT that has not yet expired.
+- **Admin role from the database.** `require_admin` re-reads the role column
+  from the users table, not from the JWT payload. Demoting an admin takes effect
+  immediately across every in-flight session — no need to wait for JWT expiry.
 
 ## Where it lives in BRIEFR
 
+The auth code spans several files and layers of `main.py`:
+
+```text
+main.py              → CORS, GZip, security-header, session-gate middleware
+auth_middleware.py   → session_auth_middleware (public / admin / session paths)
+dependencies.py      → require_user, require_admin, require_wallboard_token, audit
+auth/tokens.py       → JWT encode/decode, refresh token generation and hashing
+auth/passwords.py    → bcrypt hashing, constant-time verify
+auth/repo.py         → users + sessions table queries
+auth/usernames.py    → username validation and normalization
+routers/auth.py      → /api/auth/* endpoints (login, logout, refresh, sessions)
+routers/me.py        → /api/me/stack, /api/me/preferences (per-user profile)
+routers/admin/       → /api/admin/* (require_admin dependency on router)
+rate_limit.py        → per-IP and per-username token buckets
+settings.py          → JWT_SECRET, cookie lifetimes, rate limit knobs
+```
+
+<InTheCode
+  items={[
+    {path: 'backend/auth_middleware.py'},
+    {path: 'backend/dependencies.py'},
+    {path: 'backend/auth/', kind: 'tree'},
+    {path: 'backend/routers/auth.py'},
+    {path: 'backend/routers/me.py'},
+    {path: 'backend/routers/admin/', kind: 'tree'},
+    {path: 'backend/rate_limit.py'},
+    {path: 'backend/settings.py'},
+  ]}
+/>
+
 ## How it works
+
+### Middleware stack
+
+`main.py` registers middleware in declaration order. FastAPI wraps middleware
+around the application as a stack, so the **last-declared middleware is the
+outermost** layer — it runs first on an incoming request and last on an outgoing
+response. The four active HTTP middleware functions, from outermost to
+innermost, are:
+
+| Layer | Name | What it does |
+| --- | --- | --- |
+| Outermost | `request_context` | Assigns an `X-Request-ID` (accepting the caller's value when it matches `[A-Za-z0-9._-]{1,64}`, or generating a 16-hex random one); sets the `request_id` context variable so every log line for the same request carries it; logs access method, path, status, and duration in milliseconds. |
+| | `add_security_headers` | Adds `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, a strict `Content-Security-Policy` with `default-src 'self'` and `frame-ancestors 'none'`, and a `Permissions-Policy` blocking geolocation, microphone, camera, payment, USB, and interest-cohort. |
+| | `enforce_session_auth` | Calls `session_auth_middleware` — the session gate described below. |
+| Innermost | `GZipMiddleware` | Compresses responses larger than 256 bytes. |
+
+`CORSMiddleware` is also registered, before the middleware stack, with
+`allow_credentials=True`. Allowed origins come from `ALLOWED_ORIGINS`
+(comma-separated list). Allowed methods are `GET`, `POST`, `DELETE`, and
+`OPTIONS`. Allowed headers include `Content-Type`, `Authorization`, and
+`X-BRIEFR-Wallboard-Token`.
+
+`OPTIONS` requests are allowed through the session gate unconditionally so
+preflight checks are not blocked.
+
+### Session gate
+
+`session_auth_middleware` in `auth_middleware.py` is the central access check
+for every `/api/` request. It runs inside `enforce_session_auth` and applies
+the following decision tree:
+
+1. **Non-API paths** — any path that does not start with `/api/` is passed
+   through immediately. Static assets, the React SPA, and any non-API routes
+   are outside this gate.
+
+2. **Public API paths** — the following are passed through without a session:
+   - Exact matches: `/api/health`, `/api/health/live`, `/api/docs`,
+     `/api/redoc`, `/api/openapi.json`.
+   - Prefix matches: everything under `/api/auth/` and `/api/wallboard/`.
+
+3. **Admin and refresh paths** — `/api/admin/` and `/api/refresh*` bypass the
+   session gate. They are gated instead by `require_admin` declared as a router
+   dependency, which performs a full session and role check inline.
+
+4. **Search tokens** — if the `Authorization` header contains a Bearer token
+   beginning with `briefr_search_`, the gate verifies it against the database
+   and checks that the requested path is on the search token allowlist (see
+   [Search API tokens](#search-api-tokens) below). A valid search token never
+   goes through the session cookie check.
+
+5. **All other `/api/` paths** — `require_user` must succeed. If the
+   `briefr_at` cookie is absent, invalid, or belongs to a deactivated user, the
+   gate returns `401` without reaching the route handler.
+
+### Login flow
+
+`POST /api/auth/login` accepts `{ username, password, remember_me }`:
+
+1. The username is normalized to lowercase. If it fails format validation, a
+   dummy `bcrypt.checkpw` call runs against a per-process random hash before
+   returning `401`. This keeps response time roughly constant for invalid
+   usernames and prevents a timing oracle for user enumeration.
+2. A per-username rate limit is checked (separate from the per-IP bucket) to
+   block credential-stuffing attacks spread across many source IPs.
+3. The user row is fetched by normalized username. If no row exists or
+   `is_active` is false, the same dummy verify runs before returning `401`.
+4. `bcrypt.checkpw` validates the submitted password against the stored hash.
+   The hash is produced with `bcrypt.hashpw(..., gensalt(rounds=12))`.
+5. On success, a fresh opaque refresh token is generated with
+   `secrets.token_urlsafe(32)`. Its SHA-256 hash, the user agent, the client
+   IP, and whether `remember_me` was requested are stored in the `sessions`
+   table.
+6. A JWT access token is issued: `{ sub, username, role, iat, exp }` signed
+   with HS256 and `JWT_SECRET`. Expiry is `JWT_ACCESS_TOKEN_MINUTES` minutes
+   from now (default 15).
+7. The `briefr_at` cookie is set: `httpOnly`, `samesite=strict`,
+   `secure=True` (overridable with `AUTH_COOKIE_SECURE=0`), `path=/`.
+8. The `briefr_rt` cookie is set: same security flags, `path=/api/auth`
+   (narrow — sent only to auth endpoints), `max_age` set only when
+   `remember_me=true`.
+9. The login event is written to the audit log.
+
+`POST /api/auth/logout` reads the `briefr_rt` cookie, looks up the session by
+its hash, marks it revoked, and deletes both cookies from the response.
+
+### Token rotation and replay detection
+
+`POST /api/auth/refresh` is the endpoint the browser calls when `briefr_at`
+expires (typically before navigating or on a 401 from another route):
+
+1. The `briefr_rt` cookie is read. Absence returns `401`.
+2. The session row matching the token's SHA-256 hash is fetched.
+3. If the session `expires_at` is in the past, `401` is returned.
+4. If the session `revoked_at` is already set, the token is being replayed.
+   This indicates possible theft. Every active session for that user is
+   immediately revoked, the audit log records `auth.token_reuse_detected`, and
+   both cookies are cleared. The response is `401`.
+5. The user row is fetched. If the user is missing or deactivated, `401` is
+   returned.
+6. A new refresh token is generated. The old session row has its `revoked_at`
+   set to now (so future replays of the old token are detectable). A new
+   session row is inserted, carrying forward the `remember_me` flag.
+7. A new access token and both cookies are issued.
+
+Rotation means every successful `POST /api/auth/refresh` call consumes the
+presented refresh token and issues a fresh one. This keeps each token valid for
+at most one refresh cycle.
+
+### Role enforcement
+
+BRIEFR has two roles: **admin** and **analyst** (the default). The role column
+lives in the `users` table; the JWT payload includes it at login time, but the
+backend does not trust the JWT role for privileged operations.
+
+`require_admin` calls `require_user` first (session cookie check + live
+`is_active`), then reads the `role` column from the database directly. If the
+role is not `"admin"`, it returns `403`. This means that an operator who
+demotes an admin account sees the effect immediately — the next request from
+that account returns `403` even if the JWT payload still carries `"role":
+"admin"`.
+
+Admin routes use the shared `APIRouter` in `routers/admin/router.py`, which
+declares `require_admin` and `rate_limit_admin` as router-level dependencies.
+Every route registered on that router inherits both.
+
+### First-run setup
+
+On a fresh BRIEFR install with no users in the database:
+
+- `GET /api/auth/setup-required` returns `{ "required": true }`.
+- `POST /api/auth/setup` accepts `{ username, password }`, validates them,
+  creates the first `admin` account, creates an initial session, and sets auth
+  cookies. This is the only way to bootstrap the first admin without running
+  `scripts/create_user.py`.
+- Once any user row exists, `POST /api/auth/setup` returns `409 Conflict`.
+  There is no self-service signup path. Adding further accounts or resetting a
+  password requires running `scripts/create_user.py` on the server.
+
+### Session management endpoints
+
+Logged-in users can inspect and revoke their own sessions without touching the
+admin panel:
+
+| Endpoint | Method | What it does |
+| --- | --- | --- |
+| `/api/auth/sessions` | `GET` | Lists the caller's active sessions: creation time, last-used time, user agent, IP, and whether each is the current session. The raw refresh token hash is not returned. |
+| `/api/auth/sessions/{session_id}` | `DELETE` | Revokes a specific session by ID. Returns `403` if the session belongs to a different user. |
+| `/api/auth/me` | `GET` | Returns `{ username, role, last_login_at }` from the database (not just the JWT). |
+| `/api/me/stack` | `GET`/`PUT` | Per-user stack profile: technology terms and optional asset profile JSON, previously stored in `localStorage`. |
+| `/api/me/preferences` | `GET`/`PATCH` | Per-user display preferences: font scale, density, timezone, reduce-motion, notification sound, poll interval. |
+
+### Wallboard token
+
+The wallboard is a read-only mode for kiosk or TV displays showing aggregated
+intel posture. It uses a separate auth channel so a browser left open on a
+display does not need a full analyst session:
+
+- `WALLBOARD_TOKEN` is an environment variable. When set, `GET /api/wallboard`
+  requires either the raw token in the `X-BRIEFR-Wallboard-Token` header or a
+  valid `briefr_wb` session cookie.
+- `POST /api/wallboard/session` exchanges the raw token for a signed httpOnly
+  `briefr_wb` cookie, avoiding repeated header exposure on polling requests.
+- `DELETE /api/wallboard/session` clears that cookie.
+- When `WALLBOARD_TOKEN` is unset, wallboard routes are open to any caller on
+  the local network. This is flagged as a production posture warning.
+- Wallboard routes have their own rate bucket (default 60 requests per minute
+  per IP).
+
+The wallboard token uses SHA-256 constant-time comparison (`secrets.compare_digest`)
+to avoid a timing leak that could reveal the configured token's length.
+
+### Search API tokens
+
+Service integrations that need programmatic read access — primarily the
+semantic search service — use scoped Bearer tokens:
+
+- Tokens are created at `POST /api/admin/search-tokens` and listed at
+  `GET /api/admin/search-tokens`. The raw token value is returned once at
+  creation; only the prefix and SHA-256 hash are stored.
+- Tokens are soft-revoked at `DELETE /api/admin/search-tokens/{token_id}`.
+- A search token may only call a restricted allowlist of read-only routes:
+  `GET /api/search/semantic`, `GET /api/cves/{CVE-ID}`,
+  `GET /api/cves/{CVE-ID}/related`, and `GET /api/cves/{CVE-ID}/drawer`.
+  Presenting a search token on any other route returns `403`.
+- Search tokens have their own rate bucket (default 30 requests per minute per
+  IP), verified by `rate_limit_search_token` before the database lookup.
+- In the session gate, a search token caller has `request.state.user_role`
+  set to `"search_token"` and `request.state.user_username` set to
+  `"search_token:{id}"` for audit purposes.
+
+### Rate limiting for auth routes
+
+Auth endpoints are covered by the same token-bucket limiter used for the rest
+of the API:
+
+| Bucket | Default | Applied to |
+| --- | --- | --- |
+| `login` | 5/min per IP | `POST /api/auth/login` |
+| `login_username` | 5/min per username | `POST /api/auth/login` (per submitted username, regardless of source IP) |
+| `auth_refresh` | 30/min per IP | `POST /api/auth/refresh` |
+| `admin_read` | 120/min per IP | `GET` on all `/api/admin/` routes |
+| `refresh` (shared) | 10/min per IP | `POST` on all `/api/admin/` and `/api/refresh*` routes |
+| `search_token` | 30/min per IP | Bearer `briefr_search_…` token requests |
+| `wallboard` | 60/min per IP | `/api/wallboard` |
+
+`RATE_LIMIT_ENABLED=0` disables all buckets. Exceeded limits return `429` with
+a whole-second `Retry-After` header.
+
+### OpenAPI docs
+
+In non-production environments (`BRIEFR_ENV != "production"`), BRIEFR exposes
+interactive documentation at `/api/docs` (Swagger UI), `/api/redoc`, and
+`/api/openapi.json`. In production, all three return `404`. The session gate
+lists them as public so they can be loaded without a session cookie in
+development.
 
 ## What it needs
 
+| Setting or surface | What to check |
+| --- | --- |
+| `JWT_SECRET` | **Required in production.** Generate with `openssl rand -hex 32`. If absent in production, the backend refuses to start. In development, a value is auto-generated and persisted to `.env` on first boot. |
+| `JWT_ACCESS_TOKEN_MINUTES` | How long `briefr_at` cookies remain valid before requiring a refresh. Default: `15`. |
+| `REFRESH_TOKEN_DAYS` | How long `briefr_rt` cookies remain valid with `remember_me=true`. Default: `30`. |
+| `AUTH_COOKIE_SECURE` | Set `0` only when running without HTTPS (local development). Default: `1` (cookies require HTTPS). Disabling this in production is a posture warning. |
+| `RATE_LIMIT_LOGIN_PER_MINUTE` | Per-IP budget for login attempts. Default: `5`. Also applied per submitted username. |
+| `RATE_LIMIT_AUTH_REFRESH_PER_MINUTE` | Per-IP budget for token refresh calls. Default: `30`. |
+| `WALLBOARD_TOKEN` | Optional static token for kiosk access. When unset, `/api/wallboard` is open to any caller — a production posture warning is emitted at startup. |
+| `BRIEFR_ENV=production` | Required for production posture: disables OpenAPI docs, enforces `JWT_SECRET` presence, and logs posture warnings at startup. |
+| `GET /api/auth/sessions` | Lists active sessions for a logged-in user. Use to audit concurrent sessions or confirm that a logout took effect. |
+| `GET /api/admin/search-tokens` | Lists active search API tokens (prefix and metadata only). |
+
 ## How industry does it — and why BRIEFR does it this way
+
+<AtEnterpriseScale>
+  <div>
+    Enterprise security platforms typically delegate authentication to an
+    external identity provider — an OAuth 2.0 authorization server, a SAML
+    IdP, or a cloud IAM system. Access tokens are short-lived JWTs issued by
+    that provider; the application never touches passwords. Multi-factor
+    authentication, SSO across applications, group-to-role mapping, and
+    centralized session revocation all live in the identity layer, not in the
+    application. Service-to-service calls use separate machine credentials
+    issued by the same IdP, scoped to specific API surfaces.
+  </div>
+
+  <div>
+    BRIEFR is designed for a focused security team running their own private
+    instance. There is no customer-facing login surface, no multi-tenant
+    identity boundary, and no external IdP dependency to operate. The built-in
+    session system keeps everything self-contained: bcrypt password hashing,
+    short-lived JWTs, hashed opaque refresh tokens, live-DB role checks, and
+    per-session revocation. Adding a second user account or resetting a
+    password requires running a script on the server — intentionally — because
+    this is not a sign-up product. When the deployment needs SSO or MFA,
+    the recommended path is to put BRIEFR behind an access proxy such as
+    Cloudflare Access or Authelia rather than extending the built-in system.
+  </div>
+</AtEnterpriseScale>
+
+The trade-off is operational simplicity at the cost of identity features. A
+self-hosted team gets a working auth system with no external service to operate,
+no OAuth redirect flows to configure, and no IdP to maintain. The limits are
+real: there is no MFA, no SAML, no group-to-role sync, and no per-client OAuth
+scope beyond the two built-in roles. For a small team on a private network,
+those limits are acceptable. For a larger deployment or one that needs to
+integrate with an enterprise directory, the right answer is an access proxy,
+not changes to BRIEFR's auth layer.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      On a self-hosted BRIEFR instance where you have a session, request{' '}
+      <code>GET /api/auth/me</code>. You are reading your own session data;
+      no configuration changes are needed.
+    </li>
+    <li>
+      Confirm that the response includes <code>username</code>,{' '}
+      <code>role</code>, and <code>last_login_at</code>. These values come
+      from the database row, not from the JWT payload in the cookie.
+    </li>
+    <li>
+      Also request <code>GET /api/auth/sessions</code>. Look for the session
+      marked <code>"is_current": true</code>. The response includes{' '}
+      <code>created_at</code>, <code>last_used_at</code>, <code>user_agent</code>,
+      and <code>ip</code> for each active session, but never the raw refresh
+      token or its hash.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "user": {
+      "username": "analyst",
+      "role": "admin",
+      "last_login_at": "2026-07-22T01:00:00"
+    },
+    "sessions": [
+      {
+        "id": 1,
+        "created_at": "2026-07-22T01:00:00",
+        "last_used_at": "2026-07-22T01:15:00",
+        "expires_at": "2026-08-21T01:00:00",
+        "user_agent": "Mozilla/5.0 ...",
+        "ip": "127.0.0.1",
+        "remember_me": false,
+        "is_current": true
+      }
+    ]
+  }
+  ```
+
+  Treat the JSON as a redacted shape example. The useful check is that the
+  response shows your current session as <code>"is_current": true</code> and
+  that <code>last_login_at</code> reflects your most recent login, confirming
+  the backend is reading from the database and not just decoding the cookie.
+</TryItYourself>
