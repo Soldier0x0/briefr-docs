@@ -24,9 +24,11 @@ matter controls ordering.
 
 ```bash
 npm install
-npm start        # dev server with hot reload
+npm start        # http://localhost:3000/ (baseUrl is /)
 npm run build    # production build (must pass before pushing)
 ```
+
+Production is served at `https://docs.projectjupiter.in` (Cloudflare). `baseUrl` is `/`.
 
 ## License
 

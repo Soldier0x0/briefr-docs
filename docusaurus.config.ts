@@ -12,9 +12,9 @@ const config: Config = {
     faster: true,
   },
 
-  // GitHub Pages target; swap for docs.briefr.dev when the domain is live.
-  url: 'https://soldier0x0.github.io',
-  baseUrl: '/briefr-docs/',
+  // Cloudflare Workers custom domain (docs.projectjupiter.in) serves at site root.
+  url: 'https://docs.projectjupiter.in',
+  baseUrl: '/',
   organizationName: 'Soldier0x0',
   projectName: 'briefr-docs',
   trailingSlash: false,
