@@ -1,10 +1,24 @@
+/* Base aside box — all Learn callout variants share this foundation */
 .box {
   border: 1px solid var(--brf-hairline);
+  border-left: 2px solid var(--brf-accent);
   background: var(--brf-surface);
   padding: 1rem 1.15rem;
   margin: 1.25rem 0;
+  transition: border-left-color 150ms ease-out;
 }
 
+/* AtEnterpriseScale: link blue signals "industry context" */
+.boxEnterprise {
+  border-left-color: var(--brf-link);
+}
+
+/* TryItYourself: dim/neutral signals "optional, low-stakes" */
+.boxTry {
+  border-left-color: var(--brf-dim);
+}
+
+/* Kicker label — mono, caps, accent orange by default (InTheCode) */
 .kicker {
   font-family: var(--brf-font-mono);
   font-size: 0.68rem;
@@ -13,6 +27,14 @@
   text-transform: uppercase;
   color: var(--brf-accent);
   margin: 0 0 0.55rem;
+}
+
+.kickerEnterprise {
+  color: var(--brf-link);
+}
+
+.kickerTry {
+  color: var(--brf-dim);
 }
 
 .list {
@@ -29,4 +51,10 @@
   color: var(--brf-dim);
   font-size: 0.9rem;
   margin: 0.65rem 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box {
+    transition: none;
+  }
 }
