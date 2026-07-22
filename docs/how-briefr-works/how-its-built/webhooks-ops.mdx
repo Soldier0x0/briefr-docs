@@ -132,7 +132,7 @@ function. It:
    fails, the claim is released so the next run can retry.
 4. Calls the destination-specific delivery function.
 5. Records the delivery outcome (`ok` or `failed`, plus any error text) in
-   the `webhook_delivery` log table.
+   the `webhook_delivery_log` table.
 6. If a delivery fails, emits an in-app webhook failure notification through
    the notifications subsystem.
 
@@ -173,10 +173,16 @@ the host:
 - **Redirects disabled.** The shared webhook `httpx.AsyncClient` is
   configured with `follow_redirects=False`. A redirect response is treated
   as an error rather than followed.
-- **Header sanitization.** A fixed blocklist of headers — `authorization`,
-  `x-briefr-admin-key`, `x-api-key`, and every provider-specific key header
-  BRIEFR uses for upstream calls — is stripped from any operator-supplied
-  outbound headers. Headers with the `x-briefr-` prefix are also stripped.
+- **Header sanitization.** Operator-supplied outbound headers pass through
+  `sanitize_outbound_headers`, which strips a fixed blocklist
+  (`FORBIDDEN_OUTBOUND_HEADERS` in `ssrf.py`): `authorization`,
+  `x-briefr-admin-key`, `x-api-key`, `x-virustotal-api-key`,
+  `x-nvd-api-key`, `x-github-token`, `x-groq-api-key`,
+  `x-abuseipdb-api-key`, `x-greynoise-api-key`, and `x-circl-api-key`.
+  Any header whose name starts with `x-briefr-` is also stripped. This is
+  not an exhaustive list of every provider credential header BRIEFR uses
+  internally — only the names in that set (plus the `x-briefr-*` prefix rule)
+  are removed from outbound webhook requests.
 
 These measures prevent a misconfigured or malicious destination URL from
 reaching internal services, probing metadata endpoints, or extracting
@@ -273,14 +279,17 @@ Archives are kept by count. `BACKUP_RETENTION_COUNT` (default `100`) is the
 maximum number of archives on disk; older archives are pruned after each
 successful run.
 
-#### Auto-restore on startup
+#### Auto-restore on startup (SQLite only)
 
-On application startup, `ensure_db_or_restore` runs an integrity check
-against the live database. If the check fails, BRIEFR scans the backup
-directory for the newest valid archive, decrypts it when needed, verifies the
-extracted content, and restores it — all before the first API request is
-served. This is the only automatic restore path; intentional operator restores
-use the `briefr-restore.sh` script or the admin UI wizard.
+On **SQLite** backends only, `main.py` calls `ensure_db_or_restore` during
+lifespan startup (`if not is_postgres()`). That function runs an integrity
+check against the live `briefr.db` file; if the check fails, BRIEFR scans
+the backup directory for the newest valid archive, decrypts it when needed,
+verifies the extracted content, and restores it — all before the first API
+request is served. PostgreSQL deployments skip this path entirely (startup
+runs Alembic migrations instead). This SQLite auto-restore is the only
+automatic recovery path; intentional operator restores use the
+`briefr-restore.sh` script or the admin UI wizard.
 
 ### API key health monitoring
 
@@ -369,7 +378,7 @@ separate setting is needed.
 | `GET /api/admin/notifications` | Aggregated audit events, job errors, and API key failures |
 | `GET /api/admin/logs` | Structured log ring buffer; filterable by level and category |
 | `GET /api/admin/webhooks` | Configured destinations, enabled state, subscribed event types |
-| Delivery log | `webhook_delivery` table; ~90-day TTL; visible in Admin → Webhooks |
+| Delivery log | `webhook_delivery_log` table; 30-day TTL (`WEBHOOK_DELIVERY_LOG_RETENTION_DAYS`); visible in Admin → Webhooks |
 
 ## How industry does it — and why BRIEFR does it this way
 
@@ -437,9 +446,10 @@ its own delivery failures through the same notification surface.
     </li>
     <li>
       Request <code>GET /api/health</code> and check that the response does
-      not report any feed source with <code>circuit_open: true</code>. If a
-      source circuit is open, its error is also visible under{' '}
-      <code>GET /api/admin/notifications</code>.
+      not report any feed source with <code>circuit_open: true</code>. Feed
+      circuit state lives on the health endpoint only —{' '}
+      <code>GET /api/admin/notifications</code> aggregates audit log entries,
+      job errors, and unhealthy API key alerts, not feed circuit status.
     </li>
   </ol>
 
