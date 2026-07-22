@@ -5,20 +5,330 @@ title: Storage
 description: SQLite and PostgreSQL schema, caches, and feed tables in BRIEFR.
 ---
 
-# Storage
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
 
-:::note[Outline — Phase 3]
-Full chapter lands in the Track B content plan. Sections below are the required template; fill with sourced claims only.
-:::
+# Storage
 
 ## What it is
 
+BRIEFR stores all intel data in a local relational database: **SQLite** by default for
+single-box deployments, and **PostgreSQL** for production. Every CVE record, KEV deadline,
+EPSS score, IOC cache entry, threat correlation, sync watermark, and user session lives in
+the same database. The UI reads that local database; it does not query external feeds on
+each page load.
+
+Both backends share a single schema surface. Application code talks to a thin connection
+abstraction whose `execute`, `execute_fetchall`, `executemany`, `commit`, and `rollback`
+methods work identically regardless of which engine is running underneath. A SQL translation
+layer handles the syntax differences so most query code needs no dialect branches.
+
+The storage layer began as a single large `database.py` file. In Phase 3 it was split into
+a `backend/db/` package of focused submodules. `database.py` now serves as a
+backward-compatibility shim that re-exports every public name from `backend/db/`, so the
+35+ existing call sites outside that package continue to work unchanged. New code imports
+directly from the relevant `db/*.py` submodule.
+
 ## Why we do it
+
+BRIEFR's analyst screens need fast, reliable reads. If a CVE detail page had to reach NVD,
+CISA, and EPSS for every request, page load time would depend on the slowest upstream, and
+a brief provider outage would break the UI directly.
+
+Storing intel locally removes that dependency from the hot path:
+
+- **Feed staleness never blocks the UI.** A failed NVD sync means the corpus is briefly
+  stale, not that CVE pages return errors. Analysts continue working on the prior stored
+  data while the scheduler retries.
+- **Cache tables absorb expensive enrichment lookups.** IOC enrichment results and feed
+  snapshots are stored keyed by value or key string. Repeated lookups hit the cache rather
+  than an external API.
+- **Retention sweeps keep tables bounded.** The scheduler runs `run_retention_cleanup()`
+  periodically. Cache rows past their physical retention window are deleted; older history
+  rows are pruned to keep disk usage predictable.
+
+Both backends support the same schema, so a self-hosted single-box deployment running on
+SQLite can migrate to Postgres by setting `DATABASE_URL` and restarting. Alembic carries
+the Postgres schema forward from that point.
 
 ## Where it lives in BRIEFR
 
+At a high level, storage sits between the scheduler and feed code on one side and the
+FastAPI routers on the other:
+
+```text
+feeds/*.py            -> db/cache.py           -> feed_cache, ioc_cache
+scheduler jobs        -> db/*.py               -> cves, sync_state, embeddings, …
+FastAPI routers       -> db/*.py               -> read / write intel tables
+database.py (shim)    -> db/*                  -> re-exports for legacy call sites
+db/connection.py      -> aiosqlite / asyncpg   -> raw connections and pool
+db/pg_adapt.py        -> PostgresConnection    -> SQL dialect translation
+alembic/versions/     ->                       -> Postgres DDL migrations (001–033)
+```
+
+`db/connection.py` owns the two connection classes and the asyncpg pool. `db/config.py`
+resolves `DATABASE_URL` (or `DB_PATH` for SQLite) and exposes `is_postgres()`.
+`db/pg_adapt.py` translates SQLite-style SQL at the Postgres connection boundary. Alembic
+migrations in `backend/alembic/versions/` carry the Postgres schema forward; SQLite schema
+is applied by `init_db()` directly via `executescript()` at startup.
+
+<InTheCode
+  items={[
+    {path: 'backend/database.py'},
+    {path: 'backend/db/', kind: 'tree'},
+    {path: 'backend/db/connection.py'},
+    {path: 'backend/db/config.py'},
+    {path: 'backend/db/pg_adapt.py'},
+    {path: 'backend/db/cache.py'},
+    {path: 'backend/db/cache_retention.py'},
+    {path: 'backend/alembic/', kind: 'tree'},
+  ]}
+/>
+
 ## How it works
+
+### Connection abstraction
+
+Every caller acquires a connection with `get_db()`, which delegates to `get_connection()`.
+`get_connection()` returns either a `SqliteConnection` or a `PostgresConnection` depending
+on whether `DATABASE_URL` points at SQLite or Postgres.
+
+On **SQLite**, `get_connection()` opens an `aiosqlite` connection to `DB_PATH` (default
+`briefr.db`) and immediately sets three pragmas:
+
+| Pragma | Value | Effect |
+| --- | --- | --- |
+| `journal_mode` | `WAL` | Allows concurrent readers during a write. |
+| `busy_timeout` | `30000` | Waits up to 30 seconds before failing when the file is locked. |
+| `foreign_keys` | `ON` | Enforces referential integrity at the file level. |
+
+On **PostgreSQL**, `get_connection()` acquires a connection from the shared `asyncpg`
+pool. The pool is created at startup by `init_pool()` with `min_size=1`, `max_size` set
+from `DATABASE_POOL_SIZE` (default 10), a `command_timeout` of
+`DATABASE_POOL_COMMAND_TIMEOUT_SECONDS` (default 60 seconds), and a
+`max_inactive_connection_lifetime` of 300 seconds. If the pool is saturated and a new
+caller waits longer than `DATABASE_POOL_ACQUIRE_TIMEOUT_SECONDS` (default 10 seconds), the
+connection raises `PoolExhaustedError` rather than waiting indefinitely.
+
+Both wrappers expose the same interface. Modules that need to branch on backend type call
+`_is_postgres_connection(db)`, which checks the class name rather than querying a global
+flag.
+
+### SQL dialect translation
+
+`db/pg_adapt.py` translates SQLite-oriented SQL into PostgreSQL-compatible SQL at the
+`PostgresConnection` boundary. Legacy routers and auth code still emit `?` positional
+placeholders and SQLite datetime expressions. `prepare_query()` applies three
+transformations before the query reaches asyncpg:
+
+- **Placeholder rewriting.** `?` → `$1`, `$2`, … in insertion order. Named `:name`
+  placeholders are rewritten to `$n` and the parameter tuple is reordered to match.
+- **Datetime translation.** `datetime('now')` becomes
+  `TO_CHAR((NOW() AT TIME ZONE 'utc'), 'YYYY-MM-DD HH24:MI:SS')`. Interval comparisons
+  such as `datetime('now', '-1 hour')` are translated to the equivalent Postgres interval
+  arithmetic.
+- **Upsert rewriting.** `INSERT OR REPLACE` and `INSERT OR IGNORE` are rewritten to
+  PostgreSQL `ON CONFLICT … DO UPDATE SET …` or `ON CONFLICT DO NOTHING`.
+
+Submodules in `backend/db/` that were written after the Postgres port emit `?` on SQLite
+and `$n` on Postgres natively via separate query constants (for example `_UPSERT_IOC_CACHE_SQLITE`
+and `_UPSERT_IOC_CACHE_PG` in `db/cache.py`), bypassing the translation layer for those
+queries.
+
+### Schema initialization
+
+On **SQLite**, `init_db()` runs a single `executescript()` call that creates every table
+and index in one transaction. It then runs a list of additive `ALTER TABLE` and
+`CREATE INDEX` statements for columns added after the initial schema, each wrapped in a
+`try / except` so already-applied steps are silently skipped. This approach works because
+`executescript()` is available on `aiosqlite` connections and SQLite tolerates idempotent
+`CREATE TABLE IF NOT EXISTS` calls on every startup.
+
+On **PostgreSQL**, the schema is applied by Alembic. `run_postgres_migrations()` is called
+at backend startup, before the asyncpg pool opens. It uses a temporary bare
+`asyncpg.connect()` to read the current `alembic_version` row, compares it to the head
+revision, and if the schema is behind it runs `alembic upgrade head` in a thread pool.
+There are currently 33 migration revisions, numbered `001_initial_schema` through
+`033_search_api_tokens`. If the schema is already at head the Alembic step is skipped and
+startup continues immediately.
+
+### Key table groups
+
+| Group | Representative tables | Purpose |
+| --- | --- | --- |
+| Core intel | `cves`, `kev_deadlines`, `epss_history`, `cve_exploits`, `mitre_techniques` | Primary vulnerability corpus and enrichment |
+| Threat intel | `otx_cve_pulses`, `otx_pulse_iocs`, `otx_pulses`, `threatfox_iocs` | OTX and ThreatFox raw data |
+| Correlation | `correlation_campaigns`, `correlation_campaign_members`, `ioc_degree`, `correlation_cve_snapshot` | Computed campaign and IOC graph data |
+| Caches | `ioc_cache`, `feed_cache` | Enrichment and feed result cache |
+| Auth and ops | `users`, `sessions`, `app_settings`, `audit_log`, `sync_state`, `api_call_events` | Login, config, scheduler state, and observability |
+| Embeddings | `cve_embeddings` (legacy BLOB), `embeddings` | Semantic search vectors |
+
+### Cache tables and TTLs
+
+`ioc_cache` stores enrichment results keyed by IOC value. The read path enforces a
+six-hour TTL by filtering on `cached_at`. Physical retention is 24 hours; rows older than
+that are deleted by `purge_stale_ioc_cache()`.
+
+`feed_cache` stores serialized JSON blobs keyed by a string such as
+`sploitus:CVE-2024-1234` or `circl:CVE-2024-1234`. Each key prefix has its own physical
+retention window:
+
+| Prefix | Physical retention |
+| --- | --- |
+| `circl:` | 168 hours (7 days) |
+| `sploitus:` | 168 hours |
+| `llm_products:` | 168 hours |
+| `detection_ctx:` | 168 hours |
+| `otx:cve:` | 48 hours |
+| `greynoise:` | 48 hours |
+| `wallboard:snapshot` | 24 hours |
+| Default (other keys) | 168 hours |
+
+CIRCL missed lookups are cached under `circl_miss:*` keys for 48 hours. That prevents the
+same IDs from re-hammering a rate-limited upstream on every sync cycle.
+
+### Sync state
+
+`sync_state` is a key-value table for durable scheduler bookmarks. Its three primary keys
+are `nvd_last_mod_end` (the NVD incremental sync watermark used by the hourly NVD job),
+`epss_backfill_done`, and `atlas_upstream_version`. Jobs read the watermark before each
+run and update it after a successful sync. Operator-paused job flags and staggered
+next-run offsets are also stored here under `scheduler.paused.*` and
+`scheduler.next_run.*` keys so they survive a backend restart.
+
+### Embeddings
+
+BRIEFR generates sentence embeddings for CVEs, MITRE techniques, and campaigns to power
+semantic similarity and related-CVE queries.
+
+On **SQLite**, embeddings are stored as raw `BLOB` (float32 little-endian bytes) in the
+legacy `cve_embeddings` table (one row per CVE, keyed by `cve_id`) and in the
+multi-entity `embeddings` table (keyed by `entity_type`, `entity_id`, `model`). Cosine
+similarity at query time is computed in Python over the raw bytes.
+
+On **PostgreSQL**, Alembic migration `032_embeddings_pgvector` installs the `vector`
+extension and creates the `embeddings` table with a `vector(384)` column and an HNSW
+cosine index (`idx_embeddings_cve_hnsw`) filtered to CVE rows for the active model. That
+index enables approximate nearest-neighbour search directly in SQL. This migration requires
+a pgvector-capable Postgres image (`pgvector/pgvector:pg16`); plain `postgres:*-alpine`
+images do not ship the extension and will fail at migration time.
+
+The legacy `cve_embeddings` table remains for one release as a read-fallback while the
+scheduler completes the dual-write transition to the new `embeddings` table.
+
+### Retention and transaction safety
+
+The scheduler calls `run_retention_cleanup()` on a periodic schedule. It sweeps all cache
+and overlay tables in one call, returning a dictionary of row counts deleted per table:
+
+| Table | Physical retention |
+| --- | --- |
+| `ioc_cache` | 24 hours |
+| `epss_history` | 90 days |
+| `cve_change_history` | 90 days |
+| `ai_operations` | 30 days |
+| `webhook_delivery_log` | 30 days |
+| `audit_log` | 365 days |
+| `api_call_events` | 30 days |
+
+Feed and source HTTP latency must not overlap an open write transaction against `cves` or
+`feed_cache`. `db/txn_boundaries.py` documents this constraint and provides
+`commit_before_source_io()`: a helper that commits any pending writes before an outbound
+call begins so concurrent jobs do not burn the shared SQL `command_timeout` waiting on row
+locks. The `DATABASE_POOL_COMMAND_TIMEOUT_SECONDS` budget is a single shared limit across
+all pooled connections — holding a long-running transaction open while a network call
+completes can starve other queries.
 
 ## What it needs
 
+| Setting or surface | What to check |
+| --- | --- |
+| `DATABASE_URL` | **Required for Postgres.** `postgresql://user:pass@host:5432/dbname`. If absent, BRIEFR falls back to SQLite. |
+| `DB_PATH` | SQLite file path (default `briefr.db`). Ignored when `DATABASE_URL` is set. |
+| `BRIEFR_REQUIRE_POSTGRES` | Set `1` to refuse backend startup when `DATABASE_URL` is absent or resolves to SQLite. Use this in production to prevent accidental SQLite fallback. |
+| `DATABASE_POOL_SIZE` | asyncpg pool max size (default `10`). |
+| `DATABASE_POOL_ACQUIRE_TIMEOUT_SECONDS` | Time to wait for a free connection before raising `PoolExhaustedError` (default `10`). |
+| `DATABASE_POOL_COMMAND_TIMEOUT_SECONDS` | Per-statement SQL budget on pooled connections (default `60`). Do not raise this to accommodate slow source HTTP; commit first, then make the outbound call. |
+| `GET /api/health` | Returns `"database": {"backend": "postgresql"}` or `"backend": "sqlite"` to confirm which engine is active. |
+| pgvector image | Embeddings require `pgvector/pgvector:pg16`. Plain `postgres:*-alpine` images lack the `vector` extension and will fail Alembic migration `032`. |
+
+Postgres backups are created with `pg_dump --format=custom` and archived as
+`briefr-*.tar.gz` (optionally encrypted with age). The scheduled backup job runs inside
+`briefr-backend.service`; a break-glass manual backup is available via
+`deploy/briefr-pg-backup.sh`.
+
 ## How industry does it — and why BRIEFR does it this way
+
+<AtEnterpriseScale>
+  <div>
+    Large vulnerability management platforms typically run a dedicated database cluster
+    behind a connection pooler such as PgBouncer, apply schema migrations through a CI/CD
+    pipeline rather than at application startup, send analytics queries to a read replica
+    or a separate data warehouse, and operate retention as an independent background
+    service. Embeddings indexes live in a dedicated vector store rather than in the
+    application database.
+  </div>
+
+  <div>
+    BRIEFR is designed for a focused security team running on one box or a small cluster.
+    Alembic migrations apply at backend startup, which keeps the operator surface small:
+    start the backend and the schema is current. The asyncpg pool replaces an external
+    pooler. Retention sweeps run inside the scheduler. When Postgres is needed, a single
+    Docker Compose stack at <code>/opt/infra/postgres</code> provides it. Backup is a
+    scheduled job inside the same backend process rather than an external service.
+    pgvector runs in the same Postgres container, so ANN search needs no separate
+    infrastructure.
+  </div>
+</AtEnterpriseScale>
+
+The trade-off is operational simplicity. A self-hosted team gets a fully operational
+database-backed intel platform without a connection pooler, a migrations CI step, or a
+separate vector store. The limit is scale: if BRIEFR grows to the point where connection
+saturation, migration coordination across instances, or query volume demands a read replica
+or a dedicated vector database, operators would need to add those components externally.
+That is outside the current deployment model.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      On a self-hosted BRIEFR instance, request <code>GET /api/health</code>. You are
+      only reading status data; do not change any configuration for this exercise.
+    </li>
+    <li>
+      Look for the <code>"database"</code> key in the response. Confirm that{' '}
+      <code>database.backend</code> is either <code>"sqlite"</code> (the default when no{' '}
+      <code>DATABASE_URL</code> is set) or <code>"postgresql"</code> (when{' '}
+      <code>DATABASE_URL</code> points at a running Postgres instance).
+    </li>
+    <li>
+      On a Postgres deployment, also check <code>database.pool</code>. Confirm that{' '}
+      <code>max</code> matches the <code>DATABASE_POOL_SIZE</code> you configured (default{' '}
+      10) and that <code>in_use</code> is below <code>max</code> under normal load.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "status": "ok",
+    "cve_count": 42817,
+    "database": {
+      "backend": "postgresql",
+      "host": "127.0.0.1:5432/briefr",
+      "pool": {
+        "size": 10,
+        "idle": 9,
+        "in_use": 1,
+        "min": 1,
+        "max": 10
+      }
+    }
+  }
+  ```
+
+  Treat this as a redacted shape example. The exact fields depend on your deployment. The
+  useful check is that <code>database.backend</code> matches what you configured and that{' '}
+  <code>cve_count</code> is non-zero after the first ingest cycle completes.
+</TryItYourself>
