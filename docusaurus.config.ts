@@ -1,6 +1,20 @@
+import path from 'path';
 import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
+
+function briefrTailwindPlugin() {
+  return {
+    name: 'briefr-tailwind',
+    configurePostCss(postcssOptions: {plugins: unknown[]}) {
+      postcssOptions.plugins.push(require('@tailwindcss/postcss'));
+      return postcssOptions;
+    },
+    configureWebpack() {
+      return {resolve: {alias: {'@': path.resolve(__dirname, 'src')}}};
+    },
+  };
+}
 
 const config: Config = {
   title: 'BRIEFR',
@@ -48,11 +62,13 @@ const config: Config = {
         },
         blog: false,
         theme: {
-          customCss: './src/css/custom.css',
+          customCss: ['./src/css/custom.css', './src/css/tailwind.css'],
         },
       } satisfies Preset.Options,
     ],
   ],
+
+  plugins: [briefrTailwindPlugin],
 
   themes: [
     [
