@@ -41,6 +41,8 @@ BRIEFR only needs TCP access to the mapped port. Schema is applied by Alembic on
 
 **Logs and volume backups** are configured in the infra repo (compose logging driver, volume snapshots). BRIEFR handles **logical backups** via `pg_dump` on the host.
 
+**pgvector requirement:** enabling `EMBEDDINGS_ENABLED=1` requires the `vector` extension. Use `pgvector/pgvector:pg16` for local, CI, and production Postgres 16; plain `postgres:16` images cannot run the embeddings migrations or pgvector ANN queries.
+
 ## Local development
 
 **Persistent dev Postgres (port 5432)** — shares the default port with production-style setups; use when you want a named volume:
@@ -65,6 +67,12 @@ If you previously started `briefr-pg-test` on plain `postgres:16-alpine`, recrea
 ```
 
 `./scripts/verify-local.sh --full` auto-starts `briefr-pg-test` when `DATABASE_URL` is unset and compose on `:5432` is not running.
+
+### Dual-dialect tests (SQLite default + Postgres CI)
+
+- **Default pytest** (`cd backend && pytest tests/ -q`) uses the **SQLite** zero-config fallback. Production SQL is Postgres-native; parallel `_SQLITE` / `_PG` constants in `backend/db/` keep that suite green.
+- **CI** also runs a **`test-postgres`** job (and local `--full` / `postgres-dev.sh`) against real Postgres — that is the production-dialect signal.
+- **Ratchet:** `backend/tests/test_sql_dialect_pairs.py` requires every module-level `_PG` constant to have a same-file `_SQLITE` sibling or an explicit `# pg-only` marker, and caps the pair count at `ALLOWED_MAX` (may only stay equal or decrease without intentional bump). Testcontainers / Postgres-as-default CI remain a later follow-on (not this ratchet).
 
 ```bash
 # backend/.env (either stack — pick one URL)
@@ -108,7 +116,7 @@ Verify: `curl -s http://127.0.0.1:8000/api/health` → `"backend": "postgresql"`
 | Migrations | **Alembic** + **psycopg** (sync, migration-time) |
 | SQL compatibility | `db/pg_adapt.py` adapts legacy router SQL at the Postgres connection boundary |
 | Durable jobs | **Procrastinate** (`PROCRASTINATE_ENABLED=0` default). Schema applied by Alembic `028_procrastinate_schema` (official `schema.sql`). In-process worker starts from `main.py` lifespan when enabled. |
-| Embeddings search | **E1+E2:** `embeddings` (`vector(384)`) + dual-write from scheduler with `content_hash`. Related still NumPy over `cve_embeddings` until E3. Requires `pgvector/pgvector:pg16`. |
+| Embeddings search | `embeddings` (`vector(384)`) + scheduler/auto-on-ingest writes with `content_hash`. Hybrid search and related CVEs prefer pgvector ANN on Postgres, with SQLite BLOB / legacy `cve_embeddings` fallback for dev and cold-index cases. Requires `pgvector/pgvector:pg16` when `EMBEDDINGS_ENABLED=1`. |
 
 ## Backups
 
@@ -167,6 +175,10 @@ curl -s http://127.0.0.1:8000/api/health | python3 -m json.tool | grep cve_count
 | `DATABASE_URL` | **Required.** `postgresql://user:pass@host:5432/dbname` |
 | `BRIEFR_REQUIRE_POSTGRES` | Set `1` to refuse startup without Postgres |
 | `DATABASE_POOL_SIZE` | asyncpg pool size (default `10`) |
+| `DATABASE_POOL_ACQUIRE_TIMEOUT_SECONDS` | Wait for a free pool slot before HTTP 503 (default `10`) |
+| `DATABASE_POOL_COMMAND_TIMEOUT_SECONDS` | **SQL statement** timeout on pooled connections (default `60`). Not for feed/API HTTP — each source has its own timeout in `feeds/`. Do not raise this to mask slow CIRCL/Sploitus/etc.; commit or close the connection before outbound source I/O (`db/txn_boundaries.py`). |
+| `EMBEDDINGS_ENABLED` | Optional semantic retrieval toggle; requires `pgvector/pgvector:pg16` on Postgres |
+| `EMBEDDINGS_AUTO_ON_INGEST` | When embeddings are enabled, warm vectors for new/updated CVEs after ingest (default `1`) |
 | `BACKUP_DIR` | Archive directory (default `/var/lib/briefr/backups`) |
 | `BACKUP_RETENTION_COUNT` | Max `briefr-*.tar.gz[.age]` archives |
 | `BACKUP_AGE_KEY_FILE` | age identity for encryption (outside `BACKUP_DIR`) |
@@ -182,10 +194,11 @@ curl -s http://127.0.0.1:8000/api/health | python3 -m json.tool | grep cve_count
 | Timeline/charts empty but `cve_count` > 0 | Fixed in app — ensure `/api/stats/timeline` returns non-zero counts; hard-refresh browser |
 | Empty feed on first boot | Fewer than 10 CVE rows triggers NVD ingest, or run `scripts/seed_screenshot_data.py` with `DATABASE_URL` set |
 | `extension "vector" is not available` / Alembic 032 fails | Postgres image lacks pgvector — use `pgvector/pgvector:pg16` (same major as prod); recreate disposable containers after the image change |
+| Job fails with `Database command timeout` during another feed’s CIRCL/HTTP | SQL `command_timeout` budget shared under lock wait — not that job’s HTTP timeout. Ensure writers commit/close before source I/O (`db/txn_boundaries.py`); do not raise `DATABASE_POOL_COMMAND_TIMEOUT_SECONDS` first |
 
 ## pgvector cutover (embeddings E1)
 
-Embeddings ANN and hybrid search need the **`vector`** extension. Plain `postgres:*-alpine` images do **not** ship it.
+Embeddings ANN, hybrid search, and embeddings-backed related CVEs need the **`vector`** extension. Plain `postgres:*-alpine` images do **not** ship it.
 
 | Env | Image |
 |-----|--------|
@@ -198,8 +211,8 @@ Embeddings ANN and hybrid search need the **`vector`** extension. Plain `postgre
 1. Backup (`pg_dump` / existing backup job)
 2. Stop container; set image to `pgvector/pgvector:pg16`; **same volume mounts**
 3. Start; verify `SELECT version()`, CVE count
-4. Backend startup runs Alembic → `CREATE EXTENSION IF NOT EXISTS vector` + `embeddings` table + BLOB migrate from `cve_embeddings`
-5. Smoke: `/api/health`, feed, related CVEs (still BLOB/NumPy until E2/E3)
+4. Backend startup runs Alembic → `CREATE EXTENSION IF NOT EXISTS vector` + `embeddings` table + migration of legacy `cve_embeddings`
+5. Smoke: `/api/health`, feed, `GET /api/search/semantic`, related CVEs, and Admin → AI operations retrieval health
 
 **Data loss risk:** wrong volume on recreate — backup + keep the same volume name. Extension install itself is non-destructive.
 
@@ -210,7 +223,7 @@ psql "$DATABASE_URL" -c "SELECT extname, extversion FROM pg_extension WHERE extn
 psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM embeddings;"
 ```
 
-Legacy `cve_embeddings` remains for one release (read-fallback). E2 switches the write path to `embeddings`; E3 switches related/search to ANN.
+Legacy `cve_embeddings` remains as a read fallback for older rows/cold indexes; current writes target `embeddings` and current retrieval prefers pgvector ANN when available.
 
 | Log | Location |
 |-----|----------|
