@@ -1,0 +1,94 @@
+---
+sidebar_position: 6
+slug: /how-briefr-works/system-design/04-storage
+title: "Unit 4: Storage & data modeling"
+description: How BRIEFR models and stores intelligence data — SQLite vs Postgres, schema design, and backup strategy.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 4: Storage & data modeling
+
+<CoverageBadge coverage="briefr" />
+
+BRIEFR stores all intelligence data in a single local relational database. Every CVE record, KEV deadline, EPSS score, threat correlation, IOC cache entry, user session, sync watermark, and embedding vector lives in the same database. The UI reads from it. The scheduler writes to it. There is no separate cache tier, no object store, and no secondary database.
+
+The full treatment of this layer — connection abstraction, schema layout, caching tables, and migration strategy — lives in the [Storage](/docs/how-briefr-works/how-its-built/storage) chapter. This unit explains the design choices from a system-design perspective.
+
+## SQLite vs Postgres: the dual-backend model
+
+BRIEFR supports two database backends and exposes the same application API to both.
+
+**SQLite** is the default for single-box self-hosted deployments. It requires no setup beyond a file path, has no connection pool to configure, and has no separate process to manage. For the read-heavy, single-writer workload that BRIEFR targets, SQLite provides strong performance and durability without operational overhead.
+
+**Postgres** is the production backend. It adds connection pooling (via asyncpg), concurrent read scalability, Alembic-managed schema migrations, and native `pg_dump` / `pg_restore` for backups. Operators switch to Postgres by setting `DATABASE_URL` and restarting; Alembic carries the schema forward from that point.
+
+The application code talks to a thin connection abstraction (`db/connection.py`) whose `execute`, `execute_fetchall`, `executemany`, `commit`, and `rollback` methods work identically regardless of which engine is running underneath. A translation layer in `db/pg_adapt.py` handles syntax differences at the Postgres boundary, so most query code needs no dialect branches.
+
+This dual-backend approach reflects the deployment reality: SQLite handles the majority of self-hosted instances with minimal friction; Postgres handles the cases where operators need concurrent readers, proper backups, or the ability to run multiple API workers.
+
+## Schema design: what BRIEFR stores and why
+
+The schema is organized around the intelligence objects BRIEFR tracks:
+
+**CVE records** (`cves`) are the primary entity. Each row holds the CVE ID, description, severity, CVSS scores, and publication dates from NVD and cvelistV5. Related tables attach KEV deadlines, EPSS scores, vendor-specific advisories, and MITRE technique associations.
+
+**Feed state** (`sync_state`) tracks per-source watermarks: when each feed last ran successfully, the last-seen cursor (for incremental syncs like NVD's modified-since endpoint), and whether the source's circuit breaker is currently open. Scheduler jobs read and write these rows to implement incremental sync without full re-downloads.
+
+**Cache tables** (`feed_cache`, `ioc_cache`) absorb expensive repeated lookups. `feed_cache` stores snapshot results for incident feeds and other high-frequency polled sources, keyed by source identifier, with a TTL column. `ioc_cache` stores enrichment results from VirusTotal, AbuseIPDB, GreyNoise, CIRCL, and ThreatFox for each IOC value. Cache misses call the external provider; hits return the stored result directly. A retention scheduler prunes rows past their physical retention window.
+
+**Correlation and threat data** (`campaigns`, `otx_pulses`, `correlation_results`) link CVEs to threat campaigns and ATT&CK techniques. Nightly correlation jobs write these results; the analyst UI reads them to surface related threat context alongside each CVE.
+
+**Embeddings** (`embeddings`, legacy `cve_embeddings`) store vector representations for semantic search. The `embeddings` table is the current schema: one row per entity, storing entity type, entity ID, model name, dimensionality, the serialized vector, and a hash of the source content for change detection. Legacy `cve_embeddings` rows are read during the transition period.
+
+**Sessions and users** (`users`, `sessions`) own the authentication surface. Session rows hold hashed refresh tokens, user agent strings, and revocation timestamps; the auth system reads these on every refresh token exchange.
+
+<InTheCode
+  items={[
+    {path: 'backend/db/', kind: 'tree'},
+    {path: 'backend/db/connection.py'},
+    {path: 'backend/db/pg_adapt.py'},
+    {path: 'backend/db/cache.py'},
+    {path: 'backend/alembic/versions/', kind: 'tree'},
+    {path: 'backend/database.py'},
+  ]}
+/>
+
+## Read vs write access patterns
+
+BRIEFR's workload is heavily read-biased at request time and write-biased at scheduled time.
+
+**Request path (reads):** The analyst UI generates SQL `SELECT` statements — CVE lookups, feed page queries, IOC cache lookups, session validation on every request, and search. These are latency-sensitive. The schema uses indexes on CVE ID, severity, KEV status, and EPSS score to keep analyst-facing queries fast.
+
+**Scheduler path (writes):** Feed sync jobs bulk-insert or upsert CVE rows, update sync watermarks, write cache entries, and run correlation writes. These happen in the background; they are throughput-sensitive, not latency-sensitive. SQLite's serialized write model is not a bottleneck here because scheduler jobs run one at a time (via per-job locks) and write in bounded batches.
+
+The single-writer constraint means BRIEFR never needs to reason about concurrent writes from multiple clients or optimistic concurrency control at the application level. SQLite's default serialized write mode enforces this automatically; Postgres connection pooling is sized conservatively to avoid write contention.
+
+## Backup strategy
+
+Backup is built into the operations layer. The scheduled `run_backup()` function in `backup/manager.py` performs a full database snapshot on a configurable schedule. For Postgres, this uses `pg_dump`. For SQLite, it copies the database file at a quiescent moment. Backups are written to a configurable archive directory and optionally encrypted at rest.
+
+The health monitoring layer tracks whether backups are fresh. If the most recent backup file is older than a configurable threshold, BRIEFR fires a `backup_dead_man` alert through the webhook engine. An operator who has not received a backup alert can infer that the backup schedule is running.
+
+For the full operations surface — backup configuration, restore procedure, and alert wiring — see [Webhooks and operations](/docs/how-briefr-works/how-its-built/webhooks-ops).
+
+<AtEnterpriseScale>
+  At enterprise scale, storage splits into specialized systems: a relational database for structured records, a search engine (Elasticsearch, OpenSearch, or Typesense) for full-text and faceted queries, a time-series store for metrics, an object store for bulk data, and a distributed cache (Redis, Memcached) for hot read paths. Multi-region deployments replicate across zones; schema migrations run with careful zero-downtime tooling. NoSQL stores appear where write throughput or flexible schema justifies them. BRIEFR uses one relational database for everything because that simplicity matches the workload: a bounded CVE corpus, one writer at a time, and a team small enough that one operator manages the whole instance.
+</AtEnterpriseScale>
+
+## Survey: when would you reach for other storage models?
+
+BRIEFR's all-relational design is appropriate for its scope. For a broader system, the storage choice follows the access pattern:
+
+- **Document stores (MongoDB, DynamoDB)** when schema varies significantly per record and join patterns are minimal — for example, storing raw, heterogeneous vendor advisory payloads before normalization.
+- **Columnar stores (ClickHouse, BigQuery)** when analytics queries scan many rows but read few columns — for example, trend queries over millions of vulnerability scores over time.
+- **Graph databases (Neo4j)** when the primary access pattern is relationship traversal — for example, mapping CVE-to-technique-to-campaign-to-adversary chains at depth.
+- **Full-text search engines (Elasticsearch, Typesense)** when text search needs relevance ranking, faceting, and distributed shard-level concurrency beyond what SQLite FTS5 or Postgres full-text provides.
+
+BRIEFR's approach to search is covered in [Unit 11 — Search & retrieval](/docs/how-briefr-works/system-design/11-search).
+
+---
+
+**Next:** [Unit 5 — Scalability patterns](/docs/how-briefr-works/system-design/05-scalability)

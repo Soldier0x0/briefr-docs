@@ -1,0 +1,82 @@
+---
+sidebar_position: 13
+slug: /how-briefr-works/system-design/11-search
+title: "Unit 11: Search & retrieval"
+description: BRIEFR's search and embedding layer — an honest look at what it does, its fallbacks, and how large-scale search differs.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 11: Search & retrieval
+
+<CoverageBadge coverage="briefr" />
+
+BRIEFR provides two complementary retrieval mechanisms: full-text keyword search over its local CVE and threat corpus, and optional vector (semantic) search for natural-language queries. Both run entirely on a single box — no external search cluster, no dedicated search process. The full engineering detail lives in [Search and embeddings](/docs/how-briefr-works/how-its-built/search-embeddings). This unit explains the design from a system-design perspective.
+
+## Full-text keyword search
+
+BRIEFR indexes CVE descriptions, titles, vendor product names, MITRE technique names and descriptions, and correlation campaign labels for full-text keyword retrieval. Keyword search performs exact and near-exact token matching using the database's built-in full-text capabilities: SQLite's FTS5 extension in development, Postgres full-text search (`tsvector` / `tsquery`) in production.
+
+**What it answers:** "Find CVEs mentioning Apache HTTP Server", "Find techniques related to credential access", "Find campaigns involving Lazarus Group".
+
+**What it cannot bridge:** Vocabulary gaps. A query for "remote code execution in web server" may miss CVEs that describe "heap overflow in mod_proxy" or "unauthenticated RCE via HTTP/2 module." Keyword search returns tokens; it does not understand meaning.
+
+## Vector (semantic) search
+
+BRIEFR's semantic search layer addresses the vocabulary gap using sentence embeddings. When `EMBEDDINGS_ENABLED=1` and the `fastembed` package is installed, BRIEFR generates embedding vectors for each CVE description, ATT&CK technique, and correlation campaign label using a local sentence transformer model. These vectors are stored in the `embeddings` table alongside a hash of the source content (to detect when content changes and re-embedding is needed).
+
+At query time, BRIEFR embeds the search query using the same model and finds the nearest neighbors in the embedding space via approximate nearest-neighbor (ANN) search. This surfaces CVEs and techniques that are semantically similar to the query even when they share no common tokens.
+
+**Hybrid retrieval:** The default search mode merges keyword and vector results using Reciprocal Rank Fusion (RRF). Short queries bias toward keyword; longer natural-language queries bias toward semantic results. The merge happens in the database layer, keeping the API response latency on par with a pure keyword query on warm data.
+
+**Graceful degradation:** When embeddings are disabled or the model has not yet been run, hybrid search falls back silently to keyword retrieval. The operator opts in to semantic search; it is not required for the system to function.
+
+<InTheCode
+  items={[
+    {path: 'backend/routers/search.py'},
+    {path: 'backend/services/semantic_search.py'},
+    {path: 'backend/db/embeddings_search.py'},
+    {path: 'backend/ml/embeddings.py'},
+  ]}
+/>
+
+## On-box constraints and their implications
+
+Running search entirely in-process on one box imposes real limits:
+
+**Model inference during backfill.** Generating embeddings for a large CVE corpus runs sentence-transformer inference on CPU (or GPU if available). This is a background job, not a request-path operation, but it consumes real CPU cycles during the backfill window. The scheduler runs it as a background task with bounded concurrency.
+
+**ANN at bounded scale.** On a single box, approximate nearest-neighbor search is done with a linear scan or a local index structure (not an ANN server like FAISS or a dedicated service). For the BRIEFR corpus size — tens of thousands of CVEs, a few thousand ATT&CK techniques — this is adequate. For millions of entities, a dedicated vector index would be required.
+
+**No distributed relevance tuning.** A single-box search layer cannot do A/B relevance experiments, distributed query routing, or index-level sharding. These are enterprise search cluster capabilities, not single-box ones.
+
+**Cold start.** A newly installed BRIEFR instance has no embeddings until the backfill job runs. The first sync is the longest. Subsequent runs only re-embed entities whose content hash has changed.
+
+## Search in related use cases
+
+The same embedding infrastructure serves two secondary use cases beyond CVE search:
+
+**Related CVEs panel.** When an analyst views a CVE detail page, BRIEFR finds the nearest neighbors of that CVE's stored vector — surfacing semantically related vulnerabilities without running new model inference, because the vectors are already stored.
+
+**Technique and campaign search.** ATT&CK techniques and correlation campaigns are embedded alongside CVEs. A query for "credential theft" can surface `T1003 OS Credential Dumping` even when those exact words are absent.
+
+<AtEnterpriseScale>
+  At enterprise scale, search is typically handled by a dedicated cluster — Elasticsearch, OpenSearch, Typesense, or a managed equivalent. Distributed search clusters provide horizontal scaling of index shards across nodes, distributed relevance computation, advanced faceting and aggregation pipelines, index aliases for zero-downtime index rebuilds, and cluster-level high availability. Vector search at scale uses dedicated ANN services (FAISS, Weaviate, Pinecone, pgvector at large page counts) with pre-computed HNSW or IVF indexes. BRIEFR keeps all of this in-process because the corpus size and team scale do not justify a separate cluster — the single-box model is fast enough, and eliminating a search cluster removes a significant operational dependency.
+</AtEnterpriseScale>
+
+## When does the single-box model break down?
+
+The on-box search model is correct for BRIEFR but has a clear ceiling:
+
+- **Corpus size beyond single-box RAM.** When the index cannot fit in memory, in-process ANN becomes disk-bound and slow.
+- **Query volume requiring horizontal scaling.** If search is called hundreds of times per second, a single process becomes the bottleneck.
+- **Index rebuild time affecting availability.** Large corpora can take minutes to hours to re-index; a dedicated search cluster allows rolling index rebuilds with alias cutover.
+- **Relevance tuning at scale.** Multi-variant ranking, click-through feedback loops, and real-time relevance updates require dedicated search infrastructure.
+
+For a CVE portal with a bounded corpus and a small team, none of these limits apply.
+
+---
+
+**Next:** [Unit 12 — Observability & operations](/docs/how-briefr-works/system-design/12-observability)

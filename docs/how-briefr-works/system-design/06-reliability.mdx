@@ -1,0 +1,105 @@
+---
+sidebar_position: 8
+slug: /how-briefr-works/system-design/06-reliability
+title: "Unit 6: Consistency, reliability, fault tolerance"
+description: Retries, timeouts, breakers, and idempotent jobs in BRIEFR — plus the distributed reliability patterns the product delegates elsewhere.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 6: Consistency, reliability, fault tolerance
+
+<CoverageBadge coverage="partial" />
+
+A reliable system continues to work correctly even when things go wrong — hardware fails, upstream services return errors, and jobs take longer than expected. BRIEFR's reliability design targets the failure modes that matter for a self-hosted CVE portal on a single box: upstream source failures, slow or stalled ingest jobs, and database consistency under concurrent scheduler writes.
+
+The full engineering detail lives in [Resilience](/docs/how-briefr-works/how-its-built/resilience) and [Background jobs](/docs/how-briefr-works/how-its-built/background-jobs).
+
+## Retry and timeout patterns
+
+BRIEFR's outbound feed calls go through `resilient_client.py`, a shared async HTTP client that applies retry and timeout policy consistently across all intelligence sources:
+
+**Retries with exponential backoff.** For transient transport errors and retryable HTTP status codes (5xx), BRIEFR retries with exponential backoff. The backoff prevents retry storms on a struggling upstream: each successive attempt waits longer before trying again.
+
+**Respect `Retry-After`.** When an upstream returns `429 Too Many Requests` with a `Retry-After` header, BRIEFR uses that delay rather than guessing a faster interval. This respects the upstream's capacity signal rather than fighting it.
+
+**Retries off for quota-billed sources.** VirusTotal, AbuseIPDB, GreyNoise, and Groq use `retries=0`. A failed call is not automatically retried, preventing a retry loop from spending paid API quota on a transient failure. Circuit breakers still apply — repeated failures trip the circuit; the breaker reopens after the cooldown period.
+
+**Timeouts.** All outbound calls carry a connection timeout and a read timeout. A source that accepts the connection but stops sending data will not hold the scheduler thread indefinitely.
+
+## Idempotent job design
+
+BRIEFR's scheduler jobs are designed to be safe to re-run:
+
+**Watermark-based incremental sync.** NVD, cvelistV5, and other high-volume sources use a modified-since watermark stored in `sync_state`. If a job fails partway through a sync, the next run re-fetches from the same watermark position. No records are lost; some records may be processed twice but the upsert write model makes that idempotent.
+
+**Upsert writes.** Feed jobs use `INSERT OR REPLACE` (SQLite) or `INSERT ... ON CONFLICT DO UPDATE` (Postgres) rather than pure inserts. Processing the same CVE row twice produces the same database state as processing it once.
+
+**`coalesce=True` on the scheduler.** If a job misses one or more fires while running (e.g., a long NVD sync that crosses its interval), APScheduler collapses the missed fires into one catch-up run rather than queuing multiple concurrent instances. Combined with `max_instances=1`, this prevents write amplification from a slow job.
+
+## Graceful degradation
+
+**Source circuit breakers.** After `CIRCUIT_FAILURE_THRESHOLD` consecutive failures, a source's circuit opens. Subsequent scheduler passes skip that source entirely rather than attempting network calls that will timeout. The analyst UI continues reading from stored data. The circuit self-heals after `CIRCUIT_COOLDOWN_SECONDS` when the source becomes healthy again.
+
+**Missing enrichment does not block CVEs.** EPSS scores, KEV deadlines, and MITRE technique associations are attached by separate enrichment jobs. A failure in one enrichment job does not prevent the CVE record from being stored or the analyst UI from displaying it. The UI degrades gracefully: a CVE without a fresh EPSS score shows the last-known score or a missing-data indicator.
+
+**CIRCL miss caching.** Failed or empty CIRCL lookups are cached for 24 hours with `circl_miss:*` keys. This prevents the same IOC from re-hammering a rate-limited upstream on every enrichment cycle.
+
+<InTheCode
+  items={[
+    {path: 'backend/resilient_client.py'},
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/scheduler_locks.py'},
+    {path: 'backend/jobs/retry_policy.py'},
+  ]}
+/>
+
+## Consistency at single-box scale
+
+BRIEFR's consistency model is straightforward because it runs on one box with one writer:
+
+**Single writer, serialized updates.** The scheduler and its background jobs are the only write path for intelligence data. In-process `asyncio.Lock` objects prevent concurrent writes to the same data from overlapping jobs. SQLite's default journal mode serializes concurrent writes at the engine level; Postgres manages concurrent readers and the single scheduler writer via the connection pool.
+
+**Read-your-writes for admin operations.** Admin routes that trigger a manual feed refresh acquire the same per-feed lock used by the scheduler. After the admin-triggered write completes and the lock is released, the next read from the same process sees the new data. There is no distributed replication lag to reason about.
+
+**Session consistency.** Auth tokens are validated against the database on every request. Session revocations, account deactivations, and role changes take effect immediately — no eventual consistency window.
+
+<AtEnterpriseScale>
+  At enterprise scale, reliability and consistency become the hardest problems in system design. CAP theorem forces a choice between consistency and availability during network partitions. Strong consistency (linearizability) requires coordination protocols like Raft or Paxos that add latency. Eventual consistency allows each replica to diverge temporarily, requiring conflict resolution strategies. Multi-region active-passive failover reduces downtime during regional outages at the cost of synchronization lag. BRIEFR avoids all of this by running on one box: there are no network partitions between components, no replicas to keep in sync, and no leader election needed. The trade-off is that BRIEFR's reliability ceiling is one machine.
+</AtEnterpriseScale>
+
+---
+
+## The external reliability patterns
+
+The sections above cover BRIEFR's single-box reliability model. The following gap block covers the distributed reliability patterns — CAP theorem, multi-region failover, and strong vs eventual consistency — that apply when the system spans multiple nodes.
+
+<SystemDesignGap
+  topic="Distributed consistency, CAP theorem, and multi-region reliability"
+  covers={[
+    "CAP theorem: the impossibility of simultaneously guaranteeing Consistency, Availability, and Partition tolerance",
+    "PACELC: a more complete model including latency vs consistency trade-offs in the normal (non-partition) case",
+    "Strong consistency (linearizability) vs eventual consistency: when each is the right choice",
+    "Consensus algorithms (Raft, Paxos) and why they are needed for distributed agreement",
+    "Multi-region disaster recovery: active-passive failover, recovery time objective (RTO), recovery point objective (RPO)",
+    "Conflict resolution in eventual-consistency systems: last-write-wins, vector clocks, CRDTs",
+  ]}
+  whyItMatters="As soon as a system spans more than one node, consistency guarantees that feel obvious on a single machine — atomic writes, shared memory, synchronized clocks — disappear. Understanding CAP theorem and its successor PACELC lets designers make principled choices about which guarantees to preserve and which to trade away under failure. Multi-region DR is the difference between a database being down and a service being down."
+  inBriefr={
+    <>
+      BRIEFR runs on one box. There are no network partitions between its components, no replicas to keep consistent, and no leader election needed. The CAP problem does not apply to the single-box deployment model. BRIEFR's consistency model is described above: one writer, serialized by in-process locks, with no replication lag.
+    </>
+  }
+  whyNot="BRIEFR is a single self-hosted deployment with no replicated state and no distributed components. CAP theorem and multi-region DR are not relevant constraints for a system that cannot partition internally. The failure domain is the host machine by product design."
+  whenNeeded="You are storing data across multiple nodes (replica sets, sharded clusters); you need the system to survive a datacenter failure without manual intervention; you have conflicting writes from multiple writers that need resolution; or your SLA requires RPO and RTO targets that a single machine cannot guarantee."
+  resources={[
+    {label: "Designing Data-Intensive Applications — Chapters 8–9 (Kleppmann)", note: "The best available treatment of distributed systems trouble spots: clocks, ordering, consistency, consensus"},
+    {label: "Martin Kleppmann — 'Please stop calling databases CP or AP'", href: "https://martin.kleppmann.com/2015/05/11/please-stop-calling-databases-cp-or-ap.html", note: "Essential corrective on common CAP theorem misapplications"},
+    {label: "The Raft Consensus Algorithm — raft.github.io", href: "https://raft.github.io/", note: "Readable alternative to Paxos; the paper and visualization are both available here"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/07-distributed"
+  nextLabel="Unit 7 — Distributed systems basics"
+/>

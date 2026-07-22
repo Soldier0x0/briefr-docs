@@ -1,0 +1,91 @@
+---
+sidebar_position: 10
+slug: /how-briefr-works/system-design/08-apis
+title: "Unit 8: APIs & service contracts"
+description: BRIEFR's REST surface, auth layer, and webhook contracts — with a survey of gRPC and GraphQL as alternatives.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 8: APIs & service contracts
+
+<CoverageBadge coverage="briefr" />
+
+BRIEFR's public surface is a REST HTTP API under the `/api/` prefix, built on FastAPI. Every route — CVE queries, intel feeds, admin operations, search, webhooks, and session management — follows the same layered structure: middleware first, then session gate, then role check, then handler. The full engineering treatment lives in [API and auth](/docs/how-briefr-works/how-its-built/api-auth) and [Webhooks and operations](/docs/how-briefr-works/how-its-built/webhooks-ops). This unit frames those chapters in system-design terms.
+
+## REST API: design decisions
+
+**Resource-oriented URLs.** Routes follow conventional REST patterns: `GET /api/cves/{cve_id}` for a CVE record, `GET /api/feeds/kev` for the KEV list, `POST /api/ioc/lookup` for enrichment, `POST /api/refresh/nvd` for a manual ingest trigger. The URL structure reflects the intelligence objects BRIEFR manages.
+
+**FastAPI with automatic schema generation.** FastAPI generates an OpenAPI schema from the route and Pydantic model definitions. This gives operators a machine-readable contract and interactive documentation without a separate tooling step.
+
+**Content type: JSON throughout.** Every endpoint consumes and produces `application/json`. There are no file upload endpoints, no binary protocol routes, and no content negotiation beyond GZip compression applied by middleware to large responses.
+
+**Versioning: no explicit version prefix.** The API is consumed only by the bundled frontend and operator scripts; there are no external API consumers whose breakage BRIEFR must protect. Adding a version prefix would introduce complexity without benefit at current scale.
+
+## Authentication: three caller types
+
+BRIEFR distinguishes three caller types, each with its own auth channel:
+
+**Authenticated analysts** use a two-cookie session model. Login issues a short-lived signed JWT (`briefr_at`, 15-minute default) and a longer-lived opaque refresh token (`briefr_rt`). Every API call presents the JWT cookie; the browser silently exchanges the refresh token for a new access token when it expires. The refresh token is stored as a SHA-256 hash in the database — a raw token leak cannot produce usable credentials. Each refresh operation rotates the token and detects replay (a presented-but-already-revoked token triggers full session revocation for that user). The `is_active` flag and `is_admin` role are re-read from the database on each request, so account deactivation or role changes take effect immediately.
+
+**Kiosk displays** use a scoped `WALLBOARD_TOKEN`. The token is exchanged for a signed httpOnly cookie on the wallboard route, or presented directly as an `X-BRIEFR-Wallboard-Token` header. Wallboard routes are read-only; they cannot trigger writes, admin operations, or enrichment.
+
+**Service integrations** (the semantic search service) use a `briefr_search_…` Bearer token verified against the database. This is a scoped, single-purpose credential with no admin or write privileges.
+
+<InTheCode
+  items={[
+    {path: 'backend/main.py'},
+    {path: 'backend/auth_middleware.py'},
+    {path: 'backend/dependencies.py'},
+    {path: 'backend/auth/tokens.py'},
+    {path: 'backend/routers/auth.py'},
+    {path: 'backend/routers/', kind: 'tree'},
+  ]}
+/>
+
+## Outbound webhooks: delivery contracts
+
+BRIEFR's webhook engine pushes notifications to operator-configured destinations when significant events occur: a CVE on the team stack enters the KEV catalog, an IOC matches in fresh threat feeds, a backup goes stale, or a scheduled job fails. Supported destination types are Discord webhooks, Telegram bots, and any HTTPS endpoint accepting a JSON POST.
+
+The delivery contract is best-effort: BRIEFR attempts delivery and logs the result but does not implement a persistent outbox with guaranteed delivery. If a destination is unreachable at delivery time, the alert is not retried from durable storage. This is a deliberate trade-off: guaranteed delivery would require a durable queue or an outbox table; for a self-hosted ops alerting system, the operational cost of that infrastructure is not justified.
+
+**SSRF protection.** Before delivering to any user-configured URL, BRIEFR validates the destination against a blocklist of private ranges, loopback addresses, link-local addresses, and cloud metadata endpoints. This prevents an operator-supplied webhook URL from redirecting BRIEFR into internal network calls.
+
+**Event types.** Alert rules in `webhooks/alerts.py` define the conditions: KEV stack coverage, KEV backlog appearance, watchlist IOC match, and the backup dead-man signal. Each rule produces a structured payload; the engine routes it to all configured destinations for that event type.
+
+For the full webhook system — destination configuration, SSRF rules, and the operator notification center — see [Webhooks and operations](/docs/how-briefr-works/how-its-built/webhooks-ops).
+
+<InTheCode
+  items={[
+    {path: 'backend/webhooks/engine.py'},
+    {path: 'backend/webhooks/destinations.py'},
+    {path: 'backend/webhooks/ssrf.py'},
+    {path: 'backend/webhooks/alerts.py'},
+  ]}
+/>
+
+<AtEnterpriseScale>
+  At enterprise scale, REST APIs are often complemented or replaced. **gRPC** provides strongly typed binary contracts via Protocol Buffers, bidirectional streaming, and language-native client code generation — well-suited for high-throughput service-to-service calls. **GraphQL** lets clients specify exactly the fields they need, reducing over-fetching for complex nested data — a good fit when many diverse clients query the same data graph. **Event-driven APIs** (webhooks, SSE, WebSockets) push state changes to subscribers without polling. BRIEFR uses REST because its single-frontend-plus-operator-scripts audience has no need for the added protocol surface, and because FastAPI's OpenAPI generation provides enough contract tooling without a separate IDL layer.
+</AtEnterpriseScale>
+
+## When would you choose gRPC or GraphQL?
+
+**gRPC** is the right choice when:
+- Service-to-service calls require high throughput or streaming (not request/response).
+- Multiple language clients need generated, type-safe stubs.
+- Binary serialization savings matter (large payloads, many calls per second).
+- Strict interface versioning is enforced across teams.
+
+**GraphQL** is the right choice when:
+- Many different clients (mobile, web, partner integrations) each need different subsets of a complex data graph.
+- Over-fetching and multiple round trips are a real problem.
+- A schema registry and introspection tooling are already part of the team's workflow.
+
+Neither trade-off is relevant to BRIEFR's current scope: one frontend, one server, a bounded REST surface, and no streaming data requirements.
+
+---
+
+**Next:** [Unit 9 — Messaging, eventing, async](/docs/how-briefr-works/system-design/09-async)

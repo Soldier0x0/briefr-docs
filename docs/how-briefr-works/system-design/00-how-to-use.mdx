@@ -1,0 +1,53 @@
+---
+sidebar_position: 2
+slug: /how-briefr-works/system-design/00-how-to-use
+title: "Unit 0: How to use this pathway"
+description: Navigate the System Design pathway — what briefr, partial, and gap tags mean, and how to use the curriculum effectively.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+
+# Unit 0: How to use this pathway
+
+<CoverageBadge coverage="briefr" />
+
+This pathway follows the standard system-design curriculum order — foundations through design review — and uses BRIEFR as its primary teaching case. Every unit carries one of three coverage tags that tell you exactly what kind of content to expect.
+
+## The three coverage tags
+
+| Tag | What it means |
+|---|---|
+| <CoverageBadge coverage="briefr" /> | BRIEFR fully implements this topic. The unit teaches from the real product, linking the Track B chapters ([How it's built](/docs/how-briefr-works/how-its-built/)) that go deeper on each subsystem. |
+| <CoverageBadge coverage="partial" /> | BRIEFR implements part of the topic. The unit covers the BRIEFR slice first — with real links — then surfaces the remainder as a structured external block so you can decide whether to follow it before continuing the spine. |
+| <CoverageBadge coverage="gap" /> | BRIEFR intentionally omits or limits this topic. The unit explains what it covers, why BRIEFR skips it, and exactly when you would need it. Curated external resources are provided. |
+
+## Reading strategy by tag
+
+**`briefr` units** are the spine of the course. Read the unit text, follow links into Track B chapters for implementation depth, and return here via your browser back button or the "Next unit" link at the foot of each page.
+
+**`partial` units** have two halves. The first half is pure BRIEFR — read it the same way as a `briefr` unit. The second half is a structured gap block. You can read the gap block and decide to follow external resources now or bookmark them and come back later; either works.
+
+**`gap` units** are honest pivots. They explain what the broader field does, why BRIEFR deliberately does not, and what signal would tell you that you need the full treatment. They are short by design. Read the rationale, note the resources, and follow the "Return here" link at the bottom to stay on the spine.
+
+## Relationship to Track B
+
+[How it's built](/docs/how-briefr-works/how-its-built/) is BRIEFR's primary engineering reference. Every `briefr` and `partial` unit in this pathway links into it rather than duplicating its content. If you want implementation depth on any subsystem — schedulers, storage, auth, search — follow the Track B link and read the full chapter. Then return to the System Design spine when you are done.
+
+Track A ([Intel lifecycle](/docs/how-briefr-works/intel-lifecycle/)) covers the analyst data path from collection through detection. The System Design pathway cross-references it in the case study unit but does not depend on it sequentially. You do not need to read Track A first.
+
+## How to pin your position and return from externals
+
+When you follow an external link (DDIA, an official docs page, a YouTube reference), your position in this spine does not change. Use your browser's back button or return to the [System Design pathway overview](/docs/how-briefr-works/system-design/) to find the "Return here" link at the bottom of the gap or partial block you were reading.
+
+Each unit ends with a **"Next unit"** link. If you follow external resources and lose your place, find the unit you were reading in the [pathway table of contents](/docs/how-briefr-works/system-design/) and pick up from there.
+
+## Suggested reading order
+
+1. Read this unit (you are here).
+2. Work through units **in order** — each unit builds on the previous one's vocabulary.
+3. Complete the case study ([Unit 15](/docs/how-briefr-works/system-design/15-case-study)) last, or read it first as an orientation tour and then revisit individual units for depth.
+4. Cross-read Track B ([How it's built](/docs/how-briefr-works/how-its-built/)) whenever a `briefr` or `partial` unit links into it.
+
+---
+
+**Next:** [Unit 1 — Foundations](/docs/how-briefr-works/system-design/01-foundations)

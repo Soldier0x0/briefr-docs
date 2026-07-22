@@ -1,0 +1,112 @@
+---
+sidebar_position: 7
+slug: /how-briefr-works/system-design/05-scalability
+title: "Unit 5: Scalability patterns"
+description: Cache, jobs, rate limits, and circuit breakers in BRIEFR — plus the scale patterns the product intentionally skips.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 5: Scalability patterns
+
+<CoverageBadge coverage="partial" />
+
+Scalability is a system's ability to handle increased load without proportionate increases in cost or degradation in performance. BRIEFR's scalability story is compact: it scales vertically (bigger box, more RAM, faster disk), it avoids single-box bottlenecks through careful job design, and it explicitly accepts a ceiling. Understanding where that ceiling is and why it was drawn there is as instructive as understanding the patterns themselves.
+
+## Feed caching and TTL strategy
+
+The first scalability lever in BRIEFR is caching at the feed level. Rather than calling external intelligence APIs on every analyst request, BRIEFR's scheduler writes results into two cache tables:
+
+**`feed_cache`** stores snapshot results for incident feeds and other polled sources. Each row is keyed by source identifier and carries a TTL column. The scheduler refreshes entries on its configured interval. Reads hit the cache; the external API is never called on the request path.
+
+**`ioc_cache`** stores IOC enrichment results from VirusTotal, AbuseIPDB, GreyNoise, CIRCL, and ThreatFox. Enrichment results are expensive (external API calls, quota-billed). Caching them by IOC value means the second lookup for the same IP or hash is a local database read, not an outbound call.
+
+Both caches have retention sweeps: `run_retention_cleanup()` prunes rows past their physical retention window on a scheduled basis, keeping table size bounded. See [Storage](/docs/how-briefr-works/how-its-built/storage) for the cache table layout and [Background jobs](/docs/how-briefr-works/how-its-built/background-jobs) for the cleanup schedule.
+
+## Background job scheduling and throughput control
+
+BRIEFR's scheduler (covered in depth in [Ingestion and scheduler](/docs/how-briefr-works/how-its-built/ingestion-scheduler)) prevents any one job from monopolizing resources by design:
+
+- **`max_instances=1`** per job — APScheduler will not launch a second fire of the same job while one is running.
+- **`coalesce=True`** — missed fires that stack up while a job is running collapse into one catch-up run rather than spawning multiple concurrent instances.
+- **Per-job `asyncio.Lock`** — prevents a scheduled fire from racing an admin-triggered manual refresh of the same feed.
+
+This model provides throughput control without a separate work queue: the scheduler is the rate-limiter for outbound feed calls, and the lock model prevents write amplification from overlapping runs.
+
+## Rate limiting: per-source quotas and soft-fail under pressure
+
+At the outbound level, BRIEFR respects upstream rate limits explicitly. For sources that return `429 Too Many Requests` with a `Retry-After` header (notably NVD), the retry logic honors that header rather than retrying immediately. Quota-billed sources (VirusTotal, AbuseIPDB, GreyNoise, Groq) use `retries=0` — automatic retries are disabled to prevent retry loops from spending paid quota.
+
+At the inbound level, token-bucket rate limits protect routes that can trigger expensive work:
+
+| Route group | Default limit |
+|---|---|
+| `POST /api/ioc/lookup` | 30 req/min/IP |
+| `POST /api/refresh*` | 10 req/min/IP |
+| `GET /api/wallboard` | 60 req/min/IP |
+
+When a bucket empties, the response is `429` with `Retry-After`. This is a soft-fail model: excess requests are rejected, not queued. The system remains responsive at the cost of declining over-limit callers. See [Resilience](/docs/how-briefr-works/how-its-built/resilience) for the full inbound rate-limit behavior.
+
+## Circuit breakers and degraded-mode operation
+
+For outbound feed calls, each source has its own circuit breaker. After `CIRCUIT_FAILURE_THRESHOLD` consecutive failures (default: 3), the source's circuit opens for `CIRCUIT_COOLDOWN_SECONDS` (default: 60). While open, calls to that source fail immediately without attempting a network request. The source's circuit state is visible in `GET /api/health` under `feeds.sources`.
+
+This is a scalability pattern as much as a reliability one: a single slow or dead upstream source cannot hold up the entire scheduler cycle by blocking on timeouts. Other sources' jobs continue unaffected.
+
+<InTheCode
+  items={[
+    {path: 'backend/resilient_client.py'},
+    {path: 'backend/rate_limit.py'},
+    {path: 'backend/scheduler_locks.py'},
+    {path: 'backend/db/cache.py'},
+  ]}
+/>
+
+## Single-box limits: what BRIEFR accepts as ceiling
+
+BRIEFR's scalability ceiling is honest and explicit:
+
+- **Vertical scaling only.** More RAM, faster disk, and a faster CPU improve performance. Horizontal scaling (adding machines) is not the target model.
+- **One scheduler owner.** Running multiple scheduler instances would duplicate ingest jobs. Operators who scale API concurrency (multiple uvicorn workers) must keep the scheduler disabled on all but one instance.
+- **In-memory token buckets.** With multiple API workers, token buckets must be moved to the shared database store (`BRIEFR_RATE_LIMIT_STORE=db`) to avoid per-worker multiplication.
+- **SQLite single-writer serialization.** Under Postgres, connection pool sizing limits concurrent writer throughput; under SQLite, writes are serialized at the engine level. For the single-writer workload, this is not a bottleneck.
+
+<AtEnterpriseScale>
+  At enterprise scale, the scalability levers are fundamentally different: horizontal sharding distributes data and write load across multiple database nodes; global load balancers and CDNs push content delivery to the network edge; stream-processing platforms (Kafka, Kinesis, Flink) absorb and process high-volume ingest without coupling throughput to the API tier. These patterns carry real operational cost — cluster management, partition rebalancing, cross-region replication lag — that is unjustified at BRIEFR's target scale.
+</AtEnterpriseScale>
+
+---
+
+## The external scalability patterns
+
+The sections above cover the patterns BRIEFR uses. The following gap block covers the patterns it intentionally does not — horizontal sharding, CDN, and stream processing — which are essential for systems at a different scale tier.
+
+<SystemDesignGap
+  topic="Horizontal scaling, sharding, CDN, and stream processing"
+  covers={[
+    "Horizontal vs vertical scaling: when adding machines beats upgrading one machine",
+    "Database sharding: range-based, hash-based, and directory-based partition strategies",
+    "Consistent hashing: distributing load across nodes with minimal rebalancing on topology changes",
+    "Content delivery networks (CDNs): edge caching, cache invalidation at the network level",
+    "Global load balancing: GeoDNS, anycast, and traffic routing across regions",
+    "Stream processing platforms (Kafka, Kinesis, Flink): high-volume event ingest and real-time pipelines",
+  ]}
+  whyItMatters="When a single machine can no longer absorb the traffic or data volume, horizontal scaling is the only path forward. Sharding, consistent hashing, and CDNs are how real systems serve millions of users without proportionate hardware spend. Stream processing replaces polling-based ingest at high volume. These patterns are table stakes for any system operating at internet scale."
+  inBriefr={
+    <>
+      BRIEFR's scalability is vertical only. The circuit-breaker and rate-limit patterns in <a href="/docs/how-briefr-works/how-its-built/resilience">Resilience</a> bound the blast radius of load spikes on one box; they do not distribute that load horizontally. The bounded corpus and single-digit concurrent user base mean no sharding, no CDN, and no stream platform is justified.
+    </>
+  }
+  whyNot="BRIEFR is a single-box self-hosted CVE portal with a bounded corpus and single-digit concurrent users. Horizontal sharding, CDN layers, and stream-processing clusters would add significant operational complexity with no benefit at this scale."
+  whenNeeded="You are serving millions of read requests per second, storing petabytes of data, ingesting hundreds of thousands of events per second in real time, or serving a geographically distributed audience where edge caching significantly reduces latency."
+  resources={[
+    {label: "Designing Data-Intensive Applications — Chapters 5–6 (Kleppmann)", note: "Replication and partitioning — the canonical reference for database horizontal scaling"},
+    {label: "System Design Interview Vol. 1 — Chapters 4 and 5 (Alex Xu)", note: "Rate limiting patterns and consistent hashing walkthroughs with diagrams"},
+    {label: "Apache Kafka Documentation — Introduction", href: "https://kafka.apache.org/documentation/#introduction", note: "Authoritative reference for distributed event streaming concepts"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/06-reliability"
+  nextLabel="Unit 6 — Consistency, reliability, fault tolerance"
+/>

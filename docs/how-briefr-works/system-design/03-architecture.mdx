@@ -1,0 +1,102 @@
+---
+sidebar_position: 5
+slug: /how-briefr-works/system-design/03-architecture
+title: "Unit 3: High-level architecture"
+description: BRIEFR's monolithic architecture — sync/async boundaries, trust model, and how it compares to microservice alternatives.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 3: High-level architecture
+
+<CoverageBadge coverage="briefr" />
+
+BRIEFR is a monolith. One backend process owns the API, the scheduler, and all business logic. One database stores everything. One operator installs and runs the whole thing. That is not an accident — it is the architecture that best fits the stated requirements: a self-hosted CVE intelligence portal for a small security team, with a single writer, intentionally limited scope, and no multi-tenant concerns.
+
+## The components
+
+At the highest level, a running BRIEFR instance looks like this:
+
+```text
+  Browser / API client
+        │
+  nginx / cloudflared tunnel   (reverse proxy — not part of BRIEFR itself)
+        │
+  FastAPI backend              (one uvicorn process, or a small pool with shared Postgres)
+  ├── /api/* routes            HTTP API: CVE queries, intel feeds, admin, auth, search
+  ├── APScheduler              background job engine (scheduler owner — one instance only)
+  ├── feeds/*.py               outbound intelligence sync jobs
+  ├── background jobs          correlation, embeddings, maintenance crons
+  └── webhooks engine          outbound push notifications
+        │
+  SQLite (default) / Postgres  single relational database for all data
+```
+
+Everything inside the backend process communicates via in-process function calls, `asyncio` coroutines, and shared database access. There are no internal HTTP calls between subsystems, no message broker, and no service registry.
+
+## Sync versus async boundaries
+
+BRIEFR has two distinct execution paths:
+
+**Synchronous (request path):** An analyst makes an HTTP request to `/api/`. FastAPI routes the call through middleware, session gates, and role checks, then executes a database read or write. The response returns in the same request/response cycle. This path must stay fast; it is what the analyst UI waits on.
+
+**Asynchronous (scheduler path):** APScheduler fires recurring jobs — NVD syncs, KEV updates, EPSS score pulls, OTX correlation, embeddings backfill, and more — independently of the request path. A job failure does not affect the API. A slow upstream feed does not block the analyst UI. Jobs that could overlap use per-job `asyncio.Lock` objects from `scheduler_locks.py` to prevent races.
+
+The boundary between these two paths is explicit and enforced: the UI reads from the database; the scheduler writes to it. The analyst never waits for a feed pull to complete.
+
+For a detailed look at how the scheduler owns its jobs and how the lock model prevents races between admin triggers and scheduled runs, see [Ingestion and scheduler](/docs/how-briefr-works/how-its-built/ingestion-scheduler).
+
+## Trust model
+
+BRIEFR's trust boundary is the reverse proxy. The backend assumes that any request arriving at the FastAPI process from outside localhost is already filtered by nginx or cloudflared. Direct internet exposure of the uvicorn port is explicitly unsupported.
+
+Inside the API layer, trust is layered:
+
+- **Unauthenticated routes** — the login endpoint and static assets.
+- **Session-authenticated routes** — all analyst-facing endpoints. Access requires a valid `briefr_at` JWT cookie; the `is_active` flag is re-checked on every request.
+- **Admin routes** — the `/api/admin/` prefix requires the `is_admin` database column to be true, re-read on every call (not from the JWT payload).
+- **Wallboard routes** — read-only kiosk routes validated via a scoped `WALLBOARD_TOKEN`.
+- **Service token routes** — the semantic search service uses a `briefr_search_…` Bearer token.
+
+Outbound trust works differently. When BRIEFR fetches external intelligence feeds, it validates webhook destination URLs against a blocklist of private and link-local ranges (`ssrf.py`) to prevent server-side request forgery. See [API and auth](/docs/how-briefr-works/how-its-built/api-auth) for the full auth layer, and [Webhooks and operations](/docs/how-briefr-works/how-its-built/webhooks-ops) for the outbound webhook constraints.
+
+<InTheCode
+  items={[
+    {path: 'backend/main.py'},
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/scheduler_locks.py'},
+    {path: 'backend/auth_middleware.py'},
+    {path: 'backend/webhooks/ssrf.py'},
+  ]}
+/>
+
+## Why a monolith?
+
+System design conversations often treat microservices as the default and monoliths as a concession. BRIEFR inverts that framing deliberately.
+
+**Operational simplicity is the goal.** A self-hosted tool for a small security team should be installable by one person, runnable as a single `docker-compose up`, debuggable without distributed tracing infrastructure, and upgradable with a single image pull. A microservices split of the scheduler, API, and background workers would multiply deployment complexity, network call overhead, and operational surface area — all costs that buy nothing for the target deployment.
+
+**Single-writer constraint fits the monolith.** BRIEFR is designed for one active writer at a time. A single Postgres connection pool, a single scheduler owner, and a single set of in-process locks are sufficient. There is no need for the coordination mechanisms that distributed services require when multiple writers share state.
+
+**Scaling the API, not the architecture.** When an operator needs more API concurrency, the answer is more uvicorn workers sharing one Postgres pool — not splitting the application into separate services. The scheduler remains on exactly one worker instance. That is the correct scaling lever for BRIEFR's workload.
+
+<AtEnterpriseScale>
+  At scale, a system like BRIEFR would likely be split into separate services: an ingestion pipeline (possibly stream-based), a read API, a search service, and an operations layer. Each service can scale independently, be deployed by different teams, and fail in isolation. Service meshes or API gateways handle routing and auth at the network level. These are real benefits — but they come with distributed-systems complexity: network latency between services, distributed tracing to debug cross-service flows, and careful management of service contracts. BRIEFR's monolith trades those benefits for operational simplicity that matches its scale and team.
+</AtEnterpriseScale>
+
+## What signals that a monolith is outgrowing itself?
+
+BRIEFR's architecture is deliberate, but it is not without limits. The signals that a monolith is approaching its ceiling look like:
+
+- **Build time or test suite time** grows because every change requires testing the whole system.
+- **Teams step on each other** because all code lives in one process and deployment requires coordinating across teams.
+- **One subsystem's resource needs** (e.g., embedding inference) are starving another (e.g., API latency).
+- **Compliance or isolation requirements** demand that different data classes run in separate processes.
+
+None of those signals apply to BRIEFR at its target scale. For a CVE portal used by one security team, they are not the constraints to optimize against.
+
+---
+
+**Next:** [Unit 4 — Storage & data modeling](/docs/how-briefr-works/system-design/04-storage)

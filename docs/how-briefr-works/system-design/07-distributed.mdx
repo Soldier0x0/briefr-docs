@@ -1,0 +1,42 @@
+---
+sidebar_position: 9
+slug: /how-briefr-works/system-design/07-distributed
+title: "Unit 7: Distributed systems basics"
+description: A gap unit — BRIEFR runs on one box by design. Learn what distributed systems cover, why BRIEFR skips it, and where to study it.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
+
+# Unit 7: Distributed systems basics
+
+<CoverageBadge coverage="gap" />
+
+BRIEFR is a deliberate single-box deployment. The distributed-systems problems that occupy a large portion of system-design literature — consensus, split-brain, clock skew, exactly-once delivery — do not arise when there is only one node. This unit maps the topic for completeness and explains the trade-off BRIEFR makes by staying on one machine.
+
+<SystemDesignGap
+  topic="Distributed systems basics — consensus, leader election, clock skew, exactly-once delivery"
+  covers={[
+    "Consensus algorithms (Paxos, Raft): how a cluster of nodes agrees on a single value despite failures",
+    "Leader election and split-brain avoidance: ensuring exactly one node acts as coordinator at any time",
+    "Logical clocks and vector clocks: ordering events correctly when wall-clock time cannot be trusted across nodes",
+    "Exactly-once delivery semantics: the difference between at-most-once, at-least-once, and exactly-once, and what it costs to achieve each",
+    "Network partitions and the impossibility results they impose (CAP, FLP) — covered in depth in Unit 6",
+  ]}
+  whyItMatters="Once a system spans more than one node, guarantees that feel natural on a single machine — shared memory, atomic writes, synchronized clocks — disappear. Consensus protocols exist to restore a subset of those guarantees at the cost of round-trip latency and quorum overhead. Without a correct understanding of these fundamentals, distributed systems fail in subtle, hard-to-reproduce ways: two nodes believe they are both leader; a clock skew causes an event to appear to precede its own cause; a retry delivers a payment twice."
+  inBriefr={
+    <>
+      BRIEFR runs on one box with one writer. The scheduler and its background jobs share in-process <code>asyncio.Lock</code> objects to prevent concurrent writes to the same feed. SQLite's write-ahead log or Postgres's connection pool serializes concurrent access at the engine level. There is no cluster to elect a leader from, no network partition between components, and no vector clock needed to order events. The deliberate alternative to distributed coordination is keeping everything on one machine within one process boundary.
+    </>
+  }
+  whyNot="BRIEFR is a single self-hosted deployment with no replicated state and no multi-node coordination requirement. The failure domain is the host machine by product design. Adding a consensus layer would introduce cluster management overhead that is not justified for a CVE portal run by one security team on their own infrastructure."
+  whenNeeded="You need multiple stateful nodes to survive independent failures (replica sets, sharded clusters); you are building a distributed database or coordination service (etcd, ZooKeeper); you require active-active multi-region writes; your system has multiple independent writers and must prevent split-brain; or your SLA demands uptime guarantees that a single machine cannot provide."
+  resources={[
+    {label: "Designing Data-Intensive Applications — Chapters 8–9 (Kleppmann)", note: "The definitive treatment of distributed systems trouble: unreliable clocks, ordering, consistency models, and consensus — required reading before any distributed systems interview"},
+    {label: "The Raft Consensus Algorithm — raft.github.io", href: "https://raft.github.io/", note: "Readable alternative to Paxos with an interactive visualization; the paper is the primary reference for how modern consensus (etcd, CockroachDB) works"},
+    {label: "Jepsen — aphyr.com/tags/jepsen", href: "https://aphyr.com/tags/jepsen", note: "Kyle Kingsbury's distributed-systems correctness testing series; invaluable for understanding how real databases fail under partitions and concurrent writes"},
+    {label: "Martin Kleppmann — Distributed Systems lecture series (YouTube, Cambridge)", href: "https://www.youtube.com/playlist?list=PLeKd45zvjcDFUEv_ohr_HdUFe97RItdiB", note: "12-lecture university course covering logical clocks, consensus, replication, and transactions — free and rigorous"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/08-apis"
+  nextLabel="Unit 8 — APIs & service contracts"
+/>

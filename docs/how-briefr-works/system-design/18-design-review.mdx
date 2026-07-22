@@ -1,0 +1,83 @@
+---
+sidebar_position: 20
+slug: /how-briefr-works/system-design/18-design-review
+title: "Unit 18: Design review & critique"
+description: Critique BRIEFR's own design boundaries using the AtEnterpriseScale lens — plus formal review rubrics for larger systems.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 18: Design review & critique
+
+<CoverageBadge coverage="partial" />
+
+A design review applies structured scrutiny to a system: does it meet its stated requirements? Where does it break? What would a senior reviewer praise, and what would they flag? Applying that lens to BRIEFR itself — a system we have studied end to end — is more instructive than studying a hypothetical.
+
+## What a senior reviewer would flag
+
+**Single point of failure at the host level.** BRIEFR's reliability ceiling is one machine. A host failure takes down the API, the scheduler, and the database simultaneously. The backup-and-restore procedure minimizes recovery time, but there is no hot standby, no automatic failover, and no zero-downtime path. A senior reviewer evaluating availability requirements would flag this immediately — and the correct response is not to apologize but to confirm that the product brief accepts it. A self-hosted CVE portal for one team is a different availability target than an external customer-facing service.
+
+**In-memory rate limiting with multiple workers.** The default token-bucket limiter is in-process. With multiple API workers, each worker maintains its own bucket state — a burst that would be throttled on one worker might succeed on another. The documented mitigation (`BRIEFR_RATE_LIMIT_STORE=db`) moves the state to the shared database, but it requires explicit operator action. A reviewer would ask: is this clearly surfaced in the deployment documentation, and does the default misconfigure the system?
+
+**Webhook delivery is best-effort.** The webhook engine dispatches alerts at-most-once. A destination that is temporarily unreachable at delivery time loses the alert — there is no persistent outbox or retry queue for webhook delivery. For an ops alerting system, this means a brief network partition between BRIEFR and the webhook destination could silently drop a KEV stack notification. A reviewer would ask: is this documented, and is it acceptable given the use case?
+
+**Procrastinate durable queue is opt-in, not default.** The durable task queue for LLM product extraction requires `PROCRASTINATE_ENABLED=1` and a Postgres backend. In the default SQLite single-box deployment, these tasks run without durability guarantees. A reviewer would ask: what happens to an in-flight LLM extraction task when the process restarts? The answer is that it is retried on the next scheduler pass — acceptable, but not guaranteed.
+
+**Embedding model cold start.** On a new or freshly restored instance, semantic search falls back to keyword retrieval until the embeddings backfill job has run. The backfill runs in the background; a fresh deployment is functional immediately but missing a feature. A reviewer would ask: is this surfaced clearly in the UI, and is the time-to-full-search documented?
+
+**No formal secrets rotation.** Rotating the JWT secret invalidates all active sessions (a full logout). Rotating provider API keys requires an environment variable change and a restart. There is no secrets rotation API, no dynamic credentials, and no automated rotation schedule. A reviewer evaluating a compliance posture (SOC 2, FedRAMP) would flag this as a manual control gap.
+
+## What a senior reviewer would praise
+
+**Scope honesty.** BRIEFR's non-goals are explicit in the product brief and in this pathway. The design does not pretend to solve problems it was not built for. Every `AtEnterpriseScale` callout in this pathway is an honest acknowledgment of a scale ceiling, not a hidden deficiency. A senior reviewer trusts systems whose designers know what they have not built.
+
+**Graceful degradation over hard failure.** The circuit-breaker model, watermark-based incremental sync, and stale-data-over-downtime availability choice are all examples of designing for degraded-but-functional operation. The system fails soft, not hard. A reviewer would note that this design judgment — choosing staleness over unavailability for a non-critical field — reflects good engineering intuition.
+
+**Observability built in from the start.** The health endpoint, per-source circuit state, backup dead-man alert, and operator notification center mean that failures announce themselves. BRIEFR does not require log parsing to answer "is this source healthy?" A reviewer would praise the explicit health data model and the push-based alerting model.
+
+**Security controls proportional to the threat model.** Two-cookie JWT sessions with replay detection, DB-side active/admin checks, SSRF blocklist on webhook destinations, and rate limiting on abuse-prone routes are all correctly sized for the self-hosted team-tool threat model. The reviewer would note that adding mTLS or external IdP integration would not be wrong — it would just be disproportionate to the deployment scope.
+
+**Lock model as correctness guarantee.** The per-job `asyncio.Lock` pattern that prevents scheduler-admin-trigger races is a small mechanism with a clear correctness guarantee. A reviewer familiar with concurrent systems would recognize this as intentional and well-placed.
+
+<AtEnterpriseScale>
+  A design review for a large-scale system applies the same questions but against a different scale dimension: Does the database partition safely? Does the cache layer hold under cold-start conditions? Is the retry logic safe under correlated failures? Can the system be deployed incrementally with a feature flag? Does the alert model work at 100 on-call engineers, not just one operator? BRIEFR's design review is simpler because the scope is smaller — but the review habits are identical.
+</AtEnterpriseScale>
+
+---
+
+## The external review rubrics
+
+The BRIEFR critique above uses implicit rubrics: correctness, operability, security, and scope honesty. The following gap block surfaces the formal review rubrics used at larger organizations.
+
+<SystemDesignGap
+  topic="Formal design review rubrics and structured critique"
+  covers={[
+    "Correctness: does the design satisfy its stated functional requirements under all specified conditions?",
+    "Operability: can the system be deployed, monitored, upgraded, and recovered by the team that owns it?",
+    "Scalability: does the design hold at 10x, 100x, 1000x the expected load without architectural change?",
+    "Security: does the design meet the threat model, and are the threat model's assumptions explicit?",
+    "Cost: does the design use resources efficiently, and are cost surprises surfaced early?",
+    "Structured critique format: what the design assumes, where those assumptions break, and how to make failure modes explicit",
+  ]}
+  whyItMatters="Informal design reviews miss systematic failure modes because reviewers apply unstated assumptions. A formal rubric forces the reviewer to ask the same questions about every system regardless of familiarity. Teams that practice structured critique build muscle memory for the failure modes that matter — and produce designs that hold up under scrutiny because they were written to survive it."
+  inBriefr={
+    <>
+      BRIEFR's design review is the section above. The rubric applied: correctness (does it meet the CVE portal brief?), operability (one-operator install and run), security (proportional to self-hosted threat model), scope (honest non-goals). Cost is implicit in the single-box model — no cloud spend, no managed services.
+    </>
+  }
+  whyNot="Formal review rubrics are process infrastructure for teams and systems too large for implicit shared context. BRIEFR's design is documented, its constraints are explicit, and its team is small enough that shared context is possible without a formal review process."
+  whenNeeded="You are reviewing a system that will be owned by a team you did not design it with; you are preparing a design document for a committee or staff engineer approval; you are evaluating a vendor's architecture for an acquisition or integration; or you are preparing for a system-design interview where the reviewer expects a structured critique."
+  resources={[
+    {label: "Google Design Docs at Google (Malte Ubl)", href: "https://www.industrialempathy.com/posts/design-docs-at-google/", note: "How design documents are structured for review at large engineering organizations"},
+    {label: "Designing Data-Intensive Applications — Part III: Derived Data (Kleppmann)", note: "System critique through worked examples of batch processing, stream processing, and future of data systems"},
+    {label: "System Design Interview Vol. 2 — Introduction: A Step-By-Step Framework (Alex Xu)", note: "Interview-oriented structured critique format applicable to any design session"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/"
+  nextLabel="Return to System Design pathway overview"
+/>
+
+---
+
+**Pathway complete.** Return to the [System Design pathway overview](/docs/how-briefr-works/system-design/) or explore [How it's built](/docs/how-briefr-works/how-its-built/) for deeper implementation detail on any subsystem.

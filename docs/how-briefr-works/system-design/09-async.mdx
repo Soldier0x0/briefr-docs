@@ -1,0 +1,81 @@
+---
+sidebar_position: 11
+slug: /how-briefr-works/system-design/09-async
+title: "Unit 9: Messaging, eventing, async"
+description: BRIEFR's scheduler and background job model — plus the message-broker and saga patterns the product intentionally omits.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 9: Messaging, eventing, async
+
+<CoverageBadge coverage="partial" />
+
+Asynchronous processing moves work off the request path. Instead of the analyst waiting while BRIEFR calls NVD, the scheduler fetches NVD in the background on its own cadence, stores the results, and the analyst reads from stored data. This is BRIEFR's core async pattern — and it is simpler than a message broker, more durable than a fire-and-forget background thread, and appropriate for the workload it serves.
+
+## BRIEFR's scheduler and background job model
+
+BRIEFR's async layer has two parts, covered in depth in [Ingestion and scheduler](/docs/how-briefr-works/how-its-built/ingestion-scheduler) and [Background jobs](/docs/how-briefr-works/how-its-built/background-jobs).
+
+**APScheduler (`AsyncIOScheduler`)** runs inside the backend process and fires recurring jobs on interval and cron triggers. Every feed pull — NVD, KEV, EPSS, MITRE, cvelistV5, ThreatFox, OTX, and more — is a scheduled job. Jobs are registered with `max_instances=1` and `coalesce=True`, preventing concurrent fires and collapsing missed intervals into one catch-up run. The scheduler runs in exactly one process instance; additional API workers disable their copy via `BRIEFR_SCHEDULER_ENABLED=0`.
+
+**Background jobs** in `scheduler.py` handle work that is too expensive, too slow, or too bursty for the request path: nightly correlation analysis linking CVEs to threat campaigns, embeddings backfill running sentence-transformer inference over the corpus, IOC retro-matching scanning the watchlist against local threat mirrors, and maintenance sweeps for cache retention, session pruning, and resource metrics. These jobs share the same APScheduler instance and the same per-job lock model.
+
+**Procrastinate durable queue** (`jobs/`) is an optional layer for tasks that need durability across restarts and bounded retry behavior. When `PROCRASTINATE_ENABLED=1` and Postgres is configured, Procrastinate stores task records in the database and runs them via an in-process worker. Three attempts per task; retry delays are bounded in `jobs/retry_policy.py`. This layer is used for LLM product extraction calls where a failed call should retry durably, not silently drop. The scheduler jobs run with or without Procrastinate; the durable queue is additive, not required.
+
+## Retry and backoff in async pipelines
+
+BRIEFR's async retry model distinguishes between job types:
+
+- **Feed sync jobs** retry at the `resilient_client.py` level (exponential backoff for transport errors, `Retry-After` for `429`). A watermark-based incremental sync means a failed mid-job run retries from the same position on the next scheduled fire.
+- **Enrichment jobs** run without automatic retry in the scheduler — if a correlation job or embeddings run fails, the next scheduled fire picks up where the work is needed.
+- **Procrastinate tasks** retry up to three times with bounded delays defined in `jobs/retry_policy.py`. Tasks that exhaust retries are logged and do not block other work.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/jobs/', kind: 'tree'},
+    {path: 'backend/jobs/retry_policy.py'},
+    {path: 'backend/task_registry.py'},
+  ]}
+/>
+
+<AtEnterpriseScale>
+  At enterprise scale, async work is separated from the application process entirely. Message brokers (Kafka, RabbitMQ, AWS SQS/SNS) provide durable queues that survive process restarts, decouple producers from consumers, and allow independent horizontal scaling of worker pools. The broker becomes the source of truth for in-flight work; consumers acknowledge messages only after successful processing. BRIEFR's in-process scheduler is a deliberate simplification: no broker to operate, no separate worker process, and no message serialization format to maintain. The trade-off is that async work is coupled to the application process lifecycle.
+</AtEnterpriseScale>
+
+---
+
+## The external async patterns
+
+The sections above cover BRIEFR's in-process async model. The following gap block covers message brokers, transactional messaging, and distributed transaction patterns that apply when async work spans multiple services.
+
+<SystemDesignGap
+  topic="Message brokers, transactional messaging, and distributed async"
+  covers={[
+    "Message brokers (Kafka, RabbitMQ, AWS SQS): durable queues decoupled from the producer process",
+    "Event streaming vs message queuing: the difference between a log and a queue",
+    "At-least-once, at-most-once, and exactly-once delivery semantics",
+    "The outbox pattern: writing events to a local database table before publishing, preventing lost messages",
+    "Transactional messaging: ensuring a database write and a message publication happen atomically",
+    "The saga pattern: coordinating multi-step distributed transactions via local transactions and compensating events",
+  ]}
+  whyItMatters="When async work spans service boundaries, an in-process scheduler is no longer sufficient. A message broker decouples the service that produces work from the service that performs it, allowing each to scale, fail, and redeploy independently. The outbox pattern and saga pattern address the hardest async problem: ensuring that a database write and its corresponding side effect (a message, a downstream service call) cannot diverge. These patterns are foundational for event-driven microservice architectures."
+  inBriefr={
+    <>
+      BRIEFR's async layer runs in-process via APScheduler and optional Procrastinate. There is no external message broker — all async work is produced and consumed by the same backend process. This is appropriate for the single-service, single-box model. The Procrastinate durable queue (<code>jobs/</code>) provides bounded retry and durability within the Postgres-backed database when enabled, which is the closest BRIEFR gets to transactional messaging.
+    </>
+  }
+  whyNot="BRIEFR is a single-service monolith. A message broker exists to decouple services that cannot share a process; BRIEFR's scheduler and background jobs share the same process by design. An external broker would add operational complexity (cluster management, message serialization, consumer group coordination) with no benefit for the single-service deployment model."
+  whenNeeded="You are building a system where multiple independent services need to produce and consume events; you need guaranteed message delivery across service restart boundaries; you are coordinating distributed transactions across services with different databases; or your ingest volume exceeds what a single-process scheduler can handle."
+  resources={[
+    {label: "Designing Data-Intensive Applications — Chapter 11 (Kleppmann)", note: "Stream processing, message brokers, and the log — the best available reference"},
+    {label: "Apache Kafka Documentation — Kafka Introduction", href: "https://kafka.apache.org/documentation/#introduction", note: "Authoritative conceptual reference for distributed event streaming"},
+    {label: "Microservices Patterns — Chapter 4: Managing Transactions with Sagas (Richardson)", note: "The canonical treatment of the saga pattern for distributed transactions"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/10-caching"
+  nextLabel="Unit 10 — Caching & performance"
+/>

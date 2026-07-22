@@ -1,0 +1,119 @@
+---
+sidebar_position: 14
+slug: /how-briefr-works/system-design/12-observability
+title: "Unit 12: Observability & operations"
+description: Health checks, notifications, backups, and admin ops in BRIEFR — plus the full tracing and SLO platforms outside its scope.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 12: Observability & operations
+
+<CoverageBadge coverage="partial" />
+
+A system that fails silently is worse than a system that fails loudly. BRIEFR's operations design is built on that principle: health state is exposed at a structured endpoint, significant events push notifications rather than requiring polling, backups announce their own staleness, and admin operations are surfaced in a single panel rather than scattered across config files.
+
+The full engineering detail lives in [Webhooks and operations](/docs/how-briefr-works/how-its-built/webhooks-ops).
+
+## Health-check endpoint
+
+`GET /api/health` is BRIEFR's primary observability surface. It reports:
+
+- **Source health** — per-feed circuit-breaker state: `last_success`, `last_failure`, `last_error`, `consecutive_failures`, `circuit_open` for each configured intelligence source.
+- **Database status** — whether the primary database connection is alive and responding.
+- **Scheduler status** — whether the APScheduler instance is running and which jobs are currently executing.
+- **System resources** — disk usage, memory, and CPU metrics sampled by the resource metrics background job.
+
+This endpoint is the first place an operator checks when something seems wrong. A glance at `feeds.sources` tells you which sources are healthy, which have tripped their circuit breakers, and what errors they last produced. No log parsing required.
+
+## Webhook notifications and the operator alert model
+
+BRIEFR pushes alerts to operator-configured destinations rather than requiring the operator to poll:
+
+- **KEV stack hit:** A CVE on the team stack just entered CISA's Known Exploited Vulnerabilities catalog.
+- **KEV backlog:** A new gap appeared in the detection backlog.
+- **Watchlist IOC match:** An IOC from the watchlist appeared in fresh threat feeds.
+- **Backup dead-man:** The most recent backup archive is older than the configured threshold — a signal that backups have stopped running.
+
+Supported destinations: Discord webhooks, Telegram bots, any HTTPS endpoint accepting a JSON POST. SSRF validation runs on every destination URL before delivery.
+
+The alert model is push rather than pull: the operator does not need to check BRIEFR to know that something significant happened. This is especially important for a self-hosted tool that runs unattended — the analyst is not watching a dashboard; the dashboard calls the analyst.
+
+## Operator notification center
+
+The admin interface includes a notification center that aggregates:
+
+- **Job errors** from background jobs and enrichment tasks.
+- **API key health failures** — when a provider key is expired, rate-exhausted, or rejected.
+- **Audit events** — session revocations, admin role changes, and other security-relevant operations.
+
+This gives operators a single surface for reviewing what has happened in the background without requiring access to raw application logs.
+
+## Backup and restore
+
+BRIEFR's backup system (`backup/manager.py`) runs on a configurable schedule:
+
+- **Postgres:** uses `pg_dump` to produce a consistent snapshot. Backups are optionally encrypted at rest.
+- **SQLite:** copies the database file at a quiescent moment.
+
+Archives are written to a configurable directory. The backup dead-man alert fires if no fresh archive appears within the threshold period. Restore is handled by `ensure_db_or_restore()`, which is called at startup and attempts restoration from the most recent archive if the database is absent or corrupted.
+
+## Admin operations surface
+
+The admin panel exposes:
+
+- **Scheduler control:** pause, resume, and manually trigger individual jobs.
+- **Job history:** last run time, duration, and error state for each job.
+- **Outbound job queue:** status of Procrastinate tasks when the durable queue is enabled.
+- **API key health:** per-provider health ping results and last-seen error.
+- **Session management:** active sessions enumerable and revocable per user.
+
+<InTheCode
+  items={[
+    {path: 'backend/monitoring/notifications.py'},
+    {path: 'backend/monitoring/api_key_health.py'},
+    {path: 'backend/backup/manager.py'},
+    {path: 'backend/webhooks/alerts.py'},
+    {path: 'backend/routers/admin/', kind: 'tree'},
+  ]}
+/>
+
+<AtEnterpriseScale>
+  At enterprise scale, observability is a full discipline: distributed tracing (OpenTelemetry spans propagated across service boundaries), centralized metrics (Prometheus + Grafana or a managed equivalent), structured log aggregation (Datadog, Splunk, Elastic), and SLO dashboards with error-budget burn-rate alerts. Feature flag platforms (LaunchDarkly, Unleash) let operators gradually roll out changes and kill-switch features in production without deploys. BRIEFR's model — one health endpoint, push webhook alerts, a local notification center — is the correct simplification for a single-box self-hosted tool where the "platform team" is one operator.
+</AtEnterpriseScale>
+
+---
+
+## The external observability patterns
+
+The sections above cover BRIEFR's built-in observability surface. The following gap block covers distributed tracing, SLO platforms, and feature flags — the patterns for observing systems that span multiple services and teams.
+
+<SystemDesignGap
+  topic="Distributed tracing, SLO platforms, and feature flags at scale"
+  covers={[
+    "Distributed tracing: spans, traces, and context propagation (W3C Trace Context, Baggage)",
+    "OpenTelemetry: the vendor-neutral instrumentation standard for traces, metrics, and logs",
+    "SLO platforms: error budget dashboards, burn-rate alerting, and SLO-based on-call policies",
+    "Structured logging at scale: log aggregation, parsing, and correlation across service instances",
+    "Feature flags at scale: gradual rollouts, kill switches, and canary releases without deploys",
+    "Chaos engineering: intentional failure injection to verify that reliability assumptions hold",
+  ]}
+  whyItMatters="In a multi-service system, a slow request or an error can originate in any of dozens of services. Without distributed tracing, debugging a cross-service latency problem means correlating logs across systems manually — a process that takes hours rather than minutes. SLO dashboards turn vague 'the site feels slow' reports into quantified error-budget burn rates that drive engineering decisions. Feature flags allow safe gradual rollouts that are reversible without a deploy."
+  inBriefr={
+    <>
+      BRIEFR is a single-process monolith. There are no cross-service traces to propagate — a request either completes or fails within one process. The health endpoint and application log provide sufficient observability for a single-service tool. Feature flags in BRIEFR are environment variables (e.g. <code>EMBEDDINGS_ENABLED</code>, <code>PROCRASTINATE_ENABLED</code>) rather than a runtime flag platform.
+    </>
+  }
+  whyNot="BRIEFR is a single-process self-hosted tool. Distributed tracing provides value when requests span multiple services; BRIEFR has one service. SLO platforms make sense when reliability is a contractual obligation or an on-call driver; BRIEFR is operated by one team for their own use. A feature flag platform adds a runtime dependency for what BRIEFR handles with environment variables."
+  whenNeeded="You are operating a system with multiple independent services where cross-service latency and errors are hard to correlate from logs alone; you have SLOs with contractual consequences or on-call escalation paths; you need to roll out new features to a percentage of users without deploying new code."
+  resources={[
+    {label: "OpenTelemetry Documentation — Getting Started", href: "https://opentelemetry.io/docs/what-is-opentelemetry/", note: "The vendor-neutral observability standard; start here before evaluating backends"},
+    {label: "Google SRE Book — Chapter 6: Monitoring Distributed Systems", href: "https://sre.google/sre-book/monitoring-distributed-systems/", note: "Free online; four golden signals, alerting philosophy, and SLO-based on-call"},
+    {label: "Designing Data-Intensive Applications — Chapter 1 (Kleppmann)", note: "Operability as a first-class design goal — the framing that makes everything else in this list make sense"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/13-security"
+  nextLabel="Unit 13 — Security & privacy"
+/>

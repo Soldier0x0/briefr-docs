@@ -1,0 +1,92 @@
+---
+sidebar_position: 12
+slug: /how-briefr-works/system-design/10-caching
+title: "Unit 10: Caching & performance"
+description: BRIEFR's feed and IOC cache strategy — TTLs, invalidation, and the large-scale caching patterns outside the product's scope.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 10: Caching & performance
+
+<CoverageBadge coverage="partial" />
+
+Caching accelerates reads by storing results that are expensive to recompute. BRIEFR's caching strategy is deliberately simple: two database-backed cache tables hold the expensive results — feed snapshots and IOC enrichment — and the request path reads from those tables rather than calling external APIs. No separate cache process, no distributed cache tier, no cache invalidation protocol.
+
+## `feed_cache`: snapshot results at configured TTL
+
+`feed_cache` stores the last-fetched snapshot for each intelligence feed that BRIEFR polls on a high frequency. Each row is keyed by a source identifier and carries a TTL column that determines how long the cached value is considered fresh.
+
+The cache's write path is the scheduler: on each successful feed pull, the scheduler writes or updates the cache row. The read path is the API route that serves feed data to the analyst UI. When the cached row is fresh (within TTL), the route returns the stored result without calling the external API. When the row is stale or absent, the scheduler's next run refreshes it — but the API can still serve the stale result rather than blocking on an external call.
+
+This design means feed freshness is decoupled from request latency. An analyst loading a feed page never waits for an external API call. The trade-off is that stale data may be shown briefly when a feed is between refresh cycles.
+
+## `ioc_cache`: enrichment results with bounded TTL
+
+`ioc_cache` stores IOC enrichment results from VirusTotal, AbuseIPDB, GreyNoise, CIRCL, and ThreatFox. Enrichment is the most expensive operation in BRIEFR's request path: a cache miss on `POST /api/ioc/lookup` triggers an external API call (or several, for multi-provider enrichment), and those calls consume paid quota.
+
+Cache rows are keyed by IOC value (the IP, hash, or domain being looked up). On a cache hit, the enrichment result is returned from the database with no external call. On a cache miss, the provider is called, the result is stored, and subsequent lookups for the same IOC are served from cache for the TTL duration.
+
+**CIRCL miss caching:** Failed or empty CIRCL lookups — where the provider returns no result — are also cached for 24 hours using `circl_miss:*` keys. This prevents the same missing IOC from re-querying a rate-limited or empty endpoint on every enrichment cycle.
+
+**Retention sweeps:** The scheduler runs `run_retention_cleanup()` on a configurable schedule, deleting cache rows past their physical retention window. This keeps both cache tables from growing unbounded over time.
+
+## In-process vs shared cache trade-offs at single-box scale
+
+BRIEFR's caches live in the database, not in a separate cache process or in-memory store. This is a deliberate choice:
+
+**Persistence across restarts.** Database-backed cache entries survive process restarts. An in-memory cache (a Python dict, a local LRU cache) would be empty after every deploy. For a tool where an analyst might restart BRIEFR and immediately look up IOCs they looked up yesterday, database persistence avoids an unnecessary cold start.
+
+**Simplicity of invalidation.** BRIEFR's cache invalidation strategy is TTL expiry plus retention sweeps — no explicit invalidation events, no cache coherence protocol. This works because the cached data (enrichment results, feed snapshots) changes at the source rather than due to BRIEFR's own write operations. There is no "write-through" case where BRIEFR's own operations must invalidate a cache entry.
+
+**No stampede protection needed.** At BRIEFR's scale (single-digit concurrent users), thundering-herd / cache stampede scenarios — where a large number of concurrent requests all miss the cache simultaneously and trigger parallel external calls — do not arise in practice. Rate limiting on the IOC lookup route (30 req/min/IP) provides an additional bound.
+
+For the embedding cache that backs semantic search, see [Search and embeddings](/docs/how-briefr-works/how-its-built/search-embeddings): embedding vectors are stored in the `embeddings` table and re-generated only when the source content hash changes, which is a form of change-aware invalidation.
+
+<InTheCode
+  items={[
+    {path: 'backend/db/cache.py'},
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/feeds/', kind: 'tree'},
+  ]}
+/>
+
+<AtEnterpriseScale>
+  At enterprise scale, caching operates at multiple layers simultaneously: CDN edge nodes cache static assets and API responses near the user; a distributed in-memory cache (Redis, Memcached) holds hot database results shared across many API workers; application-level caching handles per-request memoization. Cache stampede (thundering herd) becomes a real problem when hundreds of workers simultaneously miss the same cache key after TTL expiry — probabilistic early expiration and request coalescing (only one worker fetches, the rest wait) are standard mitigations. Tail latency at mega-scale is driven by cache misses in the p99+ percentiles, leading to hedged requests, background refresh, and careful cache sizing analysis.
+</AtEnterpriseScale>
+
+---
+
+## The external caching patterns
+
+The sections above cover BRIEFR's database-backed in-process cache model. The following gap block covers the large-scale caching patterns — CDN, distributed cache, stampede prevention, and tail latency — that apply at traffic volumes and concurrency levels beyond BRIEFR's scope.
+
+<SystemDesignGap
+  topic="CDN, distributed cache, and large-scale cache patterns"
+  covers={[
+    "CDN caching: static asset delivery at the network edge; cache-control headers and purge APIs",
+    "Distributed in-memory caches (Redis, Memcached): hot data shared across multiple API workers",
+    "Cache invalidation strategies: TTL expiry, event-driven invalidation, write-through, write-behind",
+    "Cache stampede (thundering herd): concurrent cache misses triggering parallel expensive fetches, and mitigations",
+    "Probabilistic early expiration: refreshing cache entries slightly before TTL to avoid stampede",
+    "Tail latency and hedged requests: why p99 latency matters and how to reduce it at scale",
+  ]}
+  whyItMatters="Cache design is one of the highest-leverage decisions in a high-traffic system. A well-designed cache layer can reduce database load by orders of magnitude. A poorly designed one — wrong TTLs, missing stampede protection, no invalidation strategy — can cause reliability incidents when the cache goes cold or diverges from the source of truth. At mega-scale, tail latency (p99, p999) is dominated by cache misses and becomes a product problem if not addressed."
+  inBriefr={
+    <>
+      BRIEFR's caches are database-backed and read by a single-digit concurrent user base. There is no CDN (static assets are served by the container or a simple nginx block), no distributed in-memory cache process, and no stampede scenario at this scale. The rate-limit layer on IOC lookup provides a practical bound on concurrent cache-miss-triggered external calls.
+    </>
+  }
+  whyNot="BRIEFR is a self-hosted single-box deployment with single-digit concurrent users. A CDN is unnecessary when users are on the same network as the server. A distributed cache adds an operational dependency that provides no benefit when one API worker serves all traffic. Stampede prevention is a non-issue at this concurrency level."
+  whenNeeded="You are serving thousands of concurrent users where database-backed reads create unacceptable latency; you need to share cached state across multiple API workers; you serve static assets to a geographically distributed audience; or cache misses from concurrent requests are causing thundering herd on your database."
+  resources={[
+    {label: "Designing Data-Intensive Applications — Chapter 5 (Kleppmann)", note: "Replication and read replicas as a form of caching; consistency trade-offs"},
+    {label: "Redis Documentation — Redis as a Cache", href: "https://redis.io/docs/latest/operate/rs/databases/memory-performance/", note: "Official reference for Redis cache configuration, eviction policies, and patterns"},
+    {label: "System Design Interview Vol. 1 — Chapter 6: Design a Key-Value Store (Alex Xu)", note: "Cache vs store design trade-offs with worked system design example"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/11-search"
+  nextLabel="Unit 11 — Search & retrieval"
+/>

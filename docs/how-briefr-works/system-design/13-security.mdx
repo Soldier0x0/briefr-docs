@@ -1,0 +1,116 @@
+---
+sidebar_position: 15
+slug: /how-briefr-works/system-design/13-security
+title: "Unit 13: Security & privacy"
+description: Auth, secrets posture, SSRF mitigations, rate limits, and audit surfaces in BRIEFR — with notes on enterprise IdP and mTLS.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+
+# Unit 13: Security & privacy
+
+<CoverageBadge coverage="briefr" />
+
+Security in BRIEFR is designed for the threat model of a self-hosted tool: a trusted team on a private network, behind a reverse proxy, accessing one server. The controls address real risks — session hijacking, admin privilege escalation, SSRF via user-supplied URLs, API quota abuse, and operator configuration drift — without requiring a dedicated security team to operate.
+
+The full engineering detail lives in [API and auth](/docs/how-briefr-works/how-its-built/api-auth). This unit frames the controls in system-design terms.
+
+## Authentication
+
+BRIEFR uses a two-cookie session model introduced in June 2026 to replace a shared admin key that failed to provide per-user identity, session revocation, or an audit trail.
+
+**Access token (`briefr_at`):** A short-lived signed JWT containing the user ID and role. Default lifetime: 15 minutes. The JWT is issued as an httpOnly cookie to prevent JavaScript access. Because it is short-lived, a stolen token has a narrow window before expiry.
+
+**Refresh token (`briefr_rt`):** A random opaque string issued alongside the access token. Stored in the database as a SHA-256 hash — only the hash is persisted, so a raw database leak does not yield usable tokens. The refresh cookie path is narrowed to `/api/auth` so it is not transmitted on ordinary API calls.
+
+**Rotation and replay detection:** Each refresh operation revokes the old session row and creates a new one. If an already-revoked token is presented — indicating possible theft and reuse — BRIEFR revokes every active session for that user. This closes the "silent refresh reuse" attack window.
+
+**Live database checks:** `require_user` reads the user row on every request (the `is_active` column). A deactivated account cannot make authenticated requests even with a valid JWT that has not expired. `require_admin` reads `is_admin` from the database on every admin call — not from the JWT payload — so demoting an admin takes effect immediately without waiting for token expiry.
+
+## Authorization
+
+BRIEFR has three authorization levels:
+
+| Level | Check | Routes |
+|---|---|---|
+| Unauthenticated | None | Login endpoint, static assets |
+| Session | Valid `briefr_at` JWT + `is_active=true` | All analyst routes |
+| Admin | Session + `is_admin=true` (re-read from DB) | `/api/admin/*` |
+
+The wallboard and search service tokens provide narrow read-only access; they cannot access admin routes or trigger writes.
+
+## Secrets management
+
+BRIEFR's secrets — JWT signing key, API provider keys, wallboard token, database URL — are configured via environment variables. The application never stores raw secrets in the database; it stores only derived values (hashed tokens, encrypted backups). Operators are responsible for injecting secrets via a `.env` file, docker-compose environment block, or container secret mount.
+
+There is no secrets rotation API built into BRIEFR. Rotating the JWT secret invalidates all active sessions (a deliberate full logout on rotation). Rotating a provider API key (NVD, VirusTotal, etc.) is a configuration change followed by a restart.
+
+## SSRF mitigations
+
+BRIEFR fetches external content in two places: the ingestion scheduler (pulling feed URLs configured at build time) and the webhook engine (delivering to operator-configured HTTPS destinations).
+
+The webhook destination URL is the user-controlled surface and the SSRF risk. `webhooks/ssrf.py` validates every destination URL before delivery:
+
+- Rejects private RFC 1918 ranges (10.x, 172.16–31.x, 192.168.x)
+- Rejects loopback (127.x, `::1`)
+- Rejects link-local (169.254.x, `fe80::`)
+- Rejects cloud metadata endpoints (169.254.169.254, known GCP/AWS/Azure metadata hostnames)
+- Strips and sanitizes forwarded and internal headers before making the outbound request
+
+This means an operator cannot configure `http://169.254.169.254/latest/meta-data/` as a webhook destination and have BRIEFR exfiltrate instance metadata.
+
+<InTheCode
+  items={[
+    {path: 'backend/auth_middleware.py'},
+    {path: 'backend/dependencies.py'},
+    {path: 'backend/auth/tokens.py'},
+    {path: 'backend/auth/passwords.py'},
+    {path: 'backend/rate_limit.py'},
+    {path: 'backend/webhooks/ssrf.py'},
+    {path: 'backend/settings.py'},
+  ]}
+/>
+
+## Rate limiting as a security control
+
+Token-bucket rate limiting protects three abuse-prone route groups:
+
+| Route | Risk | Default |
+|---|---|---|
+| `POST /api/ioc/lookup` | Cache misses burn external API quota | 30 req/min/IP |
+| `POST /api/refresh*` | Refresh routes trigger heavy ingest | 10 req/min/IP |
+| `GET /api/wallboard` | Kiosk polling can become noisy | 60 req/min/IP |
+
+When a bucket empties, BRIEFR returns `429` with a `Retry-After` header. The refresh bucket is consumed before the auth check, so an unauthenticated burst cannot bypass the limit by failing auth early.
+
+**Client IP trust:** Forwarded headers (`CF-Connecting-IP`, `X-Forwarded-For`, `X-Real-IP`) are only trusted when the direct socket peer is a loopback proxy. Direct connections are keyed by socket address. This prevents IP spoofing in direct-access configurations.
+
+## Audit surfaces
+
+BRIEFR does not have a dedicated audit log database table, but security-relevant events are visible through several surfaces:
+
+- **Session table:** Every session row records creation time, user agent, and revocation time. An operator can enumerate active sessions and revoke any of them via `/api/me/sessions` or the admin panel.
+- **Operator notification center:** Admin-visible notification aggregating job errors, API key failures, and audit events.
+- **Structured application log:** The application logs auth events (login, logout, refresh, rotation, revocation) at structured log level. Log output goes to the container's stdout; operators direct it to their log aggregator of choice.
+
+<AtEnterpriseScale>
+  Enterprise deployments typically add external identity providers (SAML 2.0, OIDC via Okta, Azure AD, or Auth0) so that identity management, MFA enforcement, and group-to-role mapping are handled by the corporate IdP rather than in the application. mTLS between internal services ensures that even on a private network, a service cannot impersonate another. Dedicated secrets managers (HashiCorp Vault, AWS Secrets Manager) provide centralized rotation, access logging, and short-lived dynamic credentials. BRIEFR's built-in auth is appropriate for its self-hosted team-tool model. Teams operating at enterprise scale or with compliance requirements (SOC 2, FedRAMP) would supplement or replace the built-in auth with one of these external controls.
+</AtEnterpriseScale>
+
+## Security boundary summary
+
+| Control | What it protects | Where it lives |
+|---|---|---|
+| Two-cookie JWT session | Session hijacking, credential reuse | `auth/tokens.py`, `routers/auth.py` |
+| DB-side active/admin check | Privilege escalation persistence | `dependencies.py` |
+| Refresh token hashing | Database leak → token theft | `auth/repo.py` |
+| Replay detection | Refresh token reuse after theft | `auth/repo.py` |
+| Token-bucket rate limits | Quota abuse, brute force | `rate_limit.py` |
+| SSRF blocklist | Internal network access via webhooks | `webhooks/ssrf.py` |
+| Reverse proxy requirement | Direct internet exposure | Deployment guidance |
+
+---
+
+**Next:** [Unit 14 — Multi-tenancy & SaaS](/docs/how-briefr-works/system-design/14-multi-tenancy)

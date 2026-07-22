@@ -1,0 +1,55 @@
+---
+sidebar_position: 1
+sidebar_label: System Design pathway
+title: System Design — Learning Pathway
+description: A classic SD curriculum grounded in BRIEFR. BRIEFR teaches the units it implements; gap units explain what the product omits and point to curated externals.
+---
+
+import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+
+# System Design — Learning Pathway
+
+This pathway follows the standard system-design curriculum order — foundations
+through design review — and uses BRIEFR as the primary teaching case. Every unit
+is tagged so you know exactly what you are getting.
+
+## Coverage legend
+
+| Tag | Meaning |
+|---|---|
+| <CoverageBadge coverage="briefr" /> | BRIEFR implements this topic. Taught directly from the real product. |
+| <CoverageBadge coverage="partial" /> | BRIEFR implements part of this topic. The unit covers BRIEFR first, then points to curated externals for the rest. |
+| <CoverageBadge coverage="gap" /> | BRIEFR omits or intentionally limits this topic. The unit explains what it covers, why BRIEFR skips it, and where to learn it externally. |
+
+## How to use this pathway
+
+1. Start with **[Unit 0 — How to use this pathway](/docs/how-briefr-works/system-design/00-how-to-use)**.
+2. Work through units **in order** — each one assumes the previous.
+3. For **briefr** units: read the BRIEFR chapters linked, then return.
+4. For **partial** units: read the BRIEFR section, then decide whether to follow the external links before continuing.
+5. For **gap** units: read the rationale and external pointers, then use "Return here" to continue the spine.
+6. Cross-read Track B ([How it's built](/docs/how-briefr-works/how-its-built/)) for deeper implementation detail on the `briefr` units.
+
+## Curriculum at a glance
+
+| # | Unit | Tag |
+|---|---|---|
+| 0 | [How to use this pathway](/docs/how-briefr-works/system-design/00-how-to-use) | <CoverageBadge coverage="briefr" /> |
+| 1 | [Foundations](/docs/how-briefr-works/system-design/01-foundations) | <CoverageBadge coverage="partial" /> |
+| 2 | [Requirements & framing](/docs/how-briefr-works/system-design/02-requirements) | <CoverageBadge coverage="partial" /> |
+| 3 | [High-level architecture](/docs/how-briefr-works/system-design/03-architecture) | <CoverageBadge coverage="briefr" /> |
+| 4 | [Storage & data modeling](/docs/how-briefr-works/system-design/04-storage) | <CoverageBadge coverage="briefr" /> |
+| 5 | [Scalability patterns](/docs/how-briefr-works/system-design/05-scalability) | <CoverageBadge coverage="partial" /> |
+| 6 | [Consistency, reliability, fault tolerance](/docs/how-briefr-works/system-design/06-reliability) | <CoverageBadge coverage="partial" /> |
+| 7 | [Distributed systems basics](/docs/how-briefr-works/system-design/07-distributed) | <CoverageBadge coverage="gap" /> |
+| 8 | [APIs & service contracts](/docs/how-briefr-works/system-design/08-apis) | <CoverageBadge coverage="briefr" /> |
+| 9 | [Messaging, eventing, async](/docs/how-briefr-works/system-design/09-async) | <CoverageBadge coverage="partial" /> |
+| 10 | [Caching & performance](/docs/how-briefr-works/system-design/10-caching) | <CoverageBadge coverage="partial" /> |
+| 11 | [Search & retrieval](/docs/how-briefr-works/system-design/11-search) | <CoverageBadge coverage="briefr" /> |
+| 12 | [Observability & operations](/docs/how-briefr-works/system-design/12-observability) | <CoverageBadge coverage="partial" /> |
+| 13 | [Security & privacy](/docs/how-briefr-works/system-design/13-security) | <CoverageBadge coverage="briefr" /> |
+| 14 | [Multi-tenancy & SaaS](/docs/how-briefr-works/system-design/14-multi-tenancy) | <CoverageBadge coverage="gap" /> |
+| 15 | [Case study: BRIEFR](/docs/how-briefr-works/system-design/15-case-study) | <CoverageBadge coverage="briefr" /> |
+| 16 | [Tradeoff-driven design practice](/docs/how-briefr-works/system-design/16-tradeoffs) | <CoverageBadge coverage="gap" /> |
+| 17 | [Advanced topics](/docs/how-briefr-works/system-design/17-advanced) | <CoverageBadge coverage="gap" /> |
+| 18 | [Design review & critique](/docs/how-briefr-works/system-design/18-design-review) | <CoverageBadge coverage="partial" /> |
