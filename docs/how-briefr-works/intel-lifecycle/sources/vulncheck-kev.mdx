@@ -1,0 +1,202 @@
+---
+sidebar_position: 6
+sidebar_label: VulnCheck KEV
+title: VulnCheck KEV
+description: How BRIEFR uses the VulnCheck KEV catalog to mark exploited-in-the-wild CVEs and influence risk scoring.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# VulnCheck KEV
+
+## What it is
+
+VulnCheck KEV is BRIEFR's exploited-in-the-wild tier for CVEs that fall
+outside the CISA KEV catalog. In the product, it sets a per-CVE flag —
+`is_vulncheck_exploited` — that the feed, drawer, and risk scorer can use
+when CISA KEV has not yet listed a CVE.
+
+This page is about the tool path, not a VulnCheck product tutorial. The
+important BRIEFR question is: once VulnCheck KEV reports that a CVE is
+exploited in the wild, where does that flag land and how does the product use
+it?
+
+The system design names a scheduled VulnCheck KEV sync job. The job calls
+`feeds/vulncheck_kev.py:fetch_vulncheck_kev_cve_ids`, then
+`db/enrichment.py:sync_vulncheck_exploited_flags` writes or clears the
+`is_vulncheck_exploited` column on `cves` rows.
+
+## Why we do it
+
+CISA KEV is BRIEFR's highest-confidence exploitation signal because it carries
+official US-government confirmation and remediation deadlines. But KEV grows
+through a deliberate vetting process. A CVE can be actively exploited in the
+wild for weeks before it appears in KEV.
+
+VulnCheck KEV is a second, faster exploitation signal that partially closes
+that gap. BRIEFR uses it below CISA KEV in the risk score:
+
+- **Risk scorer:** `_kev_score_v11b` returns **0.72** for
+  `is_vulncheck_exploited`, versus **0.84–1.0** for CISA KEV depending on
+  recency. That is a meaningful risk-score boost — it outranks a CVE with no
+  exploitation evidence — but it stays below confirmed KEV status.
+- **Feed and drawer:** `is_vulncheck_exploited` is available on CVE rows and
+  can surface alongside other exploitation signals such as `is_kev`, `has_poc`,
+  and exploit records.
+- **Exploit intelligence context:** the VulnCheck community KEV catalog indexes
+  CVEs that have reported exploitation via `vulncheck_reported_exploitation`
+  references, which BRIEFR extracts into CVE IDs.
+
+Without this source, BRIEFR's exploitation tier would be binary: CISA KEV or
+nothing. VulnCheck KEV adds a middle layer that lets the risk scorer and analyst
+see exploitation signals before a CVE makes the official list.
+
+## Where it lives in BRIEFR
+
+At the product level, the VulnCheck KEV path is:
+
+```text
+VulnCheck KEV API -> scheduler.run_vulncheck_kev_sync -> cves.is_vulncheck_exploited -> API / risk score
+```
+
+The system design names a `VulnCheck KEV Tier Sync` scheduler job. The path is:
+
+1. `scheduler.run_vulncheck_kev_sync` checks the job lock and the
+   `VULNCHECK_API_KEY` environment variable before starting.
+2. `feeds/vulncheck_kev.py:fetch_vulncheck_kev_cve_ids` paginates the
+   VulnCheck KEV index at `https://api.vulncheck.com/v3/index/vulncheck-kev`
+   using a Bearer token. It extracts CVE IDs from `cve`, `id`, and
+   `vulncheck_reported_exploitation.url` fields, deduplicates, and returns a
+   sorted list capped at the configured limit.
+3. `db/enrichment.py:sync_vulncheck_exploited_flags` compares the returned CVE
+   IDs against the current `is_vulncheck_exploited = 1` rows in `cves`. It
+   clears the flag for CVEs no longer in the catalog and sets it for new ones.
+4. Product readers use the column. The risk scorer reads `is_vulncheck_exploited`
+   from the local CVE row, and API responses can include it for feed and drawer
+   rendering.
+
+The sync job defaults to a 24-hour interval (configurable via
+`VULNCHECK_KEV_SYNC_INTERVAL_HOURS`) and uses `max_instances=1` to prevent
+overlap.
+
+<InTheCode
+  items={[
+    {path: 'backend/scheduler.py'},
+    {path: 'backend/feeds/vulncheck_kev.py'},
+    {path: 'backend/db/enrichment.py'},
+    {path: 'backend/scoring/risk.py'},
+  ]}
+/>
+
+## How it works
+
+BRIEFR treats VulnCheck KEV ingest as a flag-sync operation, not a
+CVE-creation path:
+
+1. **The scheduler checks whether the source is configured.** If
+   `VULNCHECK_API_KEY` is unset, the job exits immediately without attempting
+   a network call or changing any flags.
+2. **The feed fetcher paginates the VulnCheck KEV index.** Up to 50 pages of
+   100 entries each are fetched in sequence. The circuit breaker stops pagination
+   on repeated failure. CVE IDs are parsed from multiple fields and deduplicated
+   into a set.
+3. **CVE IDs are extracted from multiple fields.** `_extract_cve_ids` reads the
+   `cve` field, the `id` field, and URLs inside
+   `vulncheck_reported_exploitation` references. A regex picks out all
+   `CVE-YYYY-NNNNN` patterns and normalizes them to uppercase.
+4. **Flags are synced against the CVE corpus.** `sync_vulncheck_exploited_flags`
+   does a three-way compare: CVEs currently flagged, CVEs in the new catalog,
+   and CVEs in BRIEFR's local corpus. It clears stale flags and sets new ones
+   in batches.
+5. **Risk scoring picks up the new flags.** Because `is_vulncheck_exploited` is
+   a column on `cves`, the next risk-score computation for any affected CVE
+   reflects the updated exploitation tier without a separate enrichment step.
+6. **The job is a no-op when the key is absent.** No flags are set or cleared.
+   Existing `is_vulncheck_exploited` values are unchanged.
+
+The result is that exploitation evidence from VulnCheck KEV reaches the risk
+scorer and the analyst UI on a 24-hour cadence without requiring any
+browser-time call to the VulnCheck API.
+
+## What it needs
+
+The authoritative integrations facts for VulnCheck KEV are:
+
+| Adds | Key | Free-tier/quota | Failure |
+| --- | --- | --- | --- |
+| Exploited-in-the-wild tier | `VULNCHECK_API_KEY` | Key required | Job no-op; flags unchanged |
+
+Operationally, VulnCheck KEV needs:
+
+- `VULNCHECK_API_KEY` set in the environment; without it the sync job is a
+  no-op;
+- the scheduler enabled so the 24-hour interval job can run;
+- a local CVE corpus so `sync_vulncheck_exploited_flags` has rows to update;
+- `cves.is_vulncheck_exploited` initialized in the database schema; and
+- network access from the backend to `api.vulncheck.com`.
+
+The key is a hard requirement, not an optional rate-limit upgrade. If the key
+is valid but the API returns repeated errors, the circuit breaker opens and the
+job skips remaining pages. Existing flags are left in place until the next
+successful sync.
+
+## How industry does it — and why BRIEFR does it this way
+
+Security programs that track exploitation tiering often subscribe to commercial
+feeds that provide faster confirmation than CISA KEV. Those feeds may include
+PoC metadata, in-the-wild reports, attacker tooling references, and correlation
+with threat-actor campaigns. Larger programs feed that data into ticket-priority
+workflows or SLA rules.
+
+BRIEFR uses a smaller, purpose-built path:
+
+- a scheduler-owned sync that runs every 24 hours without touching the request
+  path;
+- a binary per-CVE flag rather than a rich exploitation metadata object;
+- a risk-score tier below CISA KEV, reflecting the difference in confidence;
+- a job no-op when the key is absent, so unconfigured deployments are not
+  affected; and
+- backend-canonical reads so the feed, drawer, and risk score all use the same
+  stored value.
+
+The trade-off is that BRIEFR does not expose VulnCheck KEV metadata fields
+beyond the exploitation flag. It extracts CVE IDs, flags the corpus, and lets
+the risk scorer decide weight. That is intentionally narrow — the goal is to
+give the risk score a second exploitation tier without building a full
+VulnCheck integration that goes beyond BRIEFR's analyst-portal scope.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the [Integrations](/docs/integrations) table and find the VulnCheck
+      KEV row. Confirm that a key is required and that the failure behavior is
+      "job no-op; flags unchanged."
+    </li>
+    <li>
+      Open the [System design](/docs/developer-guide/system-design) scheduler
+      table and find the VulnCheck KEV Tier Sync job. Note its interval and
+      which column it writes.
+    </li>
+    <li>
+      Use the fixture below to trace how a VulnCheck KEV catalog entry reaches
+      the risk score without a live browser call. This is a documentation check
+      only; do not call the VulnCheck API from the docs site.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "source": "VulnCheck KEV",
+    "scheduler_job": "VulnCheck KEV Tier Sync",
+    "backend_path": "feeds/vulncheck_kev.py",
+    "landing_zone": "cves.is_vulncheck_exploited",
+    "risk_score_tier": 0.72,
+    "cisa_kev_range": "0.84–1.0",
+    "key_required": true,
+    "failure_mode": "job no-op; existing flags unchanged"
+  }
+  ```
+</TryItYourself>

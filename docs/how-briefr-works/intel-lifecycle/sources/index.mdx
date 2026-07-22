@@ -2,16 +2,16 @@
 sidebar_position: 1
 sidebar_label: Sources overview
 title: Sources overview
-description: Priority source deep-dives for NVD, CISA KEV, EPSS, and AlienVault OTX in BRIEFR.
+description: Source deep-dives for NVD, CISA KEV, EPSS, AlienVault OTX, VulnCheck KEV, OSV.dev, MITRE ATT&CK, and GreyNoise in BRIEFR.
 ---
 
 # Sources overview
 
-These pages explain how BRIEFR uses four priority sources in its intel
-lifecycle. They are not general source primers. Each page stays close to the
-tooling path: what the source adds, where it lands, which scheduler or on-demand
-path owns it, what keys or quotas matter, and how BRIEFR behaves when the source
-is missing or failing.
+These pages explain how BRIEFR uses its intel sources across the lifecycle.
+They are not general source primers. Each page stays close to the tooling path:
+what the source adds, where it lands, which scheduler or on-demand path owns it,
+what keys or quotas matter, and how BRIEFR behaves when the source is missing or
+failing.
 
 Start here if you want to understand the source-specific details behind
 [Collect](/docs/how-briefr-works/intel-lifecycle/collect) and
@@ -25,6 +25,15 @@ Start here if you want to understand the source-specific details behind
 | CISA KEV | Known-exploited status and remediation deadline metadata | [CISA KEV](/docs/how-briefr-works/intel-lifecycle/sources/kev) |
 | EPSS | Exploit-probability score and history used for movement and risk context | [EPSS](/docs/how-briefr-works/intel-lifecycle/sources/epss) |
 | AlienVault OTX | Threat pulses and IOCs used by CVE detail, IOC lookup, and correlation | [AlienVault OTX](/docs/how-briefr-works/intel-lifecycle/sources/otx) |
+
+## More sources
+
+| Source | Primary lifecycle role | Start here |
+| --- | --- | --- |
+| VulnCheck KEV | Exploited-in-the-wild tier that sets `is_vulncheck_exploited` and influences risk scoring | [VulnCheck KEV](/docs/how-briefr-works/intel-lifecycle/sources/vulncheck-kev) |
+| OSV.dev | Package affected-version ranges added on-demand to CVE detail via `osv_packages` | [OSV.dev](/docs/how-briefr-works/intel-lifecycle/sources/osv) |
+| MITRE ATT&CK | Techniques, groups, and CVE technique mappings from a weekly STIX sync | [MITRE ATT&CK](/docs/how-briefr-works/intel-lifecycle/sources/attack) |
+| GreyNoise | On-demand IP classification for CVE scan context and IOC lookup | [GreyNoise](/docs/how-briefr-works/intel-lifecycle/sources/greynoise) |
 
 ## How to read these pages
 
@@ -45,13 +54,14 @@ Each source page follows the same template:
 ## Related lifecycle chapters
 
 - [Collect](/docs/how-briefr-works/intel-lifecycle/collect) explains the
-  scheduler-first collection boundary.
+  scheduler-first collection boundary and lists where VulnCheck KEV, MITRE
+  ATT&CK, and other scheduled sources fit.
 - [Normalize](/docs/how-briefr-works/intel-lifecycle/normalize) explains how
   collected data becomes a CVE-centered local record.
 - [Enrich](/docs/how-briefr-works/intel-lifecycle/enrich) explains which source
-  data is scheduler-owned and which context appears on demand.
+  data is scheduler-owned and which context (OSV, GreyNoise) appears on demand.
 - [Correlate](/docs/how-briefr-works/intel-lifecycle/correlate) explains how
-  stored OTX and related signals become explainable relationship lanes.
+  stored OTX and ATT&CK group signals become explainable relationship lanes.
 - [Prioritize / report](/docs/how-briefr-works/intel-lifecycle/prioritize)
-  explains how KEV, EPSS, CVSS, and other local facts feed the morning brief and
-  risk score.
+  explains how KEV, EPSS, CVSS, VulnCheck KEV, and other local facts feed the
+  morning brief and risk score.

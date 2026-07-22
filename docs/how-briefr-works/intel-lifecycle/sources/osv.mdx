@@ -1,0 +1,191 @@
+---
+sidebar_position: 7
+sidebar_label: OSV.dev
+title: OSV.dev
+description: How BRIEFR uses OSV.dev to add package-ecosystem affected-version ranges to CVE detail.
+---
+
+import InTheCode from '@site/src/components/learn/InTheCode';
+import TryItYourself from '@site/src/components/learn/TryItYourself';
+
+# OSV.dev
+
+## What it is
+
+OSV.dev is BRIEFR's package-ecosystem source. When an analyst opens a CVE
+drawer, BRIEFR queries OSV's vulnerability API for that CVE ID and adds
+`osv_packages` — a list of affected ecosystem and version-range records — to
+the detail response.
+
+This page is about the tool path, not a general OSV data model tutorial. The
+important BRIEFR question is: when does OSV data appear, what shape does it
+take, and what happens when OSV has nothing for a CVE?
+
+The system design names OSV as a CVE detail enrichment source. It is not a
+scheduled mirror job. OSV data arrives on demand when the drawer is opened,
+runs in parallel with Sploitus, OTX, and CIRCL, and appears in the
+`osv_packages` field of `GET /api/cves/{id}` responses.
+
+## Why we do it
+
+NVD CVE records describe what is vulnerable. They may reference an affected
+product or CPE, but they do not always carry machine-readable package and
+version ranges that a developer or dependency manager can use directly.
+
+OSV.dev maintains package-level affected ranges across many ecosystems — Python,
+npm, Go, Maven, NuGet, RubyGems, crates.io, and others — linked back to CVE IDs
+and GHSA IDs. Showing that context in the BRIEFR drawer helps analysts answer:
+
+- Which package names and ecosystems are affected?
+- What introduced and fixed version boundaries does OSV record?
+- Does the CVE have confirmed package data even if the NVD record is sparse?
+
+Because OSV is unrestricted and returns data for many CVEs that appear in the
+developer ecosystem, it is a practical way to add affected-package context
+without a separate user-managed feed subscription.
+
+The drawer also uses the OSV summary field as a supplement to the NVD
+description. If OSV carries a cleaner package-level description and the NVD
+summary is absent or truncated, `_detail_enrich_osv` can substitute it.
+
+## Where it lives in BRIEFR
+
+At the product level, the OSV path is:
+
+```text
+analyst opens CVE drawer -> GET /api/cves/{id} -> _detail_enrich_osv -> OSV API -> osv_packages in response
+```
+
+OSV enrichment is part of the CVE detail request path, not the scheduler. The
+key path is:
+
+1. The analyst opens a CVE. The frontend calls `GET /api/cves/{id}`.
+2. The backend loads the local CVE row and then calls four enrichment tasks in
+   parallel via `asyncio.gather`: exploit data, OTX pulses, OSV packages, and
+   CIRCL references.
+3. `_detail_enrich_osv` in `routers/cves/detail.py` calls
+   `feeds/osv.py:fetch_osv_by_cve`.
+4. `fetch_osv_by_cve` calls `GET https://api.osv.dev/v1/vulns/{CVE-ID}`.
+   If the CVE record itself carries no `affected` package data, the function
+   follows up to three `aliases` (for example, a GHSA ID) to find a record
+   that does.
+5. `_parse_osv_record` extracts ecosystem names, package names, and version
+   events (introduced / fixed) from the `affected` list.
+6. The result is merged into the CVE detail response as `osv_packages`. If OSV
+   carries a useful `summary`, it can also appear on the response.
+
+There is no scheduled OSV sync, no `sync_state` watermark, and no local OSV
+table. The data lives in the API response of each CVE detail call, cached only
+by the HTTP layer.
+
+<InTheCode
+  items={[
+    {path: 'backend/feeds/osv.py'},
+    {path: 'backend/routers/cves', kind: 'tree'},
+  ]}
+/>
+
+## How it works
+
+BRIEFR queries OSV per CVE on demand when a drawer opens:
+
+1. **`fetch_osv_by_cve` resolves the CVE ID.** The OSV `/v1/vulns/{id}`
+   endpoint accepts CVE IDs directly. The function uppercases the input and
+   calls the API.
+2. **If the direct record lacks package data, aliases are followed.** NVD-sourced
+   OSV entries sometimes carry only Git commit ranges without package ecosystem
+   data. The ecosystem and package details live in alias records such as GHSA
+   IDs. `fetch_osv_by_cve` follows up to `MAX_ALIAS_FOLLOWS` (3) aliases until
+   it finds an `affected` list with ecosystem data.
+3. **`_parse_osv_record` extracts ecosystems and version ranges.** For each
+   entry in the `affected` list, it reads the `package.ecosystem` and
+   `package.name` fields, then walks the `ranges[].events[]` items for
+   `introduced` and `fixed` version strings.
+4. **Empty results are silently tolerated.** If OSV returns 404, the circuit
+   breaker is open, or the record has no ecosystem data after alias resolution,
+   `fetch_osv_by_cve` returns an empty list and `_detail_enrich_osv` returns
+   `{"osv_packages": []}`. The CVE detail response is unchanged otherwise.
+5. **The result is merged into the CVE response.** `osv_packages` and an
+   optional OSV `summary` supplement the local CVE data without overwriting the
+   official NVD record.
+6. **Failures do not block the drawer.** Because OSV runs in a `gather`
+   alongside other tasks, a slow or failed OSV lookup delays only that part of
+   the response, not the full drawer load.
+
+The per-CVE request model means BRIEFR pays one OSV API call per drawer open
+rather than maintaining a bulk mirror. That keeps the implementation simple and
+avoids the storage cost of a local OSV corpus.
+
+## What it needs
+
+The authoritative integrations facts for OSV.dev are:
+
+| Adds | Key | Free-tier/quota | Failure |
+| --- | --- | --- | --- |
+| Package affected-version ranges | — | Unrestricted | Empty batch |
+
+Operationally, OSV needs:
+
+- no key or account — the public `/v1/vulns/{id}` endpoint is unrestricted;
+- network access from the backend to `api.osv.dev`; and
+- the CVE detail router and `feeds/osv.py` active in the backend.
+
+There is no scheduler configuration for OSV. If the API is unreachable, the
+circuit breaker opens and the drawer shows empty package data for affected CVEs
+until the breaker resets. No local data is lost because there is no local OSV
+mirror.
+
+## How industry does it — and why BRIEFR does it this way
+
+Package-level vulnerability tracking has grown significantly with the rise of
+software composition analysis (SCA) tools, SBOM generation, and dependency
+scanning. Tools in this space can ingest OSV data at bulk, maintain per-package
+version graphs, and integrate with CI/CD pipelines to block vulnerable
+dependency upgrades.
+
+BRIEFR uses a narrower path:
+
+- per-CVE on-demand lookup instead of a bulk mirror;
+- a read-only `osv_packages` field in the drawer rather than a searchable
+  package index;
+- alias-following to surface ecosystem data when the CVE record is sparse; and
+- soft failure that leaves the CVE drawer functional when OSV is unavailable.
+
+The trade-off is that BRIEFR does not expose OSV data in the feed list, in
+asset-stack matching, or in scheduled enrichment. It adds affected-version
+context when the analyst opens a specific CVE, which fits BRIEFR's scope as a
+CVE intelligence portal rather than a full SCA platform.
+
+## Try it yourself
+
+<TryItYourself>
+  <ol>
+    <li>
+      Open the [Integrations](/docs/integrations) table and find the OSV.dev
+      row. Confirm that no key is listed and the failure behavior is an empty
+      batch.
+    </li>
+    <li>
+      Read the [Enrich](/docs/how-briefr-works/intel-lifecycle/enrich) chapter
+      and find where OSV is listed among the parallel enrichment tasks on CVE
+      detail. Note which other sources run in the same <code>asyncio.gather</code>.
+    </li>
+    <li>
+      Use the fixture below to trace how OSV package data reaches the drawer
+      response without a scheduled sync job. This is a documentation check only;
+      do not call the OSV API from the docs site.
+    </li>
+  </ol>
+
+  ```json
+  {
+    "source": "OSV.dev",
+    "trigger": "GET /api/cves/{id} (CVE detail enrichment)",
+    "backend_path": "feeds/osv.py",
+    "landing_field": "osv_packages",
+    "alias_follows": 3,
+    "key_required": false,
+    "failure_mode": "empty result; drawer still loads"
+  }
+  ```
+</TryItYourself>
