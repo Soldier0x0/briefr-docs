@@ -6,26 +6,73 @@ description: How BRIEFR's product brief locks requirements, and how to practice 
 ---
 
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
 
 # Unit 2: Requirements & framing
 
 <CoverageBadge coverage="partial" />
 
-> **Fill in Task 5/6.** This stub holds the outline for the Requirements & framing unit.
+Every design starts before the first component is chosen. Before deciding between SQL and NoSQL, before picking a cache strategy, before drawing a box labeled "scheduler" — a good designer pins down what the system actually needs to do and what it explicitly does not need to do. BRIEFR's product brief is unusually explicit about both sides of that line.
 
-## BRIEFR section (fill in Task 5)
+## BRIEFR's locked requirements
 
-- BRIEFR's locked product brief: self-hosted CVE portal, single-writer, intentional non-goals
-- How hard constraints simplify design (what you don't have to build)
-- Link to [system-design.md in the study guide](https://github.com/Soldier0x0/briefr/tree/main/docs/study-guide) for the original brief
+BRIEFR is a **self-hosted CVE intelligence portal** for a **small security team** with these hard constraints:
 
-## External section (fill in Task 6)
+**Single deployment model:** One box, one operator, one organization. No multi-tenancy, no SaaS infrastructure, no shared database. The operator installs and owns the full stack.
 
-- Functional vs non-functional requirements
-- Clarifying ambiguous prompts in interviews
-- Capacity estimation before picking components
-- Curated resources
+**Single writer:** One backend process writes to the database. The scheduler, the enrichment jobs, and any admin-triggered refreshes all run inside that one process. This is enforced by in-process locking (`scheduler_locks.py`) and by deployment guidance that restricts the scheduler to one worker instance.
+
+**Bounded corpus:** The data is the publicly available CVE feeds — NVD, KEV, EPSS, MITRE ATT&CK, cvelistV5, Vulnrichment, and correlated threat intelligence. The corpus grows, but it is not user-generated at arbitrary volume.
+
+**Small concurrent user base:** Single-digit simultaneous analysts. Throughput is not the primary design concern. Accuracy and reliability of intelligence data are.
+
+**No external API consumers:** BRIEFR's API is consumed by its own bundled frontend and operator scripts. There are no external API partners, no versioning SLAs, and no mobile clients.
+
+**Explicit non-goals (by product design):**
+
+- Multi-tenant SaaS (see [Unit 14](/docs/how-briefr-works/system-design/14-multi-tenancy))
+- Active-active multi-region failover
+- Real-time streaming ingest at high volume
+- External identity provider integration (SAML/OIDC)
+- General-purpose distributed systems patterns (consensus, leader election — see [Unit 7](/docs/how-briefr-works/system-design/07-distributed))
+
+## How fixed constraints simplify design
+
+The value of explicit non-goals is what they let you skip. Because BRIEFR is a single-writer system, there is no need for optimistic concurrency control, write-conflict resolution, or distributed lock managers. Because it is single-tenant, there is no row-level tenant isolation, no billing-aware resource quotas, and no noisy-neighbor problem. Because the corpus is bounded, there is no need for horizontal shard planning or index rotation at scale.
+
+These are not omissions — they are savings. Every distributed-systems mechanism that BRIEFR does not implement is an operational burden that its operator does not carry. The design earns simplicity by being honest about scope.
+
+This framing — "what does the product explicitly not do, and what does that let us skip?" — is one of the most useful moves in any system-design conversation.
 
 ---
 
-**Next:** [Unit 3 — High-level architecture](/docs/how-briefr-works/system-design/03-architecture)
+## The external fundamentals
+
+The BRIEFR product brief is an unusually clean example of locked requirements. Most real-world system-design prompts are deliberately ambiguous — in interviews and in early product conversations. The following gap block covers the skills for working with ambiguous requirements.
+
+<SystemDesignGap
+  topic="Requirements framing and capacity estimation"
+  covers={[
+    "Functional requirements: what the system must do (CRUD operations, API surface, data flows)",
+    "Non-functional requirements: latency targets, throughput, availability, consistency model, durability",
+    "Clarifying ambiguous prompts: how to ask targeted questions before proposing components",
+    "Scale estimation: DAU, read/write ratio, data size per event, storage growth rate",
+    "Capacity planning from requirements: translating estimates into component sizing decisions",
+    "Interview framing: structuring a 45-minute design session with requirements, high-level design, and deep dives",
+  ]}
+  whyItMatters="Most systems start with under-specified requirements. A designer who jumps to components before pinning requirements will propose a distributed database for a system that needs ten writes per day, or a simple cache for a system that needs strong consistency. Structured requirements framing prevents both kinds of mismatch. In interviews, it is also the signal that separates engineers who can lead a design conversation from those who just know component names."
+  inBriefr={
+    <>
+      BRIEFR's brief is explicitly locked — see the constraints above. There is no ambiguity to resolve for BRIEFR itself. The design exercises in this gap block apply when you encounter real-world prompts that are not pre-resolved ("design a notification service," "design a URL shortener," "design a real-time leaderboard").
+    </>
+  }
+  whyNot="BRIEFR's requirements were resolved during product design and do not change at runtime. There is no ambiguous-prompt resolution needed at the code or architecture level."
+  whenNeeded="You are designing a new system where requirements are not yet specified; you are in an interview; you are evaluating whether a proposed system matches its stated workload; you are scoping a new feature that touches scale assumptions."
+  resources={[
+    {label: "System Design Interview Vol. 1 — Chapter 3: A Framework for System Design Interviews (Alex Xu)", note: "Practical template for requirements, estimation, and component design in a time-boxed session"},
+    {label: "Designing Data-Intensive Applications — Chapter 1 (Kleppmann)", note: "Canonical framing of reliability, scalability, and maintainability as requirement categories"},
+    {label: "ByteByteGo — System Design Framework", href: "https://bytebytego.com/courses/system-design-interview/scale-from-zero-to-millions-of-users", note: "Visual walkthroughs of requirements → design for common systems"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/03-architecture"
+  nextLabel="Unit 3 — High-level architecture"
+/>

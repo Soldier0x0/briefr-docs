@@ -6,25 +6,66 @@ description: Latency, availability, and estimation — BRIEFR's implementation a
 ---
 
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
+import InTheCode from '@site/src/components/learn/InTheCode';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
 
 # Unit 1: Foundations
 
 <CoverageBadge coverage="partial" />
 
-> **Fill in Task 5/6.** This stub holds the outline for the Foundations unit.
+System design rests on a small vocabulary that appears in every design conversation: latency, throughput, availability, reliability, and the trade-offs between them. BRIEFR makes concrete choices along each of these dimensions — choices that are visible in the codebase and observable in a running instance.
 
-## BRIEFR section (fill in Task 5)
+## Latency and availability in BRIEFR
 
-- Latency and availability as they appear in BRIEFR: health checks, rate-limit handling, soft-fail patterns
-- Where the codebase trades availability for simplicity on a single box
-- Link to [Resilience](/docs/how-briefr-works/how-its-built/resilience)
+**Latency** in BRIEFR's context is primarily analyst-facing: how long does a CVE detail page take to load? How fast does a search return results? The architectural answer is in [Unit 3 (architecture)](/docs/how-briefr-works/system-design/03-architecture): the scheduler pre-fetches and stores all intelligence locally, so the request path reads from a local database rather than calling upstream APIs. A CVE page load is a few SQL queries against a local index, not an outbound network call. This keeps p50 latency in the tens of milliseconds and makes it stable across upstream availability.
 
-## External section (fill in Task 6)
+**Availability** in BRIEFR's context means: does the analyst UI stay functional when an external feed source goes down? The answer is yes, by design. The scheduler's circuit-breaker model ([Resilience](/docs/how-briefr-works/how-its-built/resilience)) handles source failures in the background. When a source trips its circuit breaker, that source's ingestion pauses; the analyst UI continues reading from the last-stored data. The trade-off is staleness, not downtime. BRIEFR accepts brief feed staleness in exchange for UI availability. This is a deliberate availability-over-consistency choice at the single-box level.
 
-- SLA / SLO / SLI terminology and how to set them
-- Back-of-envelope estimation: QPS, storage, bandwidth
-- Curated resources (DDIA Chapter 1; system design primer)
+**Soft-fail under pressure** appears in rate limiting. When a caller exceeds BRIEFR's local token-bucket limits (`RATE_LIMIT_IOC_PER_MINUTE`, `RATE_LIMIT_REFRESH_PER_MINUTE`), the API returns `429 Too Many Requests` with a `Retry-After` header rather than queuing requests or blocking. This keeps the system responsive under load at the cost of rejecting excess requests. See [Resilience](/docs/how-briefr-works/how-its-built/resilience) for the full rate-limit model.
+
+**Single-box ceiling.** BRIEFR's availability model rests on one physical or virtual machine. If that machine goes down, BRIEFR goes down. This is not a gap — it is a product constraint. The backup and restore procedure ([Webhooks and operations](/docs/how-briefr-works/how-its-built/webhooks-ops)) minimizes recovery time after a host failure, but it does not provide zero-downtime failover. Operators who need that guarantee need infrastructure outside BRIEFR's scope.
+
+<InTheCode
+  items={[
+    {path: 'backend/resilient_client.py'},
+    {path: 'backend/rate_limit.py'},
+  ]}
+/>
+
+<AtEnterpriseScale>
+  At enterprise scale, latency and availability are managed with explicit SLOs — targets like "p99 API response under 200ms" or "99.9% monthly uptime." Error budgets govern how much availability can be spent on risky deployments. Multi-region active-passive or active-active failover removes single-host availability ceilings. BRIEFR's model (local reads, soft-fail, single-box) is the correct simplification for its deployment target. The vocabulary below is what you need when those ceilings matter.
+</AtEnterpriseScale>
 
 ---
 
-**Next:** [Unit 2 — Requirements & framing](/docs/how-briefr-works/system-design/02-requirements)
+## The external fundamentals
+
+The sections above ground the foundation vocabulary in a real system. The following gap block covers the parts BRIEFR does not implement: formal SLO/SLI/SLA framing and structured back-of-envelope estimation.
+
+<SystemDesignGap
+  topic="SLA / SLO / SLI and back-of-envelope estimation"
+  covers={[
+    "Service Level Indicators (SLIs): the measurable signal (request success rate, p99 latency, etc.)",
+    "Service Level Objectives (SLOs): the internal reliability target (e.g. 99.9% success rate over 30 days)",
+    "Service Level Agreements (SLAs): the external contractual commitment and its consequences",
+    "Error budgets: how much unreliability is allowed before a freeze or rollback is triggered",
+    "Back-of-envelope estimation: QPS, storage, bandwidth, peak multipliers, and cache sizing",
+    "Capacity planning: translating traffic and data growth estimates into infrastructure sizing",
+  ]}
+  whyItMatters="Before choosing any component, a designer needs a shared vocabulary for reliability promises and a lightweight method for sizing the system. SLO/SLI framing turns vague 'it should be fast' requirements into testable contracts that drive on-call policies and deployment gates. Estimation drills build the instinct for spotting when a proposed design cannot physically meet its own targets."
+  inBriefr={
+    <>
+      BRIEFR exposes <code>GET /api/health</code> as its primary operational indicator — source-level circuit state and consecutive failures are a primitive SLI surface. Rate-limit thresholds (<code>CIRCUIT_FAILURE_THRESHOLD</code>, <code>RATE_LIMIT_*_PER_MINUTE</code>) are the nearest equivalent to internal SLOs: numeric targets an operator can tune. There are no formal SLA commitments because BRIEFR is a self-hosted tool, not a contracted service. Capacity estimation is implicit in the deployment model: one box, bounded corpus, single-digit concurrent users.
+    </>
+  }
+  whyNot="BRIEFR is a self-hosted single-box tool for one team. Formal SLO contracts, error-budget policies, and structured capacity-planning exercises require a multi-stakeholder service relationship and traffic scale that does not exist here. The ceiling is the host, not a distributed SLA target."
+  whenNeeded="You are building a platform consumed by external customers or multiple internal teams; you are negotiating uptime guarantees; you are setting targets that drive on-call rotations, release freeze windows, or penalty clauses."
+  resources={[
+    {label: "Designing Data-Intensive Applications — Chapter 1 (Kleppmann)", note: "Reliability, scalability, maintainability framing — the canonical starting point"},
+    {label: "Google SRE Book — Chapter 4: Service Level Objectives", href: "https://sre.google/sre-book/service-level-objectives/", note: "Free online; canonical SLI / SLO / SLA definitions from the team that coined them"},
+    {label: "System Design Interview Vol. 1 — Chapter 2: Back-of-the-Envelope Estimation (Alex Xu)", note: "Structured estimation method with worked examples for QPS, storage, and bandwidth"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/02-requirements"
+  nextLabel="Unit 2 — Requirements & framing"
+/>

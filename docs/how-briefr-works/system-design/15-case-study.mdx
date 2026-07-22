@@ -6,24 +6,115 @@ description: End-to-end walk through BRIEFR as a system-design case study — co
 ---
 
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
 
 # Unit 15: Case study — BRIEFR
 
 <CoverageBadge coverage="briefr" />
 
-> **Fill in Task 5/6.** This stub holds the outline for the BRIEFR case-study unit.
+This unit is the capstone of the `briefr`-anchored spine. It synthesizes the previous units into one end-to-end walk through BRIEFR as a system-design subject: constraints first, then data path, then failure handling, then operations. Read it after completing Units 1–14 for maximum context, or use it as an orientation tour before diving into individual chapters.
 
-## Outline
+## Step 1: Start with constraints
 
-- Starting with constraints: why the brief matters before the architecture
-- The data path: from external feed to analyst brief (end-to-end walk)
-- Where each previous unit's pattern appears in the real system
-- Failure scenarios: what happens when a source goes dark, a job hangs, or storage fills
-- Ops story: how an operator monitors, backs up, and recovers BRIEFR
-- Cross-links to all Track A and Track B chapters as a synthesis map
+Every system-design session should begin with constraints. BRIEFR's are explicit and deliberate:
 
-This unit is the capstone of the `briefr`-anchored units. Read it after completing
-Units 1–14, or jump here first as an orientation before diving into individual chapters.
+**Fixed deployment model:** Single self-hosted box. No multi-region, no active-active, no shared SaaS infrastructure. The operator owns the hardware and the network. This single constraint eliminates most distributed-systems complexity from the design.
+
+**Single writer:** One backend process writes to the database at a time. Concurrent writes from multiple scheduler owners are an explicitly unsupported configuration. This makes database concurrency simple: SQLite's serialized writes are sufficient for single-box; Postgres pool sizing stays conservative.
+
+**Bounded corpus:** The intelligence corpus is the set of publicly available CVE feeds (NVD, KEV, EPSS, MITRE, cvelistV5, Vulnrichment, threat correlations). It grows but is not unbounded. Tens of thousands of CVEs, a few thousand ATT&CK techniques, and a handful of threat campaigns fit on a single box with room to spare.
+
+**Small team, one analyst workflow at a time:** The primary user is a security analyst at one organization. Concurrent users are measured in single digits. Peak load is not the primary design constraint; reliability and accuracy are.
+
+**Security-portal purpose:** BRIEFR tracks publicly documented vulnerabilities and correlates them with threat intelligence. It does not process customer PII, payment data, or health records. The primary security concern is protecting the portal itself from abuse — not protecting regulated customer data.
+
+Starting from these constraints, many design choices become obvious rather than controversial. (See [Unit 2 — Requirements & framing](/docs/how-briefr-works/system-design/02-requirements) for how fixed constraints simplify design.)
+
+## Step 2: The data path, end to end
+
+Following a single data item through BRIEFR reveals how all the subsystems connect.
+
+### Ingestion: CVE enters the system
+
+1. **APScheduler fires `nvd_incremental_sync`** on its hourly interval (Unit 3, Unit 9). The job acquires `scheduler_locks.nvd_lock` before starting — ensuring no concurrent admin-triggered refresh can race it.
+2. **The feed function calls NVD's modified-since endpoint** using the stored watermark from `sync_state`. Only CVEs published or modified since the last successful run are downloaded (Unit 4, Unit 9). The outbound call goes through `resilient_client.py`, which applies retries, respects `Retry-After` from NVD's rate limit responses, and reports source health (Unit 5, Unit 6).
+3. **The feed function writes new and updated CVE rows** to the database in bounded upsert batches. The `sync_state` watermark is updated on success.
+4. **The enrichment scheduler** picks up the new CVE on its next run: EPSS score is attached, KEV deadline is checked, MITRE technique associations are queried, and (if enabled) an LLM product extraction job is queued via Procrastinate (Unit 9). These are separate jobs; a failure in one does not block the others.
+
+### Analyst read: CVE detail page load
+
+1. **Browser sends `GET /api/cves/CVE-2024-XXXXX`** with the `briefr_at` JWT cookie.
+2. **`auth_middleware.py`** passes the route (not on the public-path list). `require_user` validates the JWT, then re-reads the user row from the database (`is_active` check). The call proceeds or returns `401`/`403` (Unit 13).
+3. **The route handler queries the `db/` layer** for the CVE record, its KEV status, EPSS score, associated techniques, correlations, and product metadata. All reads come from local database tables (Unit 4). No external API call is made on this request path.
+4. **If the analyst runs a search query**, `POST /api/search/semantic` routes through `services/semantic_search.py`, merges keyword and vector results via RRF, and returns ranked results (Unit 11). The embedding model is not called at query time — vectors are pre-computed and stored.
+5. **Response is returned** within the request/response cycle. The analyst never waits for a feed pull.
+
+### Alert: KEV adds a CVE from the analyst's stack
+
+1. **`kev_metadata_sync` runs** and detects a new KEV entry matching a CVE the analyst has pinned.
+2. **The alert rule in `webhooks/alerts.py`** fires the `kev_stack_hit` event.
+3. **`dispatch_event`** looks up configured destinations, validates each URL against the SSRF blocklist (Unit 13), and delivers a JSON payload to Discord, Telegram, or a custom HTTPS endpoint (Unit 8).
+4. **The operator sees the alert** without having to poll BRIEFR. The notification center in the admin UI also records the event.
+
+## Step 3: Where each unit's pattern appears
+
+| Unit | Pattern | Where in BRIEFR |
+|---|---|---|
+| 1 — Foundations | Soft-fail under upstream pressure | Circuit breakers in `resilient_client.py`; `429` responses to callers |
+| 2 — Requirements | Fixed constraints driving design | Single-writer, single-box, bounded corpus |
+| 3 — Architecture | Monolith with sync/async split | FastAPI routes + APScheduler in one process |
+| 4 — Storage | Dual-backend, cache tables, watermarks | `db/` package, `feed_cache`, `ioc_cache`, `sync_state` |
+| 5 — Scalability | Rate limiting, circuit breakers, job locks | `rate_limit.py`, `resilient_client.py`, `scheduler_locks.py` |
+| 6 — Reliability | Retries, idempotent jobs, graceful degradation | `resilient_client.py`, `coalesce=True` on jobs, soft-fail on enrichment |
+| 8 — APIs | REST surface, three caller types, SSRF control | FastAPI routes, `auth_middleware.py`, `webhooks/ssrf.py` |
+| 9 — Async | Scheduler + durable queue | APScheduler + Procrastinate (`jobs/`) |
+| 10 — Caching | In-process caches, TTL, retention sweeps | `feed_cache`, `ioc_cache`, `run_retention_cleanup()` |
+| 11 — Search | Hybrid keyword + vector retrieval | `services/semantic_search.py`, `db/embeddings_search.py` |
+| 12 — Observability | Health endpoint, backup dead-man, notification center | `GET /api/health`, `webhooks/alerts.py`, `monitoring/notifications.py` |
+| 13 — Security | Two-cookie auth, SSRF blocklist, rate limits | `auth/tokens.py`, `webhooks/ssrf.py`, `rate_limit.py` |
+
+## Step 4: Failure scenarios
+
+A well-designed system fails predictably. Here is how BRIEFR handles the common failure modes:
+
+**A feed source goes down.** The circuit breaker for that source opens after `CIRCUIT_FAILURE_THRESHOLD` consecutive failures (default: 3). Subsequent scheduler runs skip that source fast rather than waiting for timeout. The source's `circuit_open` flag appears in `GET /api/health`. The analyst UI continues reading from the last-stored data — feed staleness, not feed failure. When the source recovers, the circuit closes on the next successful call and normal sync resumes.
+
+**NVD returns 429 / rate limits.** `resilient_client.py` reads the `Retry-After` response header and delays the retry by that duration rather than guessing a shorter interval. The job does not produce a circuit-breaker failure for a rate-limit response — rate limiting means the source is reachable. NVD's watermark is not advanced until a successful sync, so the next run re-fetches the same window.
+
+**A background job hangs.** The per-job `asyncio.Lock` means the next scheduled fire of the same job will see the lock held and skip rather than stacking a second concurrent run. APScheduler's `coalesce=True` collapses any missed fires that stacked up while the job was running. The hung job is visible in the admin jobs panel; an operator can cancel it from there.
+
+**Storage fills up.** The retention scheduler runs `run_retention_cleanup()` periodically, pruning cache rows past their physical retention window and older history rows. Operators can also trigger cleanup manually from the admin panel. If disk fills before cleanup runs, the database write path will fail; the scheduler logs the error and the source's health record reflects the failure.
+
+**The operator loses the database.** The `ensure_db_or_restore()` function in `backup/manager.py` checks on startup whether the database is present and valid. If not, it attempts to restore from the most recent backup archive. The backup dead-man alert fires if backups stop appearing; an operator who has received no dead-man alert can infer that backups are running. After a restore, the scheduler runs a deferred startup pass to catch up on any syncs missed during downtime.
+
+## Step 5: The operations story
+
+A typical operator workflow for a self-hosted BRIEFR instance looks like this:
+
+**Setup:** Configure `.env` with database URL, API keys (NVD, VirusTotal, etc.), JWT secret, webhook destinations. Start with `docker-compose up`. BRIEFR initializes the database schema, starts the scheduler, and runs an immediate startup sync if the CVE table is empty.
+
+**Day-to-day:** The scheduler runs in the background. The analyst uses the UI. The operator checks `GET /api/health` occasionally to confirm feed sources are healthy and circuit breakers are closed. Webhook alerts deliver significant events without polling.
+
+**Provider key rotation:** When an API key expires or is rotated, the operator updates `.env` and restarts the container. The application re-reads secrets from environment on startup. The notification center surfaces key health failures before they go unnoticed.
+
+**Upgrades:** Pull the new container image, restart. Alembic migrations run automatically on startup for Postgres. For SQLite, schema changes are applied via `init_db()` on startup.
+
+**Incident response:** A CVE surfaces in the morning news. The analyst uses BRIEFR's search to find it, views its KEV status and EPSS score, checks the related threat correlations, and adds it to the team stack. The portal's local data was updated by last night's NVD sync; the analyst is not waiting for external API calls.
+
+<AtEnterpriseScale>
+  At enterprise scale, the "one operator, one box" story becomes a platform team managing a fleet. Deployments are GitOps-driven. Schema migrations run in CI with rollback plans. On-call rotations own the service, not individual operators. SLOs are measured and reported. None of that complexity is wrong — it is the correct response to scale, team size, and organizational accountability. BRIEFR deliberately stays below that threshold: the ops surface is one health endpoint, one backup schedule, and webhook alerts. The ceiling is explicit, not hidden.
+</AtEnterpriseScale>
+
+## Synthesis: what this case study teaches
+
+BRIEFR is a useful system-design subject precisely because it is a deliberate, honest design for a specific scope — not a reference architecture for everything. The lessons:
+
+1. **Constraints drive architecture.** The monolith, single-writer, and dual-backend choices all follow directly from the deployment model. Start with constraints, not components.
+2. **Complexity has a cost.** Each pattern BRIEFR skips (distributed consensus, multi-region DR, message brokers, external IdP) carries operational and cognitive cost. Skipping them is a choice, not an oversight.
+3. **Graceful degradation is a feature.** The soft-fail model — circuit breakers, watermarks, fallback to stored data — means BRIEFR degrades usefully rather than failing hard. That is a design goal, not an accident.
+4. **Observability is as important as reliability.** The health endpoint, dead-man alerts, session audit, and notification center exist because a tool that fails silently is worse than a tool that fails loudly.
+
+These principles apply at any scale. The mechanisms change; the reasoning does not.
 
 ---
 
