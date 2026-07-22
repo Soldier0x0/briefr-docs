@@ -6,33 +6,43 @@ description: A gap unit — how to structure tradeoff reasoning in design sessio
 ---
 
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
 
 # Unit 16: Tradeoff-driven design practice
 
 <CoverageBadge coverage="gap" />
 
-> **Fill in Task 6.** This stub holds the `SystemDesignGap` template for the tradeoff practice unit.
+Tradeoff reasoning is not a feature you implement — it is the meta-skill that shapes every feature you do implement. BRIEFR's own design history provides several concrete worked examples: choices made for explicit reasons, with explicit alternatives rejected. This unit maps the topic and points to external resources for deeper practice.
 
-## Gap unit outline
-
-**Topic:** Tradeoff-driven design practice — how to structure design decisions and present them clearly.
-
-**What it covers:**
-- Naming the tradeoffs before picking an option
-- Structured whiteboard / doc format for design sessions
-- Interview timing and communication strategies
-- Using worked examples to build pattern fluency
-
-**Why it matters:** Being able to articulate tradeoffs — not just pick the "right" answer — is what separates strong system designers. Every design choice omits alternatives; stating why matters.
-
-**In BRIEFR:** BRIEFR's own decisions (monolith over microservices, SQLite over Postgres at small scale, in-process cache over Redis, single-tenant over SaaS) are ready-made worked tradeoff examples.
-
-**Why BRIEFR skips this as a topic:** Tradeoff reasoning is a meta-skill across all units, not a separate implementation feature.
-
-**When you would need it:** Design interviews; architecture review boards; documenting ADRs for a team.
-
-**Fill in Task 6:** Add `<SystemDesignGap>` component with 2–4 curated resources (Designing Data-Intensive Applications appendix, Alex Xu System Design Interview books, etc.).
-
----
-
-**Return here:** [Unit 17 — Advanced topics](/docs/how-briefr-works/system-design/17-advanced)
+<SystemDesignGap
+  topic="Tradeoff-driven design practice — structuring design decisions and communicating them clearly"
+  covers={[
+    "Naming the rejected alternatives before picking an option: the habit of explicitly writing down what you chose not to do and why",
+    "Structured formats for design sessions: a lightweight template covering requirements, constraints, data model, components, failure modes, and open questions",
+    "Interview communication strategies: how to think aloud, ask clarifying questions, drive the conversation, and manage the 45-minute clock",
+    "Architecture Decision Records (ADRs): documenting tradeoffs durably so future engineers understand why the system looks the way it does",
+    "Using worked examples to build pattern fluency: recognizing when a past tradeoff applies to a new problem",
+  ]}
+  whyItMatters="The ability to articulate tradeoffs — not just name the 'right' pattern — is what separates strong system designers from engineers who pattern-match. Every design choice omits alternatives. Stating why you chose this over that is the substance of design review, ADR writing, and system design interviews. Interviewers and reviewers are evaluating reasoning quality, not whether you landed on the textbook answer."
+  inBriefr={
+    <>
+      BRIEFR's own design history provides ready-made worked tradeoff examples that can be analyzed and discussed:
+      <ul>
+        <li><strong>Monolith over microservices</strong> — deployment simplicity and one-box ops cost vs independent scaling and polyglot services. Rejected because the team and load do not justify the coordination overhead.</li>
+        <li><strong>SQLite at small scale, Postgres as the upgrade path</strong> — zero-ops embedded database vs a separate server process with richer concurrency. SQLite wins while data fits in memory; Postgres wins when write concurrency or multi-machine access is needed.</li>
+        <li><strong>In-process LRU cache over Redis</strong> — no network hop, no separate process, no serialization cost vs persistent shared state across restarts or multiple instances. Redis is the right answer when the cache must survive restarts or be shared across nodes; not needed on one box.</li>
+        <li><strong>Single-tenant self-hosted over SaaS</strong> — operator control over data and infrastructure vs managed-service convenience and lower ops burden. Rejected the SaaS model because the CVE portal use case prioritizes data sovereignty and air-gapped deployments.</li>
+      </ul>
+    </>
+  }
+  whyNot="Tradeoff reasoning is a meta-skill that applies across all units in this curriculum — not a discrete implementation feature that BRIEFR ships or omits. It is surfaced as a standalone unit because it is often underpracticed relative to memorizing individual patterns."
+  whenNeeded="System design interviews; architecture review boards; writing ADRs for a team; justifying a migration away from a working system; onboarding engineers who need to understand why the system looks the way it does rather than just how it works."
+  resources={[
+    {label: "Designing Data-Intensive Applications — Martin Kleppmann", note: "The entire book is a model of tradeoff reasoning: each chapter ends with a candid assessment of what each approach sacrifices. Read the chapter conclusions carefully"},
+    {label: "System Design Interview Vol. 1 & 2 — Alex Xu", note: "Worked examples with explicit tradeoff sections and step-by-step interview communication strategies; the closest thing to a structured practice guide for the format"},
+    {label: "A Philosophy of Software Design — John Ousterhout", note: "Complexity, module design, and the reasoning behind keeping systems simple — a useful companion for understanding when adding sophistication creates more cost than value"},
+    {label: "The Pragmatic Engineer Newsletter — 'System Design at Big Tech' (Gergely Orosz)", href: "https://newsletter.pragmaticengineer.com/", note: "Real-world system design decisions from practitioners at large companies, with honest post-mortems and architectural retrospectives"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/17-advanced"
+  nextLabel="Unit 17 — Advanced topics"
+/>

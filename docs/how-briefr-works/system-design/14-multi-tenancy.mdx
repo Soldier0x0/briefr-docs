@@ -6,33 +6,37 @@ description: A gap unit — BRIEFR is a single-tenant self-hosted deployment by 
 ---
 
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
 
 # Unit 14: Multi-tenancy & SaaS
 
 <CoverageBadge coverage="gap" />
 
-> **Fill in Task 6.** This stub holds the `SystemDesignGap` template for the multi-tenancy unit.
+BRIEFR is deployed once per organization, on infrastructure the operator controls. The multi-tenancy and SaaS architecture patterns that apply when a vendor hosts the same service for many independent customers are deliberately out of scope. This unit maps the topic and explains the trade-off BRIEFR makes by choosing a self-hosted, single-tenant model.
 
-## Gap unit outline
-
-**Topic:** Multi-tenancy & SaaS architecture — shared database tenancy, tenant isolation, and billing-aware design.
-
-**What it covers:**
-- Shared-schema vs separate-schema vs separate-database tenancy models
-- Tenant isolation: data, compute, and network
-- Noisy-neighbor problems and per-tenant resource throttling
-- Billing and usage metering as architectural concerns
-
-**Why it matters:** SaaS products serving multiple independent customers must isolate data and behavior between tenants without the cost of fully separate deployments per customer.
-
-**In BRIEFR:** BRIEFR is a single-tenant self-hosted deployment. Each organization runs its own instance. There is no shared infrastructure across organizations, so noisy-neighbor and tenant-isolation problems simply do not arise.
-
-**Why BRIEFR skips this:** Single-deployment self-host model; each operator owns their own box; multi-tenancy complexity is a deliberate non-goal for this scope.
-
-**When you would need it:** Building a SaaS product where you host the service centrally for many customers; reducing per-customer deployment overhead; offering tiered plans with different resource limits.
-
-**Fill in Task 6:** Add `<SystemDesignGap>` component with 2–4 curated resources (SaaS tenancy patterns, Stripe architecture, etc.).
-
----
-
-**Return here:** [Unit 15 — Case study: BRIEFR](/docs/how-briefr-works/system-design/15-case-study)
+<SystemDesignGap
+  topic="Multi-tenancy & SaaS architecture — shared database tenancy, tenant isolation, and billing-aware design"
+  covers={[
+    "Tenancy models: shared schema (all tenants in one database, discriminated by a tenant_id column), shared database with separate schemas, and fully separate databases per tenant — and when each is appropriate",
+    "Tenant isolation: preventing one tenant's data from being visible to another, and preventing one tenant's load from degrading another's performance (noisy-neighbor)",
+    "Per-tenant resource throttling: rate limits, query quotas, and compute sandboxing that enforce isolation at runtime",
+    "Billing and usage metering as an architectural concern: instrumenting resource consumption per tenant for pricing, billing, and abuse detection",
+    "Tenant onboarding and offboarding: data lifecycle, migration, and GDPR-compliant deletion in a shared environment",
+  ]}
+  whyItMatters="SaaS products serving multiple independent customers must isolate data and behavior between tenants without the cost of fully separate deployments per customer. Getting tenancy wrong produces data leaks (tenant A sees tenant B's records), noisy-neighbor degradation (one tenant's bulk import slows all other tenants), and billing gaps (consumption that goes unmeasured cannot be priced). These are architectural problems that must be addressed in the data model and infrastructure layer — retrofitting tenant isolation into an existing system is expensive."
+  inBriefr={
+    <>
+      BRIEFR is a single-tenant self-hosted deployment. Each organization runs its own instance on its own infrastructure, connected to its own database. There is no shared database across organizations, no noisy-neighbor problem to solve, and no billing pipeline to instrument. Tenant isolation is achieved at the deployment level: each operator is the sole tenant of their instance. The trade-off is that operators must provision and maintain their own infrastructure rather than subscribing to a managed service.
+    </>
+  }
+  whyNot="BRIEFR's deployment model is one instance per organization on operator-owned infrastructure. There are no other tenants to isolate from, no shared resource pool to throttle, and no usage metering needed for billing. Building multi-tenancy into BRIEFR would add schema complexity and operational surface area that the self-hosted CVE portal use case does not require."
+  whenNeeded="You are building a SaaS product where your company hosts the service centrally for many independent customers; you need to offer tiered pricing plans with different resource limits enforced at runtime; you need tenant-level usage metering for billing or audit; you want to reduce per-customer deployment overhead by sharing infrastructure; or you need to onboard new customers without provisioning separate infrastructure for each."
+  resources={[
+    {label: "Designing Data-Intensive Applications — Chapter 2 (Kleppmann)", note: "Data models and query languages — includes data modeling decisions (like discriminator columns and schema-per-tenant) that underpin tenancy choices"},
+    {label: "AWS SaaS Lens — Well-Architected Framework (AWS docs)", href: "https://docs.aws.amazon.com/wellarchitected/latest/saas-lens/saas-lens.html", note: "Comprehensive reference for SaaS tenancy models, isolation strategies, and metering patterns from AWS's own SaaS practice"},
+    {label: "Stripe — 'How we built a multi-tenant architecture for Stripe Billing'", href: "https://stripe.com/blog/billing-customer-balance", note: "Worked example of tenant isolation and data modeling tradeoffs at a real SaaS company"},
+    {label: "SaaS on AWS — tenant isolation patterns (YouTube, AWS Events)", href: "https://www.youtube.com/watch?v=mwQ5lipGTBI", note: "45-minute walkthrough of shared-pool vs silo vs bridge tenancy models with concrete AWS service mappings"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/15-case-study"
+  nextLabel="Unit 15 — Case study: BRIEFR"
+/>

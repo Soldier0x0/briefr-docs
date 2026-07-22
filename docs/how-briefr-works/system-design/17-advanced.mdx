@@ -6,33 +6,43 @@ description: A gap unit — CQRS, event sourcing, active-active, and feature sto
 ---
 
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
+import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
 
 # Unit 17: Advanced topics
 
 <CoverageBadge coverage="gap" />
 
-> **Fill in Task 6.** This stub holds the `SystemDesignGap` template for the advanced topics unit.
+These patterns — CQRS, event sourcing, active-active replication, ML feature stores — appear in system design interviews and in production systems that have outgrown simpler models. BRIEFR provides only narrow, incidental examples of each. This unit maps the concepts and points to the canonical literature for study.
 
-## Gap unit outline
-
-**Topic:** Advanced topics — CQRS, event sourcing, active-active replication, and ML feature stores.
-
-**What it covers:**
-- Command Query Responsibility Segregation (CQRS): separate read and write models
-- Event sourcing: storing events as the source of truth
-- Active-active multi-region replication and conflict resolution
-- ML feature stores: low-latency feature serving at scale
-
-**Why it matters:** These patterns solve specific problems that emerge at larger scale or in domains where audit trails, global low-latency reads, or ML serving are first-class requirements.
-
-**In BRIEFR:** Limited surface. Vector search on one box is a narrow example of ML feature serving. BRIEFR's architecture is intentionally not event-sourced. No active-active replication is implemented.
-
-**Why BRIEFR skips this:** Single self-hosted deployment; single-writer; product constraints and scope — YAGNI vs enterprise complexity.
-
-**When you would need it:** Financial audit trails requiring full history; global products with users in multiple regions; production ML systems requiring feature consistency between training and serving.
-
-**Fill in Task 6:** Add `<SystemDesignGap>` component with 2–4 curated resources (DDIA Chapters 10–12, event-sourcing literature, Feast feature store docs).
-
----
-
-**Return here:** [Unit 18 — Design review & critique](/docs/how-briefr-works/system-design/18-design-review)
+<SystemDesignGap
+  topic="Advanced topics — CQRS, event sourcing, active-active replication, and ML feature stores"
+  covers={[
+    "Command Query Responsibility Segregation (CQRS): separating the write model (commands that change state) from the read model (projections optimized for query patterns), allowing each to evolve and scale independently",
+    "Event sourcing: storing the sequence of events that produced the current state as the primary source of truth, rather than storing only the current state — enables temporal queries, full audit trails, and event replay",
+    "Active-active multi-region replication: every region accepts writes, with a conflict resolution strategy for concurrent updates to the same record — trades consistency for global write latency",
+    "ML feature stores: a specialized data system that serves pre-computed features to models at inference time with low latency, while keeping training-time and serving-time feature definitions consistent",
+    "The relationship between these patterns: CQRS and event sourcing are frequently combined; active-active replication introduces the same conflict resolution problems as eventually consistent systems",
+  ]}
+  whyItMatters="These patterns solve specific problems that simpler models cannot address at scale: event sourcing is the only architecture that gives you a complete, immutable audit trail and the ability to recompute any historical state. CQRS lets read-heavy and write-heavy workloads scale along independent axes. Active-active replication is the only way to achieve low write latency for globally distributed users without routing all writes through a single primary. Feature stores eliminate training-serving skew — the most common source of silent ML model degradation in production."
+  inBriefr={
+    <>
+      BRIEFR has limited surface area for these patterns by design:
+      <ul>
+        <li><strong>Event sourcing:</strong> Not implemented. BRIEFR uses an upsert write model — each CVE has one authoritative record updated in place. There is no requirement for temporal queries or full event history that would justify event sourcing's storage and query overhead.</li>
+        <li><strong>CQRS:</strong> Not implemented. Read and write paths share the same data model. The single-writer, low-concurrency deployment profile does not produce the read/write impedance mismatch that CQRS is designed to resolve.</li>
+        <li><strong>Active-active replication:</strong> Not implemented. BRIEFR runs on one box with no replicated state. There is no multi-region deployment model.</li>
+        <li><strong>ML feature stores:</strong> Narrow incidental example only. BRIEFR's semantic search stores CVE embeddings in a local vector database (ChromaDB or pgvector) and queries them at inference time. This is the simplest possible form of feature serving — one model, one feature type, one box, no training-serving skew concern at this scale.</li>
+      </ul>
+    </>
+  }
+  whyNot="BRIEFR is a single self-hosted deployment with a single writer and no audit-trail or global-distribution requirement. The patterns in this unit address problems that arise at a scale and complexity that BRIEFR deliberately avoids: no financial audit obligation that requires event sourcing, no multi-region user base that requires active-active writes, no ML pipeline complex enough to require a dedicated feature store."
+  whenNeeded="Event sourcing is warranted when you need a full immutable audit trail, temporal queries, or the ability to replay events to recompute state (financial systems, compliance systems). CQRS is warranted when read and write volumes differ significantly and optimizing one degrades the other. Active-active replication is warranted when you have users in multiple geographic regions and write latency to a single primary is unacceptable. Feature stores are warranted when you have multiple models, multiple teams, and training-serving skew is causing silent model degradation in production."
+  resources={[
+    {label: "Designing Data-Intensive Applications — Chapters 10–12 (Kleppmann)", note: "Batch processing, stream processing, and 'The Future of Data Systems' — the most rigorous treatment of event-driven and derived-data architectures available"},
+    {label: "Greg Young — CQRS Documents", href: "https://cqrs.files.wordpress.com/2010/11/cqrs_documents.pdf", note: "The foundational document on CQRS and event sourcing by the practitioner who named and popularized both patterns"},
+    {label: "Martin Kleppmann — 'Event Sourcing and CQRS' (YouTube, Strange Loop 2019)", href: "https://www.youtube.com/watch?v=avi-TZI9t2I", note: "Clear explanation of when these patterns help and what they cost, from the DDIA author"},
+    {label: "Feast Feature Store documentation — docs.feast.dev", href: "https://docs.feast.dev/", note: "The leading open-source feature store; the concepts section explains training-serving skew, feature views, and the online/offline store split"},
+  ]}
+  nextHref="/docs/how-briefr-works/system-design/18-design-review"
+  nextLabel="Unit 18 — Design review & critique"
+/>
