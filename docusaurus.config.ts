@@ -67,6 +67,16 @@ const config: Config = {
   ],
 
   themeConfig: {
+    // Social preview — dedicated OG art can replace this later (Phase 4).
+    image: 'img/favicon.ico',
+    metadata: [
+      {name: 'twitter:card', content: 'summary'},
+      {
+        name: 'description',
+        content:
+          'BRIEFR documentation — self-hosted CVE intelligence, detection engineering, and How BRIEFR Works learning tracks.',
+      },
+    ],
     colorMode: {
       defaultMode: 'dark',
       disableSwitch: true,
@@ -97,6 +107,7 @@ const config: Config = {
             {label: 'User Guide', to: '/docs/user-guide'},
             {label: 'Administrator Guide', to: '/docs/admin-guide'},
             {label: 'Developer Guide', to: '/docs/developer-guide'},
+            {label: 'How BRIEFR Works', to: '/docs/how-briefr-works'},
             {label: 'Security Guide', to: '/docs/security-guide'},
           ],
         },
@@ -105,6 +116,7 @@ const config: Config = {
           items: [
             {label: 'API Reference', to: '/docs/api-reference'},
             {label: 'Integrations', to: '/docs/integrations'},
+            {label: 'Source deep-dives', to: '/docs/how-briefr-works/intel-lifecycle/sources'},
             {label: 'FAQ', to: '/docs/faq'},
           ],
         },
