@@ -11,15 +11,15 @@ Pin: 04aba1ad17d18c1c45175881ceef56b7112abb36
 
 - **sources/index.mdx**: "How to read these pages" list item 6 updated from hyphen to em-dash to match the H2 style: `How industry does it — and why BRIEFR does it this way`.
 
-- **intel-lifecycle/index.mdx**: Table links changed from bare `intel-lifecycle/collect` style to `./collect` relative links. Bottom paragraph links likewise fixed. These are now `./slug` format as specified, which resolves correctly under Docusaurus from the index page.
+- **intel-lifecycle/index.mdx**: Table and bottom links changed from bare `intel-lifecycle/collect` style (resolves incorrectly from Docusaurus category index URLs) to absolute `/docs/how-briefr-works/intel-lifecycle/...` links. The `./slug` form was considered but resolves to the wrong depth from index page URLs in Docusaurus 3; absolute paths are allowed by the task note and build cleanly.
 
-- **how-its-built/index.mdx**: Chapter links changed from bare `how-its-built/ingestion-scheduler` style to `./ingestion-scheduler` relative links. Bottom cross-read link updated to absolute `/docs/how-briefr-works/intel-lifecycle/`.
+- **how-its-built/index.mdx**: Chapter links changed from bare `how-its-built/ingestion-scheduler` style to absolute `/docs/how-briefr-works/how-its-built/...` links for the same reason. Bottom cross-read link uses absolute `/docs/how-briefr-works/intel-lifecycle/`.
 
 - **prioritize.mdx**: `InTheCode` list trimmed from 9 items to 6. Removed `frontend/src/components/CveDescriptionClamp.jsx` (not cited in prose), `frontend/src/scoring/riskScore.js` (prose explicitly states it does not compute scores — not a primary backend citation), and `frontend/src/utils/pdfReport.js` (not cited by name in prose). Kept the six items most directly tied to prose citations: `backend/routers/cves` (tree), `backend/scoring/risk.py`, `backend/scoring/asset_match.py`, `frontend/src/components/MorningBrief.jsx`, `frontend/src/components/BriefCharts.jsx`, `backend/ai/summary.py`.
 
 ## Verified OK (sample)
 
-- **resilience.mdx**: `CIRCUIT_FAILURE_THRESHOLD` default `3`, `CIRCUIT_COOLDOWN_SECONDS` default `60` — confirmed in `backend/resilient_client.py` lines 51–52. Rate limit defaults (IOC=30, refresh=10, wallboard=60) confirmed in `backend/settings.py` lines 46–49.
+- **resilience.mdx**: `CIRCUIT_FAILURE_THRESHOLD` default `3`, `CIRCUIT_COOLDOWN_SECONDS` default `60` — confirmed in `backend/resilient_client.py` lines 51–52. Rate limit defaults (`RATE_LIMIT_IOC_PER_MINUTE=30`, `RATE_LIMIT_REFRESH_PER_MINUTE=10`, `RATE_LIMIT_WALLBOARD_PER_MINUTE=60`) confirmed in `backend/.env.example` lines 32–35, `backend/routers/admin/config.py` lines 153–161 (`_env_int` fallbacks), and `docs/SYSTEM_DESIGN.md` line 475. Runtime Pydantic defaults (`rate_limit_ioc_per_minute=30`, etc.) also live in `backend/settings.py` lines 46–49 and are what `backend/rate_limit.py` imports.
 
 - **resilience.mdx**: `BRIEFR_RATE_LIMIT_STORE=db` env var — confirmed in `backend/rate_limit_store.py` line 20 and `.env.example` line 12.
 
