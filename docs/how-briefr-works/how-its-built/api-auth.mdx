@@ -134,8 +134,11 @@ the following decision tree:
    - Prefix matches: everything under `/api/auth/` and `/api/wallboard/`.
 
 3. **Admin and refresh paths** — `/api/admin/` and `/api/refresh*` bypass the
-   session gate. They are gated instead by `require_admin` declared as a router
-   dependency, which performs a full session and role check inline.
+   session gate and enforce admin access themselves. The admin router declares
+   `require_admin` as a router-level dependency. The refresh router
+   (`routers/refresh.py`) only applies `rate_limit_refresh` at router scope;
+   each handler calls `await require_admin(request)` inline before spawning
+   ingest work.
 
 4. **Search tokens** — if the `Authorization` header contains a Bearer token
    beginning with `briefr_search_`, the gate verifies it against the database
@@ -218,6 +221,11 @@ Admin routes use the shared `APIRouter` in `routers/admin/router.py`, which
 declares `require_admin` and `rate_limit_admin` as router-level dependencies.
 Every route registered on that router inherits both.
 
+Manual ingest refresh routes (`POST /api/refresh*`) live in
+`routers/refresh.py`. That router shares only `rate_limit_refresh` at router
+scope; each endpoint calls `await require_admin(request)` inline, so the same
+live session and role checks apply without a router-level `Depends(require_admin)`.
+
 ### First-run setup
 
 On a fresh BRIEFR install with no users in the database:
@@ -256,8 +264,9 @@ display does not need a full analyst session:
 - `POST /api/wallboard/session` exchanges the raw token for a signed httpOnly
   `briefr_wb` cookie, avoiding repeated header exposure on polling requests.
 - `DELETE /api/wallboard/session` clears that cookie.
-- When `WALLBOARD_TOKEN` is unset, wallboard routes are open to any caller on
-  the local network. This is flagged as a production posture warning.
+- When `WALLBOARD_TOKEN` is unset, `require_wallboard_token` returns early and
+  `GET /api/wallboard` is readable without a token. A production posture
+  warning is emitted at startup (`WALLBOARD_TOKEN unset`).
 - Wallboard routes have their own rate bucket (default 60 requests per minute
   per IP).
 
