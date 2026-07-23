@@ -210,7 +210,13 @@ header h1 {
 }
 
 .markdown img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.25rem auto;
   border: 1px solid var(--brf-hairline);
+  border-radius: 4px;
+  background: var(--brf-surface);
 }
 
 .markdown table {

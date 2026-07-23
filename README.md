@@ -32,5 +32,5 @@ Production is served at `https://docs.projectjupiter.in` (Cloudflare). `baseUrl`
 
 ## License
 
-Documentation content © Sai Harsha Vardhan, AGPL-3.0-or-later (same as
-BRIEFR itself).
+Documentation content © Sai Harsha Vardhan, **BSL-1.1** (same license family as
+BRIEFR itself — see [FAQ](/docs/faq) on the live site).

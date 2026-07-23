@@ -105,6 +105,7 @@ const config: Config = {
         {to: '/docs/user-guide', label: 'User', position: 'left'},
         {to: '/docs/admin-guide', label: 'Admin', position: 'left'},
         {to: '/docs/developer-guide', label: 'Developer', position: 'left'},
+        {to: '/docs/how-briefr-works/pathways', label: 'Pathways', position: 'left'},
         {to: '/docs/how-briefr-works', label: 'Learn', position: 'left'},
         {to: '/docs/api-reference', label: 'API', position: 'left'},
         {
@@ -123,6 +124,7 @@ const config: Config = {
             {label: 'User Guide', to: '/docs/user-guide'},
             {label: 'Administrator Guide', to: '/docs/admin-guide'},
             {label: 'Developer Guide', to: '/docs/developer-guide'},
+            {label: 'Pathways', to: '/docs/how-briefr-works/pathways'},
             {label: 'How BRIEFR Works', to: '/docs/how-briefr-works'},
             {label: 'Security Guide', to: '/docs/security-guide'},
           ],
@@ -145,7 +147,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Sai Harsha Vardhan · AGPL-3.0-or-later · Self-hosted — your data stays yours.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Sai Harsha Vardhan · BSL-1.1 · Self-hosted — your data stays yours.`,
     },
     prism: {
       theme: prismThemes.oneDark,

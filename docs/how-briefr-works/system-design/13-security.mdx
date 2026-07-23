@@ -89,7 +89,8 @@ When a bucket empties, BRIEFR returns `429` with a `Retry-After` header. The ref
 
 ## Audit surfaces
 
-BRIEFR does not have a dedicated audit log database table, but security-relevant events are visible through several surfaces:
+BRIEFR persists security-relevant events in the **`audit_log`** table (browse
+via Admin → Audit log or `GET /api/admin/audit-log`). Additional surfaces:
 
 - **Session table:** Every session row records creation time, user agent, and revocation time. An operator can enumerate active sessions and revoke any of them via `/api/me/sessions` or the admin panel.
 - **Operator notification center:** Admin-visible notification aggregating job errors, API key failures, and audit events.
