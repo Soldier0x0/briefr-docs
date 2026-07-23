@@ -25,3 +25,9 @@ yarn-error.log*
 # Agent session scratch (never commit)
 .superpowers/
 .artifacts/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
