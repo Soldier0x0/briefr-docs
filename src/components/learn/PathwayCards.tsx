@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react';
-import {Badge} from '@/components/ui/badge';
+import Link from '@docusaurus/Link';
 import {
   Card,
   CardContent,
@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {Badge} from '@/components/ui/badge';
 
 export type PathwayCard = {
   title: string;
@@ -45,12 +46,11 @@ export function PathwayCards({cards}: PathwayCardsProps): ReactNode {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 my-6">
       {cards.map((card) => (
-        <a
+        <Link
           key={card.to}
-          href={card.to}
-          className="no-underline group"
-          style={{color: 'inherit'}}
-        >
+          to={card.to}
+          className="no-underline group rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brf-accent)]"
+          style={{color: 'inherit'}}>
           <Card className="h-full transition-colors group-hover:border-[var(--brf-accent)]">
             <CardHeader>
               <div className="flex items-start justify-between gap-2">
@@ -69,7 +69,7 @@ export function PathwayCards({cards}: PathwayCardsProps): ReactNode {
               </span>
             </CardFooter>
           </Card>
-        </a>
+        </Link>
       ))}
     </div>
   );

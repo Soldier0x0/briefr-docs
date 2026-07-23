@@ -203,53 +203,6 @@
   gap: 20px;
 }
 
-.guideCard {
-  display: flex;
-  flex-direction: column;
-  background: var(--brf-surface);
-  border: 1px solid var(--brf-hairline);
-  padding: 26px 26px 18px;
-  transition: border-color 150ms ease-out, transform 150ms ease-out;
-}
-
-.guideCard:hover {
-  border-color: var(--brf-hairline-2);
-  transform: translateY(-2px);
-}
-
-.cardTag {
-  font-family: var(--brf-font-mono);
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.18em;
-  color: var(--brf-accent);
-}
-
-.cardTitle {
-  font-family: var(--brf-font-display);
-  font-weight: 400;
-  font-size: 1.65rem;
-  letter-spacing: -0.01em;
-  margin: 14px 0 0;
-}
-
-.cardTitle a {
-  color: var(--brf-bright);
-}
-
-.cardTitle a:hover {
-  color: var(--brf-accent-strong);
-  text-decoration: none;
-}
-
-.cardDesc {
-  font-size: 0.94rem;
-  line-height: 1.65;
-  color: var(--brf-text);
-  margin: 12px 0 20px;
-  flex: 1;
-}
-
 .chapters {
   list-style: none;
   margin: 0;
@@ -294,53 +247,19 @@
   gap: 20px;
 }
 
-.refCard {
-  display: flex;
-  gap: 18px;
-  align-items: flex-start;
-  background: var(--brf-surface);
-  border: 1px solid var(--brf-hairline);
-  padding: 22px;
+.refCardLink {
   color: inherit;
-  transition: border-color 150ms ease-out, transform 150ms ease-out;
+  text-decoration: none;
 }
 
-.refCard:hover {
-  border-color: var(--brf-hairline-2);
-  transform: translateY(-2px);
+.refCardLink:hover {
   text-decoration: none;
   color: inherit;
 }
 
-.refTag {
-  font-family: var(--brf-font-mono);
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: var(--brf-accent);
-  border: 1px solid var(--brf-hairline-2);
-  padding: 4px 8px;
-  flex-shrink: 0;
-}
-
-.refBody {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-  min-width: 0; /* let text wrap instead of setting the card's width floor */
-}
-
-.refTitle {
-  font-weight: 600;
-  font-size: 1.02rem;
-  color: var(--brf-bright);
-}
-
-.refDesc {
-  font-size: 0.86rem;
-  line-height: 1.6;
-  color: var(--brf-dim);
+.refCardLink:hover .rowArrow {
+  color: var(--brf-accent-strong);
+  transform: translateX(3px);
 }
 
 /* ---------- Project index rows ---------- */
@@ -391,7 +310,7 @@
   transition: color 150ms ease-out, transform 150ms ease-out;
 }
 
-.refCard:hover .rowArrow,
+.refCardLink:hover .rowArrow,
 .projectRow:hover .rowArrow {
   color: var(--brf-accent-strong);
   transform: translateX(3px);
@@ -401,18 +320,22 @@
   margin-bottom: 12px;
 }
 
-/* ---------- Draft mark ---------- */
+/* ---------- Draft mark (legacy — homepage no longer uses) ---------- */
 
-.draft {
-  font-family: var(--brf-font-mono);
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  color: var(--brf-dim);
-  border: 1px solid var(--brf-hairline-2);
-  padding: 2px 6px;
-  margin-left: 10px;
-  vertical-align: 2px;
+/* ---------- Focus-visible ---------- */
+
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--brf-accent);
+  outline-offset: 2px;
+}
+
+.ctaPrimary:focus-visible,
+.ctaGhost:focus-visible,
+.ctaPlain:focus-visible {
+  outline: 2px solid var(--brf-accent-strong);
+  outline-offset: 3px;
 }
 
 /* ---------- Motion ---------- */

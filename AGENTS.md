@@ -30,7 +30,15 @@ Non-obvious gotchas:
 - `scripts/migrate.cjs` pulls migrated doc pages from the canonical `briefr` repo
   (`BRIEFR_MAIN_DOCS`, default `../../briefr-main/docs`). Optional unless
   refreshing migrated guides. After migrate, bump `BRIEFR_DOCS_PIN` in
-  `src/components/learn/pin.ts` to the validated commit SHA.
+  `src/components/learn/pin.ts` to the validated commit SHA. `PORTAL_PATCHES` in
+  `migrate.cjs` applies portal-only transforms (systemd callouts, study-guide
+  link removal).
+- **Sync workflow:** `.github/workflows/sync.yml` can refresh migrated docs when
+  `BRIEFR_MAIN_READ_TOKEN` is configured in repo secrets. Failures usually mean
+  an expired token or missing briefr checkout path.
+- **Responsive screenshots:** `npm run shoot` (after `npm run build &&
+  npm run serve`) captures homepage, getting-started, pathways, and a doc page
+  at 390/768/1440px widths. Requires `playwright` and `npx playwright install chromium`.
 - **Plans and specs** for multi-step work live under `docs-internal/`. The
   master execution plan is
   `docs-internal/plans/2026-07-23-briefr-docs-completion.md`.

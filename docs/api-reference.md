@@ -1,6 +1,7 @@
 ---
 sidebar_label: API Reference
 sidebar_position: 5
+description: Every BRIEFR REST endpoint — auth, feed, admin, wallboard, webhooks, and error semantics.
 ---
 
 # BRIEFR API Reference

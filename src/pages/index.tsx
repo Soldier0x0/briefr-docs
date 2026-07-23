@@ -2,6 +2,14 @@ import type {ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
+import {Badge} from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import styles from './index.module.css';
 
 const GUIDES = [
@@ -13,7 +21,7 @@ const GUIDES = [
     chapters: [
       {label: 'Pathways', to: '/docs/how-briefr-works/pathways'},
       {label: 'Intel lifecycle', to: '/docs/how-briefr-works/intel-lifecycle/collect'},
-      {label: 'How it\'s built', to: '/docs/how-briefr-works/how-its-built/ingestion-scheduler'},
+      {label: "How it's built", to: '/docs/how-briefr-works/how-its-built/ingestion-scheduler'},
     ],
   },
   {
@@ -46,7 +54,7 @@ const GUIDES = [
     chapters: [
       {label: 'System design', to: '/docs/developer-guide/system-design'},
       {label: 'Contributor onboarding', to: '/docs/developer-guide/onboarding'},
-      {label: 'API Reference', to: '/docs/api-reference'},
+      {label: 'API overview', to: '/docs/api-guide'},
     ],
   },
 ];
@@ -57,42 +65,46 @@ const REFERENCE = [
     title: 'Security Guide',
     to: '/docs/security-guide',
     desc: 'Hardening checklist, the auth model, how secrets are handled, and how to report a vulnerability.',
-    draft: true,
   },
   {
     tag: 'API',
     title: 'API Reference',
     to: '/docs/api-reference',
     desc: 'Every endpoint: request and response shapes, authentication, and error semantics.',
-    draft: false,
   },
   {
     tag: 'INT',
     title: 'Integrations',
     to: '/docs/integrations',
     desc: 'Feeds in, alerts out — the sources BRIEFR pulls from and the systems it pushes to.',
-    draft: true,
   },
 ];
 
 const PROJECT = [
   {
+    title: 'Getting started',
+    to: '/docs/getting-started',
+    desc: 'Linear checklist from first read to running BRIEFR in production.',
+  },
+  {
+    title: 'Product status',
+    to: '/docs/product-status',
+    desc: 'Digest of what is true in production today.',
+  },
+  {
     title: 'Roadmap',
     to: '/docs/roadmap',
     desc: 'Where BRIEFR is going, and what is deliberately out of scope.',
-    draft: false,
   },
   {
     title: 'Release Notes',
     to: '/docs/release-notes',
     desc: 'What changed in each release, in plain language.',
-    draft: true,
   },
   {
     title: 'FAQ',
     to: '/docs/faq',
     desc: 'Short answers on licensing, requirements, data ownership, and scope.',
-    draft: false,
   },
 ];
 
@@ -119,17 +131,12 @@ function SectionHead({kicker}: {kicker: string}) {
   );
 }
 
-function DraftMark() {
-  return <span className={styles.draft}>DRAFT</span>;
-}
-
 export default function Home(): ReactNode {
   return (
     <Layout
       title="Documentation"
       description="BRIEFR documentation — self-hosted CVE intelligence and detection engineering. User, administrator, developer, and security guides plus a full API reference.">
       <main className={styles.main}>
-        {/* ---- Dispatch header: the briefing cover sheet ---- */}
         <header className={styles.hero}>
           <div className={styles.dispatch}>
             <span>BRIEFR — DOCUMENTATION</span>
@@ -152,7 +159,7 @@ export default function Home(): ReactNode {
           </p>
 
           <div className={styles.ctas}>
-            <Link className={styles.ctaPrimary} to="/docs/user-guide">
+            <Link className={styles.ctaPrimary} to="/docs/getting-started">
               Get started
             </Link>
             <Link className={styles.ctaGhost} to="/docs/how-briefr-works">
@@ -171,68 +178,87 @@ export default function Home(): ReactNode {
           <SeveritySpine className={styles.heroSpine} />
         </header>
 
-        {/* ---- Field guides: one per audience ---- */}
         <section className={styles.section}>
           <SectionHead kicker="FIELD GUIDES" />
           <div className={styles.guideGrid}>
             {GUIDES.map((g) => (
-              <article key={g.title} className={styles.guideCard}>
-                <span className={styles.cardTag}>{g.tag}</span>
-                <h2 className={styles.cardTitle}>
-                  <Link to={g.to}>{g.title}</Link>
-                </h2>
-                <p className={styles.cardDesc}>{g.desc}</p>
-                <ol className={styles.chapters}>
-                  {g.chapters.map((c, i) => (
-                    <li key={c.to}>
-                      <Link to={c.to}>
-                        <span className={styles.chapterIndex}>
-                          {String(i + 1).padStart(2, '0')}
-                        </span>
-                        {c.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ol>
-              </article>
+              <Card
+                key={g.title}
+                className="h-full border-[var(--brf-hairline)] bg-[var(--brf-surface)] shadow-none transition-colors hover:border-[var(--brf-hairline-2)]">
+                <CardHeader className="gap-3 pb-0">
+                  <Badge
+                    variant="outline"
+                    className="w-fit border-[var(--brf-hairline-2)] font-mono text-[0.66rem] tracking-[0.18em] text-[var(--brf-accent)] uppercase">
+                    {g.tag}
+                  </Badge>
+                  <CardTitle className="font-[family-name:var(--brf-font-display)] text-[1.65rem] font-normal tracking-tight">
+                    <Link to={g.to} className="text-[var(--brf-bright)] hover:text-[var(--brf-accent-strong)] hover:no-underline">
+                      {g.title}
+                    </Link>
+                  </CardTitle>
+                  <CardDescription className="text-[0.94rem] leading-relaxed text-[var(--brf-text)]">
+                    {g.desc}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <ol className={styles.chapters}>
+                    {g.chapters.map((c, i) => (
+                      <li key={c.to}>
+                        <Link to={c.to}>
+                          <span className={styles.chapterIndex}>
+                            {String(i + 1).padStart(2, '0')}
+                          </span>
+                          {c.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ol>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </section>
 
-        {/* ---- Reference shelf ---- */}
         <section className={styles.section}>
           <SectionHead kicker="REFERENCE" />
           <div className={styles.refGrid}>
             {REFERENCE.map((r) => (
-              <Link key={r.title} to={r.to} className={styles.refCard}>
-                <span className={styles.refTag}>{r.tag}</span>
-                <span className={styles.refBody}>
-                  <span className={styles.refTitle}>
-                    {r.title}
-                    {/* breakable space so the badge can wrap on tiny screens */}
-                    {r.draft && <>{' '}<DraftMark /></>}
-                  </span>
-                  <span className={styles.refDesc}>{r.desc}</span>
-                </span>
-                <span className={styles.rowArrow} aria-hidden="true">
-                  →
-                </span>
+              <Link
+                key={r.title}
+                to={r.to}
+                className={styles.refCardLink}>
+                <Card className="h-full border-[var(--brf-hairline)] bg-[var(--brf-surface)] shadow-none transition-colors hover:border-[var(--brf-accent)]">
+                  <CardHeader className="flex-row items-start gap-4 space-y-0">
+                    <Badge
+                      variant="outline"
+                      className="shrink-0 border-[var(--brf-hairline-2)] font-mono text-[0.66rem] tracking-[0.14em] text-[var(--brf-accent)] uppercase">
+                      {r.tag}
+                    </Badge>
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <CardTitle className="text-base text-[var(--brf-bright)]">
+                        {r.title}
+                      </CardTitle>
+                      <CardDescription className="text-[0.86rem] leading-relaxed">
+                        {r.desc}
+                      </CardDescription>
+                    </div>
+                    <span className={styles.rowArrow} aria-hidden="true">
+                      →
+                    </span>
+                  </CardHeader>
+                </Card>
               </Link>
             ))}
           </div>
         </section>
 
-        {/* ---- Project index ---- */}
         <section className={clsx(styles.section, styles.sectionLast)}>
           <SectionHead kicker="PROJECT" />
           <ul className={styles.projectList}>
             {PROJECT.map((p) => (
               <li key={p.title}>
                 <Link to={p.to} className={styles.projectRow}>
-                  <span className={styles.projectTitle}>
-                    {p.title}
-                    {p.draft && <>{' '}<DraftMark /></>}
-                  </span>
+                  <span className={styles.projectTitle}>{p.title}</span>
                   <span className={styles.projectDesc}>{p.desc}</span>
                   <span className={styles.rowArrow} aria-hidden="true">
                     →
