@@ -83,8 +83,8 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Social preview — dedicated OG art can replace this later (Phase 4).
-    image: 'img/favicon.ico',
+    // Social preview — dedicated OG art can replace favicon later.
+    image: 'img/favicon.svg',
     metadata: [
       {name: 'twitter:card', content: 'summary'},
       {
@@ -108,6 +108,8 @@ const config: Config = {
         {to: '/docs/how-briefr-works/pathways', label: 'Pathways', position: 'left'},
         {to: '/docs/how-briefr-works', label: 'Learn', position: 'left'},
         {to: '/docs/api-reference', label: 'API', position: 'left'},
+        {to: '/docs/security-guide', label: 'Security', position: 'left'},
+        {to: '/docs/faq', label: 'FAQ', position: 'right'},
         {
           href: 'https://github.com/Soldier0x0/briefr',
           label: 'GitHub',
@@ -141,6 +143,8 @@ const config: Config = {
         {
           title: 'Project',
           items: [
+            {label: 'Getting started', to: '/docs/getting-started'},
+            {label: 'Product status', to: '/docs/product-status'},
             {label: 'Roadmap', to: '/docs/roadmap'},
             {label: 'Release Notes', to: '/docs/release-notes'},
             {label: 'GitHub', href: 'https://github.com/Soldier0x0/briefr'},

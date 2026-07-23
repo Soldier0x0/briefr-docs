@@ -1,0 +1,23 @@
+.briefrCard:global(.card) {
+  --ifm-link-color: var(--brf-bright);
+  --ifm-link-hover-color: var(--brf-accent-strong);
+
+  background: var(--brf-surface);
+  border: 1px solid var(--brf-hairline);
+  border-radius: 6px;
+  box-shadow: none;
+  transition:
+    border-color 150ms ease-out,
+    transform 150ms ease-out;
+}
+
+.briefrCard:global(.card):hover {
+  border-color: var(--brf-accent);
+  box-shadow: none;
+  transform: translateY(-2px);
+}
+
+.briefrCard:focus-visible {
+  outline: 2px solid var(--brf-accent);
+  outline-offset: 2px;
+}

@@ -72,13 +72,21 @@ How BRIEFR Works section.
 
 ### AI providers (optional)
 
-| Source | Adds | Key | On failure |
+Scheduler-side **LLM router** (product extraction, PDF executive summary). Chain
+order: **Groq** → **Cerebras** → **OpenRouter** (`:free` tier) → **Gemini**.
+Anthropic was removed from the chain. Model defaults live in
+`ai/model_catalog.py` / `gemini_client.py` in the product repo.
+
+| Provider | Typical use | Key | On failure |
 | --- | --- | --- | --- |
-| Groq (`llama-3.1-8b-instant`) | Executive summaries, product extraction | `GROQ_API_KEY` | Falls back to Anthropic, then template |
-| Anthropic | Executive summaries | `ANTHROPIC_API_KEY` | Falls back to template |
+| Groq | Product extraction, PDF summary (`openai/gpt-oss-20b` / `120b`) | `GROQ_API_KEY` | Failover to next provider in chain |
+| Cerebras | Router failover | `CEREBRAS_API_KEY` | Failover to OpenRouter, then Gemini |
+| OpenRouter | Router failover (`google/gemma-4-31b-it:free` default) | `OPENROUTER_API_KEY` | Failover to Gemini |
+| Gemini | Router failover (`gemini-3.1-flash-lite` default) | `GEMINI_API_KEY` | Template / empty-response degradation |
 
 AI is strictly additive: with no AI key configured, summaries render from
-templates and nothing else degrades.
+templates and nothing else degrades. Optional detection-context LLM
+(`DETECTION_CONTEXT_LLM_ENABLED`, default off) uses the same router.
 
 ## Alerts out
 
