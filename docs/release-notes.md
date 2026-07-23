@@ -9,7 +9,8 @@ description: What changed in each release, in plain language.
 **Policy:** entries begin with the first public tagged release. Until then,
 this single pre-release entry summarizes what the current build does —
 sourced from the repo's living
-[product status](https://github.com/Soldier0x0/briefr/blob/main/docs/PRODUCT_STATUS.md),
+[product status](/docs/product-status) and
+[PRODUCT_STATUS.md on GitHub](https://github.com/Soldier0x0/briefr/blob/main/docs/PRODUCT_STATUS.md),
 which always wins if the two disagree. Each future release gets a short
 entry here: what's new, what changed behavior, and anything an operator
 must do before upgrading (migrations are forward-only).
