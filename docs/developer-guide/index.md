@@ -6,7 +6,7 @@ description: Architecture, conventions, and contributor onboarding for extending
 # Developer Guide
 
 For contributors. BRIEFR is a FastAPI backend with a React 19 + Vite
-frontend, PostgreSQL-native in production, licensed AGPL-3.0-or-later.
+frontend, PostgreSQL-native in production, licensed BUSL-1.1.
 
 | Chapter | What it covers |
 | --- | --- |

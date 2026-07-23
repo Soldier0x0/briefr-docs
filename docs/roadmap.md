@@ -1,5 +1,5 @@
 ---
-sidebar_position: 7
+sidebar_position: 63
 sidebar_label: Roadmap
 description: Where BRIEFR is going, and what is deliberately out of scope.
 ---
@@ -35,7 +35,6 @@ detection-engineering platform. The destination:
 
 ## Following along
 
-Granular planning lives in the repository
-([docs/planning](https://github.com/Soldier0x0/briefr/tree/main/docs/planning))
-and in [GitHub issues](https://github.com/Soldier0x0/briefr/issues). What
-ships is recorded in the [Release Notes](/docs/release-notes).
+What ships is recorded in the [Release Notes](/docs/release-notes).
+Feature requests and bugs:
+[GitHub issues](https://github.com/Soldier0x0/briefr/issues).

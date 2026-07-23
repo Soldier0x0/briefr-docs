@@ -1,6 +1,6 @@
 ---
 sidebar_label: API Reference
-sidebar_position: 5
+sidebar_position: 61
 ---
 
 # BRIEFR API Reference
@@ -507,7 +507,7 @@ Dismiss one notification (removed from list). **Response:** `{ok: true}` or `404
 - `400` — invalid CVE ID format
 - `404` — CVE not found
 
-**Notes:** Includes `has_ai_context`, `atlas_techniques[]`, and `atlas_case_studies[]` when MITRE ATLAS data is present in the DB. Enrichment failures return `200` with empty arrays.
+**Notes:** Includes `has_ai_context`, `atlas_techniques[]`, and `atlas_case_studies[]` when MITRE ATLAS data is present in the DB. Enrichment failures return `200` with empty arrays. **OTX:** `otx_pulses` loads from `feed_cache` (6h) → `otx_cve_pulses` (6h) → live OTX API. When upstream OTX is unavailable (HTTP 4xx/5xx, circuit open), the handler serves any-age stale `otx_cve_pulses` rows and does not overwrite the mirror with an empty list.
 
 **Provenance (additive — added in V1.3):** `affected_products_source` is `""` for official CPE-derived (or unset) product lists and `"llm"` when `affected_products` was filled by the env-gated LLM product extraction job for an NVD-unanalyzed CVE. Official CPE data supersedes LLM output on the next NVD sync and clears the marker. The field also appears on items returned by `GET /api/cves` and `GET /api/cves/export`.
 
@@ -1124,11 +1124,12 @@ Clusters rank by stack overlap, then watchlisted members, then size and lifecycl
   "sigma_rules": [],
   "elastic_rules": [],
   "has_community_rules": false,
-  "generated_sigma": "...",
+  "generated_sigma": null,
   "generated_sigma_meta": {
     "briefr_basis": "cwe",
     "status": "experimental",
-    "compose_basis": "template_fallback"
+    "compose_basis": "community",
+    "suppressed": "community_primary"
   },
   "detection_context": null,
   "siem_queries": { },
@@ -1152,12 +1153,32 @@ Clusters rank by stack overlap, then watchlisted members, then size and lifecycl
       "primary_source": "none"
     }
   },
-  "provenance": { }
+  "provenance": { },
+  "sigmahq_index": {
+    "rules_active": 0,
+    "synced_at": "",
+    "ok": false,
+    "commit_sha": ""
+  }
 }
 ```
 
-Sigma/Elastic rules cached 24h. `generated_sigma` is always returned as a labeled supplement (D5). Additive `evidence` (DC-1) is the shared evidence pack. DC-2 emits Sigma/SIEM/YARA from that pack via `emit_composed_detection` — artifact paths/keywords are injected into Sigma and SIEM queries; `generated_sigma_meta.compose_basis` is `community|nuclei_artifacts|yara|template_fallback`. No LLM.
-
+Sigma community rules: **local SigmaHQ index first** (Postgres `detection_rules` /
+`detection_rule_cves`, CVE-exact only, DRL-1.1 fields `author` / `license` /
+`license_url` / `attribution` / `match_basis=cve_exact`). Index hits cache 1h.
+Live GitHub SigmaHQ search runs only when the index has zero active rows
+(then caches 24h; hits include `match_basis` `cve_exact` \| `cve_search` \|
+`technique_related`). Elastic search remains GitHub-backed. Additive
+`sigmahq_index` reports local index freshness so the UI can be honest when
+there is no CVE-exact hit vs never-synced/empty index. `generated_sigma` is
+**optional**: omitted (`null`) when community rules are present
+(`suppressed: community_primary`) or the BRIEFR template would be generic
+(`suppressed: generic_refused`); otherwise a class-mapped CWE/ATT&CK template
+may be returned. Additive `evidence` (DC-1) is the shared evidence pack. DC-2
+emits Sigma/SIEM/YARA from that pack via `emit_composed_detection` — artifact
+paths/keywords are injected into Sigma and SIEM queries;
+`generated_sigma_meta.compose_basis` is
+`community|sigmahq_index|nuclei_artifacts|yara|template_fallback`. No LLM.
 ---
 
 ## Forge (V1.3 MVP)
@@ -1285,9 +1306,11 @@ is supplied. 400 on malformed CVE ID, 404 when the CVE is not in the database.
 ```
 
 Content is emitted via the detection composer (`include_community=False` — no
-GitHub Sigma/Elastic search on this path). Artifact evidence injects into Sigma
-and SIEM; `compose_basis` is `nuclei_artifacts|yara|template_fallback` (community
-basis appears on Detect, not Forge generate).
+live GitHub Sigma/Elastic search on this path). When the local SigmaHQ index
+has a CVE-exact rule, that YAML is stored as `sigma_yaml` and
+`compose_basis` is `sigmahq_index`; otherwise artifact/template emit is used
+(`nuclei_artifacts|yara|template_fallback`). Artifact evidence injects into
+SIEM when present.
 
 Pack priority is derived from the CVE: KEV → `critical`; CVSS ≥ 9.0 or
 EPSS ≥ 0.5 → `high`; CVSS ≥ 7.0 or EPSS ≥ 0.1 → `medium`; else `low`.
@@ -1706,6 +1729,9 @@ typed table/timeline/card layout instead of a plain list.
   `cve_id`, `is_kev`, and the CVE's real `severity` (never synthesized). These rows
   can't be closed by hand; they disappear when the underlying query stops matching.
   `?stale=true` never includes them (only curated rows carry a `review_date`).
+  Risks responses also include additive `live_self_stack` stats:
+  `candidate_rows` (query candidates before score filter), `scored_matches` (rows scoring
+  55/100), `admitted` (rows returned after cap), and `cap` (`50`).
 
 **TM-5 live enrichment:**
 
@@ -1720,7 +1746,9 @@ typed table/timeline/card layout instead of a plain list.
   `redact.mask_audit_log_target` — the same table and masking rule as the Admin Audit
   Log view (`routers/admin/diagnostics.py::get_audit_log`), not a duplicate.
 
-**Response:** `{ "section": "...", "type": "...", "available_types": [...], "count": N, "items": [...] }`
+**Response:** `{ "section": "...", "type": "...", "available_types": [...], "count": N, "items": [...], "live_self_stack": { "candidate_rows": 0, "scored_matches": 0, "admitted": 0, "cap": 50 } }`
+
+`live_self_stack` is present on `section_id=risks` only.
 
 404 when `section_id` isn't a manifest section.
 
@@ -2125,6 +2153,19 @@ Per-provider health snapshot (`circuit_open`, `last_success`, `last_failure`, `l
 ### GET /api/admin/ai/operations/activity
 Params: `limit`, `offset`, optional `task_class`, `provider`. Paginated redacted rows from `ai_operations` — `{rows, total, limit, offset}`. Each row includes `input_tokens`/`output_tokens`/`total_tokens` (null for providers that don't report usage). No prompt text.
 
+### GET /api/admin/ai/operations/{operation_id}/payload
+Returns the stored failure payload for a recorded LLM attempt (Program E Task 2): `{operation_id, messages, response_excerpt, task_class, provider, model, created_at}`. `messages` is the redacted parsed message array from `ai_operation_payloads.messages_json`. `404` when no payload row exists for the operation id.
+
+### POST /api/admin/ai/operations/{operation_id}/retry
+Manual replay of a stored failure payload through the normal LLM router/recording path. Optional JSON body: `{force?: boolean}` (`false` default).
+
+Response: `{replay_operation_id, success, provider, model, error_class}` from the newly recorded replay row in `ai_operations`.
+
+Behavior:
+- Replays use `context_type="replay"` and `context_id=<original operation_id>` for traceability in Activity.
+- If the original payload provider circuit is open and `force` is not true, returns `409` with operator guidance (`force=true` bypass).
+- Records audit action `ai.operations.retry` (target = original `operation_id`) with replay metadata.
+
 ### POST /api/admin/config/webhook-test
 Body `{destination_id}` or legacy `{channel}` (`discord` / `telegram` / `generic`). Sends a test message via the SSRF-safe webhook client. **Works on disabled destinations** (connectivity check before enable). Audit: `webhook.test.{destination_id}`.
 
@@ -2178,6 +2219,14 @@ Clears stored EPSS CSV file identity (`sync_state.epss_csv_file_identity`) so th
 next scheduled or triggered EPSS sync re-parses and applies scores even if the
 remote FIRST CSV.GZ bytes are unchanged. Admin session required.
 Returns `{ok, cleared, message}`.
+
+### `POST /api/admin/feeds/sigmahq/force-resync`
+
+Clears SigmaHQ archive identity (`sync_state.sigmahq_archive_identity`) **and**
+spawns `run_sigmahq_index_sync(force=True)` once. Unlike EPSS force-resync
+(clear-only), operators do not need a second Scheduler click. Returns 400 when
+`SIGMAHQ_INDEX_SYNC_ENABLED=0`. Admin session required.
+Returns `{ok, cleared, started, message}`.
 
 **All other admin endpoints** (`GET/DELETE /api/admin/watchlist*`, `GET/DELETE /api/admin/ioc-cache*`, `GET/DELETE /api/admin/hunt-packs*`, `GET/POST /api/admin/config`, `POST /api/admin/config/webhook-test`, `GET/POST /api/admin/scheduler/*`, `GET/POST /api/admin/feeds/*`, `POST /api/admin/backups/*`, `GET /api/admin/backups`) remain as documented in V1.3; scheduler jobs now include `status` field (ACTIVE/PAUSED/LOCKED/DISABLED), `last_error_message`, and `run_history` (array of last 5 runs).
 

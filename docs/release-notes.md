@@ -1,5 +1,5 @@
 ---
-sidebar_position: 8
+sidebar_position: 64
 sidebar_label: Release Notes
 description: What changed in each release, in plain language.
 ---
@@ -39,7 +39,7 @@ What BRIEFR does today, in one pass:
   health, a token-guarded wallboard kiosk, and a production posture
   self-check.
 - **PostgreSQL-native** storage; SQLite remains only as the dev/test
-  fallback. License: AGPL-3.0-or-later.
+  fallback. License: BUSL-1.1 (Business Source License).
 
 Known gaps at this snapshot: no public Docker platform compose yet
 (Postgres compose exists), dark theme only.

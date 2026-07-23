@@ -104,8 +104,9 @@ const config: Config = {
       items: [
         {to: '/docs/user-guide', label: 'User', position: 'left'},
         {to: '/docs/admin-guide', label: 'Admin', position: 'left'},
-        {to: '/docs/developer-guide', label: 'Developer', position: 'left'},
+        {to: '/docs/pathways', label: 'Pathways', position: 'left'},
         {to: '/docs/how-briefr-works', label: 'Learn', position: 'left'},
+        {to: '/docs/developer-guide', label: 'Developer', position: 'left'},
         {to: '/docs/api-reference', label: 'API', position: 'left'},
         {
           href: 'https://github.com/Soldier0x0/briefr',
@@ -122,8 +123,9 @@ const config: Config = {
           items: [
             {label: 'User Guide', to: '/docs/user-guide'},
             {label: 'Administrator Guide', to: '/docs/admin-guide'},
-            {label: 'Developer Guide', to: '/docs/developer-guide'},
+            {label: 'Pathways', to: '/docs/pathways'},
             {label: 'How BRIEFR Works', to: '/docs/how-briefr-works'},
+            {label: 'Developer Guide', to: '/docs/developer-guide'},
             {label: 'Security Guide', to: '/docs/security-guide'},
           ],
         },
@@ -145,7 +147,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Sai Harsha Vardhan · AGPL-3.0-or-later · Self-hosted — your data stays yours.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Sai Harsha Vardhan · BUSL-1.1 · Self-hosted — your data stays yours.`,
     },
     prism: {
       theme: prismThemes.oneDark,

@@ -7,13 +7,24 @@ import styles from './index.module.css';
 const GUIDES = [
   {
     tag: 'FOR LEARNERS',
+    title: 'Pathways',
+    to: '/docs/pathways',
+    desc: 'Choose your angle: security analyst, architect/builder, or system-design learner. Each path links into the chapters that match your role.',
+    chapters: [
+      {label: 'Security analyst', to: '/docs/how-briefr-works/intel-lifecycle/collect'},
+      {label: 'Architect / builder', to: '/docs/how-briefr-works/how-its-built/ingestion-scheduler'},
+      {label: 'System design', to: '/docs/how-briefr-works/system-design/'},
+    ],
+  },
+  {
+    tag: 'FOR LEARNERS',
     title: 'How BRIEFR Works',
     to: '/docs/how-briefr-works',
     desc: 'Understand what BRIEFR actually does: the intel lifecycle from feed to brief, the system design, and how each subsystem is built.',
     chapters: [
-      {label: 'Pathways', to: '/docs/how-briefr-works/pathways'},
       {label: 'Intel lifecycle', to: '/docs/how-briefr-works/intel-lifecycle/collect'},
       {label: 'How it\'s built', to: '/docs/how-briefr-works/how-its-built/ingestion-scheduler'},
+      {label: 'System design', to: '/docs/how-briefr-works/system-design/'},
     ],
   },
   {
@@ -134,7 +145,7 @@ export default function Home(): ReactNode {
           <div className={styles.dispatch}>
             <span>BRIEFR — DOCUMENTATION</span>
             <span>CLASS: PUBLIC</span>
-            <span>LICENSE: AGPL-3.0</span>
+            <span>LICENSE: BUSL-1.1</span>
             <span>REV 2026.07</span>
           </div>
 
@@ -154,6 +165,9 @@ export default function Home(): ReactNode {
           <div className={styles.ctas}>
             <Link className={styles.ctaPrimary} to="/docs/user-guide">
               Get started
+            </Link>
+            <Link className={styles.ctaGhost} to="/docs/pathways">
+              Pick a pathway
             </Link>
             <Link className={styles.ctaGhost} to="/docs/how-briefr-works">
               How BRIEFR Works

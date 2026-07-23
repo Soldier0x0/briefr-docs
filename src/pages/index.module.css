@@ -49,7 +49,7 @@
 .masthead {
   font-family: var(--brf-font-display);
   font-weight: 400;
-  font-size: clamp(3rem, 8vw, 5.6rem);
+  font-size: clamp(2.4rem, 6.5vw, 4.4rem);
   line-height: 1.04;
   letter-spacing: -0.015em;
   color: var(--brf-bright);
