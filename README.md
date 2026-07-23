@@ -11,10 +11,11 @@ whole workflow. Folder = sidebar section; `sidebar_position` in the front
 matter controls ordering.
 
 - Portal-native pages (Security Guide, Integrations, FAQ, Release Notes,
-  guide landing pages) live only here — edit them directly.
-- Migrated pages (User/Admin/Developer chapters, API Reference, Roadmap) are
-  pulled from `../briefr-main/docs`, which stays canonical. Re-sync with:
-  `node scripts/migrate.cjs`
+  Roadmap, Product status, Getting started, Learn MDX, guide landings) live
+  only here — edit them directly.
+- Migrated pages (User/Admin/Developer chapters, API Reference) are pulled
+  from the canonical `briefr` repo (`BRIEFR_MAIN_DOCS` or
+  `../../briefr-main/docs`). Re-sync with: `node scripts/migrate.cjs`
 - Learning section (`docs/how-briefr-works/`) is portal-native. Optional
   mirrors of `briefr` `docs/study-guide/` and `docs/learn/` land under
   `docs/how-briefr-works/synced/` via `migrate.cjs` (excluded from the
@@ -26,9 +27,14 @@ matter controls ordering.
 npm install
 npm start        # http://localhost:3000/ (baseUrl is /)
 npm run build    # production build (must pass before pushing)
+npm run shoot    # optional responsive screenshots (needs build + serve running)
 ```
 
-Production is served at `https://docs.projectjupiter.in` (Cloudflare). `baseUrl` is `/`.
+Production is served at `https://docs.projectjupiter.in` via **Cloudflare
+Workers** (`npm run deploy`, `wrangler.jsonc`). `baseUrl` is `/`.
+
+CI (`.github/workflows/deploy.yml`) runs `npm run build` on every push.
+GitHub Pages deploy is conditional on a public repo; production uses Wrangler.
 
 ## License
 

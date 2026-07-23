@@ -104,6 +104,18 @@ const PORTAL_PATCHES = {
       '## Purpose\n\nDefines how BRIEFR runs in production',
       `## Purpose\n\n> **Day-to-day:** BRIEFR runs under **systemd** (\`briefr-backend.service\`). Routine operation does not require running any update script — systemd keeps the backend and nginx serving the built frontend.\n>\n> **Upgrades:** Run \`briefr-update.sh\` only when installing a new release (pull, Alembic, frontend build, health gate). This is not a development hot-reload workflow.\n\nDefines how BRIEFR runs in production`,
     ),
+  'admin-guide/self-host.md': (body) => {
+    if (body.includes('briefr-backend.service')) {
+      return body;
+    }
+    return body.replace(
+      '## Production\n\n```bash',
+      `## Production\n\nFirst-time install on your server:\n\n\`\`\`bash`,
+    ).replace(
+      'bash deploy/briefr-update.sh\n```\n\n| Checklist | Setting |',
+      `bash deploy/briefr-update.sh\n\`\`\`\n\nAfter install, **systemd** runs BRIEFR continuously (\`briefr-backend.service\`).\nYou only run \`briefr-update.sh\` again when **upgrading** to a new release — not\nfor day-to-day use.\n\n| Checklist | Setting |`,
+    );
+  },
 };
 
 for (const [rel, patch] of Object.entries(PORTAL_PATCHES)) {

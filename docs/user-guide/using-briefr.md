@@ -7,8 +7,6 @@ sidebar_position: 1
 
 For analysts, security enthusiasts, and anyone using the UI — not deploying it.
 
-Screenshots are not committed yet. Use [`IMAGE_BRIEFS.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/IMAGE_BRIEFS.md) for capture prompts.
-
 ---
 
 ## Main shell
@@ -22,6 +20,26 @@ Screenshots are not committed yet. Use [`IMAGE_BRIEFS.md`](https://github.com/So
 | `forge` | **FORGE** | ATT&CK navigator, hunt packs, scenarios, campaigns, backlog, library |
 
 Tab changes push browser history; hygiene cleanup replaces it. Back restores the last tab or Forge context. Opening a CVE writes `?cve=CVE-...`, so Back closes the drawer before leaving the page.
+
+![BRIEF tab morning queue and ranked cards](assets/screenshots/ui-brief-tab.png)
+
+---
+
+## Command palette
+
+Press **⌘K** (macOS) or **Ctrl+K** (Linux/Windows) to open the command palette.
+Jump to tabs, CVEs, and common actions without leaving the keyboard. Shipped as
+part of Track E (see [Product status](/docs/product-status)).
+
+---
+
+## Notifications
+
+The header **notification bell** surfaces watchlist alerts, IOC hits, and
+operator backlog items (admin StatusBar bell covers job errors, unhealthy API
+keys, and webhook delivery failures). Opening the tray clears the badge; dismiss
+removes an item after a short undo window. Optional chime on new unread items —
+mute in Admin → Display.
 
 ---
 
@@ -54,7 +72,19 @@ OTX pulse names are normalized with `formatIntelLabel`, so cluster labels stay r
 
 ## IOC lookup
 
+![IOC lookup enrichment panel](assets/screenshots/ui-ioc-lookup.png)
+
 Sources depend on keys: VirusTotal, AbuseIPDB, GreyNoise, OTX, abuse.ch. Results cache about 6 hours; GreyNoise is opt-in per lookup.
+
+---
+
+## Incidents & news
+
+![Incidents and news feed with CVE cross-links](assets/screenshots/ui-incidents-news.png)
+
+The **INCIDENTS & NEWS** tab (`atlas`) aggregates RSS security news and MITRE
+ATLAS case studies. News cards parse CVE IDs from titles and bodies — chips open
+the CVE drawer; the drawer RELATED tab shows matching articles.
 
 ---
 
