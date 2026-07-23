@@ -14,9 +14,17 @@ and helps you ship detections.
 
 ### What's the license?
 
-AGPL-3.0-or-later. You can run it, modify it, and redistribute it; if you
-offer a modified BRIEFR as a network service, you must publish your
-modifications under the same license.
+**Business Source License 1.1 (BSL-1.1).** You may read, copy, modify, and
+self-host BRIEFR **free of charge for personal, non-commercial use**. Use by
+or on behalf of a **for-profit organization** requires a **one-time commercial
+license** from the Licensor — contact
+[harsha@projectjupiter.in](mailto:harsha@projectjupiter.in).
+
+Each published version **automatically converts to Apache License 2.0** four
+years after it is first published. BSL is source-available but **not**
+OSI-approved open source. Full terms:
+[`LICENSE`](https://github.com/Soldier0x0/briefr/blob/main/LICENSE) in the
+product repo.
 
 ### What do I need to run it?
 

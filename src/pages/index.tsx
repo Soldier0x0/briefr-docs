@@ -8,7 +8,7 @@ const GUIDES = [
   {
     tag: 'FOR LEARNERS',
     title: 'How BRIEFR Works',
-    to: '/docs/how-briefr-works',
+    to: '/docs/how-briefr-works/pathways',
     desc: 'Understand what BRIEFR actually does: the intel lifecycle from feed to brief, the system design, and how each subsystem is built.',
     chapters: [
       {label: 'Pathways', to: '/docs/how-briefr-works/pathways'},
@@ -134,7 +134,7 @@ export default function Home(): ReactNode {
           <div className={styles.dispatch}>
             <span>BRIEFR — DOCUMENTATION</span>
             <span>CLASS: PUBLIC</span>
-            <span>LICENSE: AGPL-3.0</span>
+            <span>LICENSE: BSL-1.1</span>
             <span>REV 2026.07</span>
           </div>
 

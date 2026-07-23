@@ -47,10 +47,16 @@ Open http://localhost:5173. First visit → complete **setup** to create the adm
 
 ## Production
 
+First-time install on your server:
+
 ```bash
 bash deploy/setup.sh
 bash deploy/briefr-update.sh
 ```
+
+After install, **systemd** runs BRIEFR continuously (`briefr-backend.service`).
+You only run `briefr-update.sh` again when **upgrading** to a new release — not
+for day-to-day use.
 
 | Checklist | Setting |
 |-----------|---------|

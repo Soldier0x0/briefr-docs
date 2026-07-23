@@ -13,6 +13,10 @@ sidebar_position: 2
 
 ## Purpose
 
+> **Day-to-day:** BRIEFR runs under **systemd** (`briefr-backend.service`). Routine operation does not require running any update script — systemd keeps the backend and nginx serving the built frontend.
+>
+> **Upgrades:** Run `briefr-update.sh` only when installing a new release (pull, Alembic, frontend build, health gate). This is not a development hot-reload workflow.
+
 Defines how BRIEFR runs in production, how **state and secrets** are managed, and how **new releases stay compatible** with existing systemd + nginx + cloudflared deploys.
 
 ---
