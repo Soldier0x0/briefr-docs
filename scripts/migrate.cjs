@@ -1,13 +1,13 @@
-// Pulls canonical docs from the briefr-main repo into the portal, prepending
+// Pulls canonical docs from the briefr repo into the portal, prepending
 // Docusaurus front matter. Re-runnable: overwrites the migrated copies, so
-// briefr-main/docs stays the single source of truth for these files.
-// The per-file BSL copyright paragraph is dropped — the license notice
+// briefr/docs stays the single source of truth for these files.
+// The per-file copyright paragraph is dropped — the license notice
 // lives once in the site footer instead of atop every page.
 const fs = require('fs');
 const path = require('path');
 
 const SRC =
-  process.env.BRIEFR_MAIN_DOCS || path.resolve(__dirname, '../../briefr-main/docs');
+  process.env.BRIEFR_MAIN_DOCS || path.resolve(__dirname, '../../docs');
 const DST = path.resolve(__dirname, '../docs');
 
 const FILES = [
@@ -19,7 +19,7 @@ const FILES = [
   ['POSTGRES.md', 'admin-guide/postgres.md', 'PostgreSQL', 3],
   ['SYSTEM_DESIGN.md', 'developer-guide/system-design.md', 'System design', 1],
   ['ONBOARDING.md', 'developer-guide/onboarding.md', 'Contributor onboarding', 2],
-  ['API_REFERENCE.md', 'api-reference.md', 'API Reference', 5],
+  ['API_REFERENCE.md', 'api-reference.md', 'API Reference', 61],
   // planning/ROADMAP.md is deliberately NOT migrated: it's an internal
   // planning index (version bookkeeping, spec links, phasing labels). The
   // portal ships a curated public docs/roadmap.md instead.
@@ -32,7 +32,7 @@ const ASSET_DEST_DIRS = ['user-guide/assets', 'admin-guide/assets'];
 const COPYRIGHT_RE =
   /^Copyright © \d{4} Sai Harsha Vardhan\..*(?:\r?\n(?!\r?\n).*)*\r?\n?/m;
 
-// Cross-doc links in the sources use briefr-main/docs filenames. Links to
+// Cross-doc links in the sources use briefr/docs filenames. Links to
 // docs that were migrated become relative links into the new tree; links to
 // everything else in the repo fall back to GitHub.
 const MIGRATED = new Map(FILES.map(([src, dst]) => [src, dst]));
@@ -60,12 +60,72 @@ function rewriteLinks(body, srcDocPath, dstDocPath) {
   });
 }
 
+/** Strip maintainer-only references before publishing on the docs portal. */
+function scrubForPublicPortal(body, dst) {
+  let out = body;
+
+  out = out.replace(
+    /Screenshots are not committed yet\. Use \[`IMAGE_BRIEFS\.md`\]\([^)]+\) for capture prompts\.\s*/g,
+    '',
+  );
+
+  out = out.replace(
+    /\(see `AGENTS\.md`\)/g,
+    '(see [Contributor onboarding](/docs/developer-guide/onboarding))',
+  );
+
+  out = out.replace(
+    /\*\*Source of truth:\*\* `\/workspace` codebase/g,
+    '**Source of truth:** the BRIEFR repository on GitHub',
+  );
+
+  out = out.replace(
+    /— CLAUDE\.md danger zone 6, never on the request path\)/g,
+    '— heavy work never runs on the request path)',
+  );
+
+  out = out.replace(
+    /\| 4 \| \*\*Local verify green\*\* — `\.\/scripts\/verify-local\.sh` \(and `--full` when Postgres\/tools available\)\. \|/,
+    '| 4 | **Release CI green** on the tagged commit (GitHub Actions or your release pipeline). |',
+  );
+
+  out = out.replace(
+    /Near-future engineering and product intent lives in \[`docs\/planning\/SPRINT_2026-07\.md`\]\([^)]+\), \[`docs\/planning\/BACKLOG\.md`\]\([^)]+\), and active specs under \[`docs\/planning\/specs\/`\]\([^)]+\)\. Historical beta docs remain in `docs\/archive\/` and are not current system truth\./,
+    'Product direction and shipped scope are summarized in the [public roadmap](/docs/roadmap) and [release notes](/docs/release-notes).',
+  );
+
+  out = out.replace(
+    /See \[`planning\/BACKLOG\.md`\]\([^)]+\) §6 for optional layout tails\./,
+    'Optional layout tails are documented in the product repository when needed.',
+  );
+
+  if (dst === 'admin-guide/postgres.md') {
+    out = out.replace(
+      '`./scripts/verify-local.sh --full` auto-starts `briefr-pg-test` when `DATABASE_URL` is unset and compose on `:5432` is not running.',
+      'Contributors can start a disposable Postgres test container with `./scripts/postgres-dev.sh start` (see [Contributor onboarding](/docs/developer-guide/onboarding)).',
+    );
+  }
+
+  out = out.replace(
+    /\(cloud\/bare VM; see `AGENTS\.md`\)/g,
+    '(cloud/bare VM; see [Contributor onboarding](/docs/developer-guide/onboarding))',
+  );
+
+  out = out.replace(
+    /Fixed in #731: shared `refreshAccessToken\(\)` \+ AuthContext uses `fetchMe\(\)` only\. Retry \/ re-login recovers; multi-tab concurrent refresh can still hit reuse detection by design/,
+    'Retry or re-login recovers; multi-tab concurrent refresh can still hit session reuse detection by design.',
+  );
+
+  return out;
+}
+
 for (const [src, dst, label, position] of FILES) {
   const srcPath = path.join(SRC, src);
   const dstPath = path.join(DST, dst);
   let body = fs.readFileSync(srcPath, 'utf8');
   body = body.replace(COPYRIGHT_RE, '');
   body = rewriteLinks(body, src, dst);
+  body = scrubForPublicPortal(body, dst);
   const fm = [
     '---',
     `sidebar_label: ${label}`,
@@ -97,7 +157,7 @@ const PORTAL_PATCHES = {
       '| [System design](/docs/developer-guide/system-design)',
     ).replace(
       '## Deeper reference\n\n| Doc | When |\n|-----|------|\n',
-      `## Deeper reference\n\n| Doc | When |\n|-----|------|\n| [Pathways](/docs/how-briefr-works/pathways) | Pick Analyst, Architect, or System Design learning track |\n| [How BRIEFR Works](/docs/how-briefr-works) | Full learning section — intel lifecycle + how it's built |\n`,
+      `## Deeper reference\n\n| Doc | When |\n|-----|------|\n| [Pathways](/docs/pathways) | Pick Analyst, Architect, or System Design learning track |\n| [How BRIEFR Works](/docs/how-briefr-works) | Full learning section — intel lifecycle + how it's built |\n`,
     ),
   'admin-guide/operations.md': (body) =>
     body.replace(
@@ -126,7 +186,7 @@ for (const dir of ASSET_DEST_DIRS) {
   console.log(`assets/* -> ${dir}/ (${assets.length} files)`);
 }
 
-// Screenshots use permanent filenames (see briefr-main docs/assets/screenshots/
+// Screenshots use permanent filenames (see briefr docs/assets/screenshots/
 // README): replacing one = dropping a same-named file there and re-running this.
 const shotSrc = path.join(SRC, 'assets', 'screenshots');
 if (fs.existsSync(shotSrc)) {
@@ -140,30 +200,6 @@ if (fs.existsSync(shotSrc)) {
   console.log(`assets/screenshots/* -> {guides}/assets/screenshots/ (${shots.length} files)`);
 }
 
-function mirrorTree(relDir) {
-  const from = path.join(SRC, relDir);
-  const to = path.join(DST, 'how-briefr-works', 'synced', relDir);
-  if (!fs.existsSync(from)) {
-    console.log(`skip ${relDir}/ (not present under BRIEFR_MAIN_DOCS)`);
-    return;
-  }
-  fs.rmSync(to, {recursive: true, force: true});
-  fs.mkdirSync(to, {recursive: true});
-  const walk = (dir, outDir) => {
-    for (const entry of fs.readdirSync(dir, {withFileTypes: true})) {
-      const srcPath = path.join(dir, entry.name);
-      const dstPath = path.join(outDir, entry.name);
-      if (entry.isDirectory()) {
-        fs.mkdirSync(dstPath, {recursive: true});
-        walk(srcPath, dstPath);
-      } else if (/\.(md|mdx|svg|png|webp|json)$/i.test(entry.name)) {
-        fs.copyFileSync(srcPath, dstPath);
-      }
-    }
-  };
-  walk(from, to);
-  console.log(`${relDir}/* -> how-briefr-works/synced/${relDir}/`);
-}
-
-mirrorTree('study-guide');
-mirrorTree('learn');
+// Study-guide / learn mirrors are maintainer-only; excluded from Docusaurus routes.
+// Skip copying to keep the public repo lean.
+console.log('skip study-guide/ + learn/ mirrors (portal-native Learn section)');

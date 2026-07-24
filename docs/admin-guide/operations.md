@@ -9,6 +9,8 @@ sidebar_position: 2
 **Last updated:** 2026-07-21
 **Status:** Current production ops contract — Postgres-first systemd/nginx deploy with opt-in durable queue, embeddings, and catch-up controls.
 
+**First-time install:** [`SELF_HOST.md`](./self-host.md) §3 (production checklist, `.env`, verify). **This document** covers ongoing operations after BRIEFR is installed.
+
 ---
 
 ## Purpose
@@ -199,6 +201,32 @@ When Procrastinate is disabled or unavailable, those paths fall back to existing
 
 Embeddings are scheduler-side. With `EMBEDDINGS_ENABLED=1`, the backfill job runs on `EMBEDDINGS_SYNC_INTERVAL_HOURS`; `EMBEDDINGS_AUTO_ON_INGEST=1` (default when embeddings are enabled) also warms vectors for newly ingested/updated CVEs after NVD ingest, capped by `EMBEDDINGS_INGEST_MAX_PER_RUN`. Production Postgres must use `pgvector/pgvector:pg16` before enabling embeddings.
 
+### SigmaHQ detection index
+
+Job id: `sigmahq_index_sync` (default enabled, interval **168h** / weekly).
+
+**First deploy / empty index:** Alembic `035` only creates empty tables. Rules are
+**not** loaded until the sync job runs. After a successful update, run **one** of:
+
+- Admin → **Feed health** → SigmaHQ card → **Sync** (respects watermark), or
+- Admin → **Scheduler** → **Sync SigmaHQ index** / Run now, or
+- Wait for the weekly scheduled tick (up to ~168h if you do nothing).
+
+Expect Feed health to move from **EMPTY** → **INDEXED** with `rules_active` > 0.
+Optional `GITHUB_TOKEN` raises GitHub rate limits for tip-commit resolve + archive
+download; unauthenticated usually works for weekly cadence. Force re-sync clears
+the watermark **and** spawns a forced apply (unlike EPSS clear-only).
+
+1. Resolves tip commit on `SigmaHQ/sigma`, downloads one codeload tarball, upserts YAML into Postgres (`detection_rules*`), soft-retires missing paths.
+2. Watermark key `sigmahq_archive_identity` stores `{commit_sha, sha256, synced_at}` — skip when unchanged. Watermark advances only after full successful apply.
+3. **Scheduler → Sync SigmaHQ index** respects the watermark.
+4. **Feed Health → Force re-sync** clears the watermark **and** spawns `run_sigmahq_index_sync(force=True)` (unlike EPSS force-resync, which is clear-only). Documented divergence: operators should not need a second click.
+5. License: rules are **DRL-1.1** — retain author, license link, and unmodified YAML. Do not claim SigmaHQ content as BRIEFR IP.
+6. Detect/Forge read the local index (CVE-exact). GitHub Sigma search is fallback only when the index is empty.
+7. Postgres-only tables (Alembic `035_detection_rules_sigmahq`). Column `"references"` is quoted (Postgres reserved word). SQLite test suite skips PG-gated index tests. Raw SQL migrations are scanned for unquoted reserved column names in `test_alembic_revisions.py`.
+
+Disable with `SIGMAHQ_INDEX_SYNC_ENABLED=0`. Config + Scheduler disabled gate returns 400 with enable guidance on Run now / Force.
+
 ---
 
 ## Container readiness (design now, ship V2.0)
@@ -225,10 +253,39 @@ Same env vars as systemd. See [`archive/beta/Beta V2.0.md`](https://github.com/S
 
 ---
 
+---
+
+## Production zone deploy (no git pull)
+
+Use when the app host **cannot** or **should not** pull from GitHub (air-gapped,
+DMZ, change-controlled artifact drops). `briefr-update.sh` remains for
+internet-connected hosts that pull `main` directly.
+
+| Script | When | What it does |
+|--------|------|----------------|
+| [`briefr-install.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-install.sh) | First install | User/dirs, venv, `.env` template, ufw (optional), then `briefr-deploy.sh` |
+| [`briefr-deploy.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-deploy.sh) | New release on disk | pip, Alembic, frontend build, systemd/nginx, health gate, optional smoke — **no git** |
+| [`briefr-service.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-service.sh) | Day-to-day ops | `start` \| `stop` \| `restart` \| `status` \| `health` — systemd only |
+
+**Typical flow:**
+
+1. Stage release at `/opt/briefr` (rsync, tarball, CI artifact).
+2. First time: `bash /opt/briefr/deploy/briefr-install.sh` → edit `backend/.env`.
+3. Later versions: replace tree → `bash /opt/briefr/deploy/briefr-deploy.sh`.
+4. After `.env` edits: `bash /opt/briefr/deploy/briefr-service.sh restart`.
+
+**Optional env (deploy):** `BRIEFR_SKIP_BACKUP=1`, `BRIEFR_SKIP_BUILD=1` (pre-built
+`frontend/dist`), `BRIEFR_SKIP_MIGRATE=1`, `BRIEFR_SKIP_SMOKE=1`,
+`BRIEFR_BUILD_COMMIT` / `BRIEFR_BUILD_AT` when the tree is not a git checkout.
+
+**Install:** `BRIEFR_SKIP_UFW=1` when host firewall is managed elsewhere.
+
+---
+
 ## Production update path (`briefr-update.sh`)
 
-The update script is **atomic-or-recoverable**: a failed deploy should not leave the
-box wedged on a broken release without a defined recovery path.
+**Legacy / internet-connected:** git pull from `main`, optional automatic rollback on
+health-gate failure. Production zones should prefer **`briefr-deploy.sh`** above.
 
 **Sequence (Postgres production):**
 
@@ -263,6 +320,11 @@ USER/PASSWORD variables. **Strict by default (J3):** a failing smoke check exits
 non-zero. Opt out with `BRIEFR_SKIP_SMOKE=1` (skip entirely) or
 `BRIEFR_STRICT_SMOKE=0` (warn only).
 
+**OTX upstream outages:** when AlienVault OTX returns HTTP 4xx/5xx during smoke or
+normal CVE detail loads, BRIEFR serves stale `otx_cve_pulses` when present and does
+not wipe the mirror. Smoke may still fail if no cached pulses exist for the fixture
+CVE — retry later or use `BRIEFR_STRICT_SMOKE=0`; the deploy itself is not rolled back.
+
 ---
 
 ## Pre-release checklist (J4)
@@ -276,7 +338,7 @@ independent phase.
 | 1 | **Migrations forward-only** — new Alembic revision(s) apply cleanly on Postgres (`alembic upgrade head`); no edits to already-applied migration files. |
 | 2 | **API additive** — new response fields only (prefer `meta`); no breaking shape changes without a documented version bump. |
 | 3 | **Deploy additive** — systemd unit, nginx site, and cloudflared changes are additive; existing paths (`/opt/briefr`, `DATABASE_URL`, `BACKUP_DIR`) unchanged. |
-| 4 | **Local verify green** — `./scripts/verify-local.sh` (and `--full` when Postgres/tools available). |
+| 4 | **Release CI green** on the tagged commit (GitHub Actions or your release pipeline). |
 | 5 | **Backup path known** — APScheduler `scheduled_backup` running (`BACKUP_INTERVAL_HOURS`); `briefr-pg-backup.timer` **disabled**; `BACKUP_AGE_KEY_FILE` present and backed up off-host. |
 | 6 | **Update path documented** — J1 rollback + health gate behavior understood; operator knows `BRIEFR_SKIP_ROLLBACK` / smoke opt-outs. |
 | 7 | **Post-deploy smoke** — expect strict Intel smoke on production update (J3); confirm OTX key if Intel campaigns matter. |
@@ -564,7 +626,7 @@ Read-only TV / SOC display at `/wallboard`. **Do not** bookmark URLs with tokens
 5. Optional: set user stack in the main app — wallboard KEV-on-stack tile reads it.
 6. Optional: append `?density=compact` for a denser tile layout on large displays (4K wall mounts).
 
-See [`planning/BACKLOG.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/planning/BACKLOG.md) §6 for optional layout tails.
+Optional layout tails are documented in the product repository when needed.
 
 ---
 
@@ -590,4 +652,8 @@ To scale API concurrency:
 | [`archive/THREAT_MODEL.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/THREAT_MODEL.md) | Security |
 | [`POSTGRES.md`](./postgres.md) | PostgreSQL production guide |
 | [`ONBOARDING.md`](../developer-guide/onboarding.md) | Deploy scripts |
-| [`../deploy/setup.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/setup.sh) | Initial install |
+| [`../deploy/setup.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/setup.sh) | Initial install (git) |
+| [`../deploy/briefr-install.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-install.sh) | First install (production zone artifact) |
+| [`../deploy/briefr-deploy.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-deploy.sh) | Local-tree production deploy |
+| [`../deploy/briefr-service.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-service.sh) | Service start/stop/restart |
+| [`../deploy/briefr-update.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-update.sh) | Git pull update |

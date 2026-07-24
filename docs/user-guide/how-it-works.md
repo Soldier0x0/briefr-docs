@@ -58,7 +58,9 @@ The drawer calls `POST /api/cves/{cve_id}/risk` with optional asset/profile cont
 
 ![Correlation pipeline](assets/correlation-pipeline.svg)
 
-Four explainable lanes: **Campaigns**, **Infrastructure**, **Actor/sector**, **Temporal**. OTX pulse titles are normalized for display, and pulse clusters show why members were grouped. No black-box ML score; drawer open does not call OTX live.
+Four explainable lanes: **Campaigns**, **Infrastructure**, **Actor/sector**, **Temporal**. OTX pulse titles are normalized for display, and pulse clusters show why members were grouped. No black-box ML score; drawer open does not call OTX live. When OTX is temporarily down, cached `otx_cve_pulses` are served without wiping the mirror.
+
+**Detection:** SigmaHQ rules are mirrored weekly into Postgres (`sigmahq_index_sync`); Detect and Forge read CVE-exact YAML from the local index (DRL-1.1 attribution). Live GitHub Sigma search is fallback only when the index is empty.
 
 ---
 
@@ -74,7 +76,7 @@ Provider pacing is separate: NVD can still return transient 503s; wait for coold
 
 | Doc | When |
 |-----|------|
-| [Pathways](/docs/how-briefr-works/pathways) | Pick Analyst, Architect, or System Design learning track |
+| [Pathways](/docs/pathways) | Pick Analyst, Architect, or System Design learning track |
 | [How BRIEFR Works](/docs/how-briefr-works) | Full learning section — intel lifecycle + how it's built |
 | [Contributor onboarding](/docs/developer-guide/onboarding) | Contributing code |
 | [API Reference](/docs/api-reference) | Every endpoint |

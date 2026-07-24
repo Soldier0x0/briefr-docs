@@ -1,46 +1,45 @@
 ---
 sidebar_position: 1
-sidebar_label: Pathways
+sidebar_label: Choose a path
 title: Pathways
-description: Pick a starting path — analyst, builder, or system-design learner — into How BRIEFR Works.
+description: Pick a learning route — analyst, architect, or system-design learner — based on your role and goals.
 ---
 
 import {PathwayCards} from '@site/src/components/learn/PathwayCards';
 
 # Pathways
 
-Three starting points depending on what you care about. The Analyst and Architect
-paths are **complete** — every unit is grounded in the real BRIEFR product.
-System Design is **hybrid**: BRIEFR teaches the units it implements; honest gap
-units with curated externals cover the rest.
+BRIEFR is both a tool you deploy and a system you can study. Pick a starting
+point based on what you need right now — you can cross-read the other tracks
+later.
 
 <PathwayCards
   cards={[
     {
-      title: 'Analyst',
+      title: 'Security analyst',
       blurb:
-        'Follow the data from raw feed to analyst brief. You care about the intel lifecycle — collect, normalize, enrich, correlate, hunt, detect, prioritize.',
+        'Follow intel from raw feed to morning brief. Collect, normalize, enrich, correlate, hunt, detect, and prioritize — the analyst-facing lifecycle.',
       to: '/docs/how-briefr-works/intel-lifecycle/collect',
       completeness: 'complete',
     },
     {
-      title: 'Architect / builder',
+      title: 'Security architect / builder',
       blurb:
-        'Learn how BRIEFR is wired. Ingestion, resilience, storage, APIs, background jobs, search, and operations — all grounded in the real codebase.',
+        'Learn how BRIEFR is wired: ingestion, resilience, storage, APIs, background jobs, search, and day-two operations — all grounded in the real product.',
       to: '/docs/how-briefr-works/how-its-built/ingestion-scheduler',
       completeness: 'complete',
     },
     {
-      title: 'System Design',
+      title: 'System design',
       blurb:
-        'Work through a classic SD curriculum. BRIEFR anchors the units it implements; gap units explain what the product omits and point to curated externals.',
+        'Work through a classic system-design curriculum. BRIEFR anchors units it implements; gap units explain deliberate omissions with curated externals.',
       to: '/docs/how-briefr-works/system-design/',
       completeness: 'hybrid',
     },
   ]}
 />
 
-## Analyst path
+## Security analyst path
 
 You care about the feed, enrichment, and why a CVE rose in the brief.
 
@@ -55,7 +54,7 @@ You care about the feed, enrichment, and why a CVE rose in the brief.
 Then skim [Resilience](/docs/how-briefr-works/how-its-built/resilience) so quota
 and rate limits make sense when a source goes quiet.
 
-## Architect / builder path
+## Security architect / builder path
 
 You care about how the machine is wired.
 
@@ -70,7 +69,7 @@ You care about how the machine is wired.
 Cross-read the [Intel lifecycle](/docs/how-briefr-works/intel-lifecycle/) spine so
 design choices stay tied to the data path.
 
-## System Design path
+## System design path
 
 A classic system-design curriculum — foundations through design review — taught
 from BRIEFR where the product maps, with honest gap units where it does not.
@@ -80,3 +79,11 @@ then follow the numbered units in order.
 Units are tagged **briefr** (BRIEFR-primary), **partial** (BRIEFR section first,
 then externals), or **gap** (BRIEFR omits this by design — rationale + curated
 resources).
+
+## Deploy while you learn
+
+Installing BRIEFR on your own hardware is **recommended but never required** for
+reading these chapters. When you are ready, start with
+[Self-host BRIEFR](/docs/admin-guide/self-host). Production operators use
+`briefr-install.sh` / `briefr-deploy.sh` / `briefr-service.sh` — not a daily
+git-pull workflow.

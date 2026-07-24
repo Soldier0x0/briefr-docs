@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 62
 sidebar_label: Integrations
 description: Every source BRIEFR pulls from — keys, quotas, failure behavior — and what it pushes out.
 ---

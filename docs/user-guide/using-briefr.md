@@ -7,8 +7,6 @@ sidebar_position: 1
 
 For analysts, security enthusiasts, and anyone using the UI — not deploying it.
 
-Screenshots are not committed yet. Use [`IMAGE_BRIEFS.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/IMAGE_BRIEFS.md) for capture prompts.
-
 ---
 
 ## Main shell
