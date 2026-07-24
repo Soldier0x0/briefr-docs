@@ -25,3 +25,13 @@ yarn-error.log*
 # Agent session scratch (never commit)
 .superpowers/
 .artifacts/
+
+# Optional migrate mirror of briefr study-guide/learn (maintainer-only; excluded from routes)
+docs/how-briefr-works/synced/**
+!docs/how-briefr-works/synced/.gitkeep
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example

@@ -76,8 +76,8 @@ Provider pacing is separate: NVD can still return transient 503s; wait for coold
 
 | Doc | When |
 |-----|------|
-| [`study-guide/`](https://github.com/Soldier0x0/briefr/tree/main/docs/study-guide/) | Primary generated architecture book |
-| [`STUDY_GUIDE.html`](https://github.com/Soldier0x0/briefr/blob/main/docs/STUDY_GUIDE.html) | Editable standalone source for the book |
-| [`ONBOARDING.md`](../developer-guide/onboarding.md) | Contributing code |
-| [`API_REFERENCE.md`](../api-reference.md) | Every endpoint |
-| [`SYSTEM_DESIGN.md`](../developer-guide/system-design.md) | Full architecture essay |
+| [Pathways](/docs/pathways) | Pick Analyst, Architect, or System Design learning track |
+| [How BRIEFR Works](/docs/how-briefr-works) | Full learning section — intel lifecycle + how it's built |
+| [Contributor onboarding](/docs/developer-guide/onboarding) | Contributing code |
+| [API Reference](/docs/api-reference) | Every endpoint |
+| [System design](/docs/developer-guide/system-design) | Full architecture essay |

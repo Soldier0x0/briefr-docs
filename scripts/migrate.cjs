@@ -139,6 +139,41 @@ for (const [src, dst, label, position] of FILES) {
   console.log(`${src} -> ${dst}`);
 }
 
+// Portal-only rewrites after migrate (briefr canonical files may link maintainer
+// study content that is not part of the public docs site).
+const PORTAL_PATCHES = {
+  'user-guide/how-it-works.md': (body) =>
+    body.replace(
+      /\| \[`study-guide\/`\][^\n]+\n\| \[`STUDY_GUIDE\.html`\][^\n]+\n/,
+      '',
+    ).replace(
+      /\| \[`ONBOARDING\.md`\]\(\.\.\/developer-guide\/onboarding\.md\)/,
+      '| [Contributor onboarding](/docs/developer-guide/onboarding)',
+    ).replace(
+      /\| \[`API_REFERENCE\.md`\]\(\.\.\/api-reference\.md\)/,
+      '| [API Reference](/docs/api-reference)',
+    ).replace(
+      /\| \[`SYSTEM_DESIGN\.md`\]\(\.\.\/developer-guide\/system-design\.md\)/,
+      '| [System design](/docs/developer-guide/system-design)',
+    ).replace(
+      '## Deeper reference\n\n| Doc | When |\n|-----|------|\n',
+      `## Deeper reference\n\n| Doc | When |\n|-----|------|\n| [Pathways](/docs/pathways) | Pick Analyst, Architect, or System Design learning track |\n| [How BRIEFR Works](/docs/how-briefr-works) | Full learning section — intel lifecycle + how it's built |\n`,
+    ),
+  'admin-guide/operations.md': (body) =>
+    body.replace(
+      '## Purpose\n\nDefines how BRIEFR runs in production',
+      `## Purpose\n\n> **Day-to-day:** BRIEFR runs under **systemd** (\`briefr-backend.service\`). Routine operation does not require running any update script — systemd keeps the backend and nginx serving the built frontend.\n>\n> **Upgrades:** Run \`briefr-update.sh\` only when installing a new release (pull, Alembic, frontend build, health gate). This is not a development hot-reload workflow.\n\nDefines how BRIEFR runs in production`,
+    ),
+};
+
+for (const [rel, patch] of Object.entries(PORTAL_PATCHES)) {
+  const p = path.join(DST, rel);
+  if (fs.existsSync(p)) {
+    fs.writeFileSync(p, patch(fs.readFileSync(p, 'utf8')));
+    console.log(`patched ${rel}`);
+  }
+}
+
 const ASSET_RE = /\.(svg|png|webp)$/i;
 const assets = fs
   .readdirSync(path.join(SRC, 'assets'))
