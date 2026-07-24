@@ -12,4 +12,7 @@ frontend, PostgreSQL-native in production, licensed Apache-2.0.
 | --- | --- |
 | [System design](./system-design.md) | Architecture, data flow, and the decisions behind them. |
 | [Contributor onboarding](./onboarding.md) | Getting a dev environment running and landing your first change. |
+| [Contributing](./contributing.md) | PR guidelines — summary with link to canonical `CONTRIBUTING.md`. |
+| [Architecture decisions](./decisions.md) | ADR-001 through ADR-006 titles and one-line summaries. |
+| [API overview](/docs/api-guide) | Grouped index into the REST API sections. |
 | [API Reference](/docs/api-reference) | Every endpoint, request/response shapes, and error semantics. |

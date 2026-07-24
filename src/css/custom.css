@@ -185,12 +185,13 @@ header h1 {
   font-family: var(--brf-font-display);
   font-weight: 400;
   letter-spacing: -0.01em;
-  font-size: 2.6rem;
+  font-size: clamp(2rem, 4vw + 1rem, 2.6rem);
 }
 
 .markdown h2 {
   font-weight: 600;
   letter-spacing: -0.005em;
+  font-size: clamp(1.35rem, 2vw + 0.75rem, 1.75rem);
   border-bottom: 1px solid var(--brf-hairline);
   padding-bottom: 0.45rem;
   margin-top: 2.6rem;
@@ -198,6 +199,7 @@ header h1 {
 
 .markdown h3 {
   font-weight: 600;
+  font-size: clamp(1.1rem, 1vw + 0.85rem, 1.25rem);
 }
 
 .markdown code {
@@ -221,6 +223,10 @@ header h1 {
 
 .markdown table {
   font-size: 0.9rem;
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .markdown table th {
@@ -309,6 +315,22 @@ header h1 {
 }
 
 /* ---------- Motion discipline ---------- */
+
+@media (max-width: 40em) {
+  .main-wrapper {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+}
+
+a:focus-visible,
+button:focus-visible,
+.menu__link:focus-visible,
+.pagination-nav__link:focus-visible,
+.navbar__link:focus-visible {
+  outline: 2px solid var(--brf-accent);
+  outline-offset: 2px;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,

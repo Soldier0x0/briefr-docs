@@ -25,6 +25,21 @@ export type SystemDesignGapProps = {
 const sectionHeading =
   'text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2';
 
+function SectionBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}): ReactNode {
+  return (
+    <section>
+      <h3 className={sectionHeading}>{title}</h3>
+      {children}
+    </section>
+  );
+}
+
 export function SystemDesignGap({
   topic,
   covers,
@@ -46,47 +61,41 @@ export function SystemDesignGap({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <section>
-          <p className={sectionHeading}>What it covers</p>
+        <SectionBlock title="What it covers">
           <ul className="list-disc pl-4 space-y-1 text-sm">
             {covers.map((item, i) => (
               <li key={i}>{item}</li>
             ))}
           </ul>
-        </section>
+        </SectionBlock>
 
         <Separator />
 
-        <section>
-          <p className={sectionHeading}>Why it matters</p>
+        <SectionBlock title="Why it matters">
           <p className="text-sm">{whyItMatters}</p>
-        </section>
+        </SectionBlock>
 
         <Separator />
 
-        <section>
-          <p className={sectionHeading}>In BRIEFR</p>
+        <SectionBlock title="In BRIEFR">
           <div className="text-sm">{inBriefr}</div>
-        </section>
+        </SectionBlock>
 
         <Separator />
 
-        <section>
-          <p className={sectionHeading}>Why BRIEFR skips or limits this</p>
+        <SectionBlock title="Why BRIEFR skips or limits this">
           <p className="text-sm">{whyNot}</p>
-        </section>
+        </SectionBlock>
 
         <Separator />
 
-        <section>
-          <p className={sectionHeading}>When you would need it</p>
+        <SectionBlock title="When you would need it">
           <p className="text-sm">{whenNeeded}</p>
-        </section>
+        </SectionBlock>
 
         <Separator />
 
-        <section>
-          <p className={sectionHeading}>Learn externally</p>
+        <SectionBlock title="Learn externally">
           <ul className="space-y-1.5 text-sm">
             {resources.map((r, i) => (
               <li key={i}>
@@ -95,8 +104,7 @@ export function SystemDesignGap({
                     href={r.href}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-[var(--brf-link)] hover:underline"
-                  >
+                    className="text-[var(--brf-link)] hover:underline">
                     {r.label}
                   </a>
                 ) : (
@@ -110,7 +118,7 @@ export function SystemDesignGap({
               </li>
             ))}
           </ul>
-        </section>
+        </SectionBlock>
       </CardContent>
 
       <CardFooter className="border-t border-border pt-4">

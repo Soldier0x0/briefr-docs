@@ -3,23 +3,36 @@ import {Badge} from '@/components/ui/badge';
 
 export type Coverage = 'briefr' | 'partial' | 'gap';
 
+const LABELS: Record<Coverage, string> = {
+  briefr: 'BRIEFR',
+  partial: 'Partial',
+  gap: 'Gap',
+};
+
 export function CoverageBadge({coverage}: {coverage: Coverage}): ReactNode {
   switch (coverage) {
     case 'briefr':
-      return <Badge variant="default">briefr</Badge>;
+      return (
+        <Badge variant="default" aria-label={`Coverage: ${LABELS[coverage]}`}>
+          {LABELS[coverage]}
+        </Badge>
+      );
     case 'partial':
       return (
         <Badge
           variant="outline"
           className="border-[var(--brf-link)] text-[var(--brf-link)]"
-        >
-          partial
+          aria-label={`Coverage: ${LABELS[coverage]}`}>
+          {LABELS[coverage]}
         </Badge>
       );
     case 'gap':
       return (
-        <Badge variant="outline" className="text-muted-foreground">
-          gap
+        <Badge
+          variant="outline"
+          className="text-muted-foreground"
+          aria-label={`Coverage: ${LABELS[coverage]}`}>
+          {LABELS[coverage]}
         </Badge>
       );
     default: {
