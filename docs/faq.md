@@ -1,5 +1,5 @@
 ---
-sidebar_position: 9
+sidebar_position: 65
 sidebar_label: FAQ
 description: Short answers on licensing, requirements, data ownership, and scope.
 ---
@@ -14,17 +14,10 @@ and helps you ship detections.
 
 ### What's the license?
 
-**Business Source License 1.1 (BSL-1.1).** You may read, copy, modify, and
-self-host BRIEFR **free of charge for personal, non-commercial use**. Use by
-or on behalf of a **for-profit organization** requires a **one-time commercial
-license** from the Licensor — contact
-[harsha@projectjupiter.in](mailto:harsha@projectjupiter.in).
-
-Each published version **automatically converts to Apache License 2.0** four
-years after it is first published. BSL is source-available but **not**
-OSI-approved open source. Full terms:
-[`LICENSE`](https://github.com/Soldier0x0/briefr/blob/main/LICENSE) in the
-product repo.
+**Apache License 2.0.** You can self-host, modify, and use BRIEFR free of charge
+for personal, commercial, and non-commercial purposes, subject to the license
+terms (attribution via `LICENSE` and `NOTICE`). Full text:
+[LICENSE](https://github.com/Soldier0x0/briefr/blob/main/LICENSE).
 
 ### What do I need to run it?
 
@@ -49,6 +42,14 @@ is limited to the intelligence sources you configure.
 Yes, for syncing CVE feeds and enrichment providers. The sync jobs run on a
 scheduler in the background — the UI itself doesn't block on upstream
 services.
+
+### How do I update a production install?
+
+Use the deploy scripts shipped with your release — not a daily `git pull`
+workflow. Production zones stage a release at `/opt/briefr`, then run
+`briefr-deploy.sh`. Day-to-day restarts after `.env` changes use
+`briefr-service.sh restart`. See [Operations](/docs/admin-guide/operations)
+and [Self-host BRIEFR](/docs/admin-guide/self-host).
 
 ### How do I report a security issue?
 

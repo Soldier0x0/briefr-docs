@@ -16,7 +16,7 @@
 - Docusaurus **3.10.2** — do not upgrade as part of this plan.
 - `onBrokenLinks: 'throw'` must pass on every `npm run build`.
 - Production URL: `https://docs.projectjupiter.in`, `baseUrl: '/'` — do not revert to `/briefr-docs/`.
-- License on portal: **BSL-1.1** (not AGPL/GPL).
+- License on portal: **Apache License 2.0**.
 - Never invent BRIEFR behavior — claims trace to `briefr` at pinned SHA or existing portal docs.
 - Do not commit `.vendor/briefr`, `.superpowers/`, or `docs/how-briefr-works/synced/**` (gitignored).
 - Tailwind **preflight must remain disabled** (`src/css/tailwind.css`).

@@ -5,6 +5,8 @@ sidebar_position: 3
 
 # PostgreSQL database (production)
 
+**Install steps (Postgres + pgvector + linking `DATABASE_URL`):** start at [`SELF_HOST.md`](./self-host.md) §2 (dev) or §3 (production). This document is the **deep reference** for DSN shape, backups, restore, dual-dialect tests, external Postgres, and pgvector cutover.
+
 BRIEFR stores all intel data in **PostgreSQL**. Production runs Postgres **16** in Docker at `/opt/infra/postgres`; the BRIEFR app on the host connects via `DATABASE_URL` (published port `127.0.0.1:5432`).
 
 Use a host `postgresql-client` whose **major version matches** the server (16 in production). The deploy scripts install `postgresql-client` and fall back across supported majors.
@@ -66,7 +68,7 @@ If you previously started `briefr-pg-test` on plain `postgres:16-alpine`, recrea
 ./scripts/postgres-dev.sh destroy && ./scripts/postgres-dev.sh start
 ```
 
-`./scripts/verify-local.sh --full` auto-starts `briefr-pg-test` when `DATABASE_URL` is unset and compose on `:5432` is not running.
+Contributors can start a disposable Postgres test container with `./scripts/postgres-dev.sh start` (see [Contributor onboarding](/docs/developer-guide/onboarding)).
 
 ### Dual-dialect tests (SQLite default + Postgres CI)
 

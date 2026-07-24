@@ -6,7 +6,13 @@ sidebar_position: 2
 # BRIEFR Contributor Onboarding
 
 
-**Purpose:** Entry point for developers changing the code. If you only want to **use** or **self-host** BRIEFR, start at [`index.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/index.md) instead.
+**Purpose:** Entry point for developers changing the code.
+
+| If you want to… | Start here |
+|-----------------|------------|
+| **Install** BRIEFR (any path) | [`SELF_HOST.md`](../admin-guide/self-host.md) — authoritative step-by-step |
+| **Use** or **self-host** without changing code | [`index.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/index.md) → SELF_HOST or USE |
+| **Change the code** | Continue below |
 
 ---
 
@@ -31,6 +37,8 @@ sidebar_position: 2
 
 ## 2. Local development
 
+**Install paths (SQLite vs Postgres+pgvector vs production):** [`SELF_HOST.md`](../admin-guide/self-host.md). This section assumes you are developing against the repo.
+
 ### Prerequisites
 
 - Python 3.11+
@@ -50,7 +58,7 @@ cp .env.example .env    # add keys as needed
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-- PostgreSQL via `DATABASE_URL` in `backend/.env` (local: `docker compose -f deploy/docker-compose.postgres.yml up -d` on **:5432**, or disposable `./scripts/postgres-dev.sh start` on **:5433** for dual-DB pytest — see `docs/POSTGRES.md`)
+- PostgreSQL via `DATABASE_URL` in `backend/.env` — full steps: [`SELF_HOST.md` §2](../admin-guide/self-host.md#2-local-development-with-postgresql--pgvector) (`docker compose -f deploy/docker-compose.postgres.yml up -d` on **:5432**, or disposable `./scripts/postgres-dev.sh start` on **:5433** — see `docs/POSTGRES.md`)
 - Interactive API docs: http://localhost:8000/api/docs
 - Health check: http://localhost:8000/api/health
 
@@ -166,7 +174,7 @@ All four LLM keys are optional and gate a fixed failover chain (Groq → Cerebra
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DATABASE_URL` | — | PostgreSQL DSN (`postgresql://user:pass@host:5432/dbname`); omit **or** set empty (`DATABASE_URL=""`) for zero-config local SQLite. If `.env` has a placeholder Postgres DSN and nothing listens on `:5432`, startup fails with `ConnectionRefusedError` — clear the URL and set `BRIEFR_REQUIRE_POSTGRES=0` (cloud/bare VM; see `AGENTS.md`) |
+| `DATABASE_URL` | — | PostgreSQL DSN (`postgresql://user:pass@host:5432/dbname`); omit **or** set empty (`DATABASE_URL=""`) for zero-config local SQLite. If `.env` has a placeholder Postgres DSN and nothing listens on `:5432`, startup fails with `ConnectionRefusedError` — clear the URL and set `BRIEFR_REQUIRE_POSTGRES=0` (cloud/bare VM; see [Contributor onboarding](/docs/developer-guide/onboarding)) |
 | `BRIEFR_REQUIRE_POSTGRES` | `0` | Set `1` to refuse startup unless `DATABASE_URL` is a real Postgres connection (recommended in production). Use `0` with empty `DATABASE_URL` for SQLite-only cloud/dev boxes without Docker |
 | `DATABASE_POOL_SIZE` | `10` | asyncpg pool size |
 | `DATABASE_POOL_COMMAND_TIMEOUT_SECONDS` | `60` | SQL statement timeout only — not feed HTTP; see [POSTGRES.md](../admin-guide/postgres.md) |
@@ -217,7 +225,7 @@ Configure **one or more** destinations. Alerts are scheduler-side (`kev_alert` a
 | `MITRE_REFRESH_HOUR` / `MITRE_REFRESH_MINUTE` | `2` / `0` | Weekly MITRE + ATLAS (Sunday) |
 | `CORRELATION_HOUR` / `CORRELATION_TIMEZONE` | `1` / `Asia/Kolkata` | Nightly correlation engine |
 | `OTX_CORRELATION_HOUR` / `OTX_CORRELATION_TIMEZONE` | `2` / `Asia/Kolkata` | OTX nightly job (skipped if no `OTX_API_KEY`) |
-| `CACHE_REFRESH_HOUR` / `CACHE_REFRESH_MINUTE` | `6` / `0` | Feed cache maintenance |
+| `CACHE_REFRESH_HOUR` / `CACHE_REFRESH_MINUTE` | `6` / `0` | Unused — no scheduler job; kept for env compatibility |
 
 ### Ingest tuning
 
@@ -272,12 +280,17 @@ Configure **one or more** destinations. Alerts are scheduler-side (`kev_alert` a
 
 ## 5. Production deploy (overview)
 
+**Full production install checklist:** [`SELF_HOST.md` §3](../admin-guide/self-host.md#3-production-debian--systemd--nginx). This section is a developer-oriented summary; operators should use SELF_HOST + OPERATIONS.
+
 BRIEFR targets a single Debian server with **systemd + nginx**. Install path: `/opt/briefr`.
 
 | Script | Purpose |
 |--------|---------|
-| [`deploy/setup.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/setup.sh) | Initial install: Python, clone repo, venv, then production deploy |
-| [`deploy/briefr-update.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-update.sh) | Pull, build frontend, restart backend + nginx |
+| [`deploy/setup.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/setup.sh) | Initial install (git clone) + production deploy |
+| [`deploy/briefr-install.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-install.sh) | First install from local artifact (production zone, no git) |
+| [`deploy/briefr-deploy.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-deploy.sh) | Apply release from local tree (pip, migrate, build, restart) |
+| [`deploy/briefr-service.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-service.sh) | Start / stop / restart / status / health (no build) |
+| [`deploy/briefr-update.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-update.sh) | Pull `main`, build frontend, restart (git + rollback) |
 | [`deploy/briefr-backup.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-backup.sh) | Manual or scheduled PostgreSQL backup (`pg_dump`) |
 | [`deploy/briefr-pg-backup.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-pg-backup.sh) | systemd entry point (`briefr-pg-backup.timer`) |
 | [`deploy/briefr-restore.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/briefr-restore.sh) | List or restore archives |
@@ -307,7 +320,8 @@ See [README.md § Backups and restore](https://github.com/Soldier0x0/briefr/blob
 | Incidents & News tab | `backend/feeds/case_study_feed.py`, `incident_news.py`, `CaseStudies.jsx` |
 | Risk score | `backend/scoring/risk.py`, `backend/scoring/asset_match.py`, `POST /api/cves/{id}/risk`; UI in `frontend/src/scoring/riskScore.js` |
 | Correlation | `backend/correlation/engine.py` |
-| Detection rules | `backend/detection/` |
+| Detection rules | `backend/detection/` (`sigmahq_index.py`, `rule_sources.py`, `composer.py`) |
+| SigmaHQ local index | `backend/detection/sigmahq_index.py`, scheduler `sigmahq_index_sync`, Admin Feed health |
 | Scheduled ingest | `backend/scheduler.py`, `backend/feeds/` |
 | Database schema / SQL adaptation | `backend/database.py` (`init_db`), `backend/db/pg_adapt.py` (legacy SQLite-shaped SQL adapted at the Postgres connection boundary), [`archive/snapshots/TECHNICAL_INVENTORY.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/TECHNICAL_INVENTORY.md) §2 |
 | PDF export | `frontend/src/utils/pdfReport.js`, `backend/ai/summary.py` |
@@ -327,7 +341,8 @@ See [README.md § Backups and restore](https://github.com/Soldier0x0/briefr/blob
 | IOC lookup returns empty VT/AbuseIPDB | Missing API keys | Add keys to `.env`; restart backend |
 | CORS errors in browser | Origin not allowed | Add your URL to `ALLOWED_ORIGINS` |
 | GreyNoise always empty | No key or weekly quota exhausted | Set `GREYNOISE_API_KEY`; opt in per lookup |
-| OTX pulses missing | No `OTX_API_KEY` | Key required for nightly correlation and pulse data |
+| OTX pulses missing | No `OTX_API_KEY` or upstream OTX outage | Key required for live refresh; cached `otx_cve_pulses` served on 5xx when present. Post-deploy smoke may fail during OTX outages — retry `deploy/smoke-intel.sh` or use `BRIEFR_STRICT_SMOKE=0` |
+| Detect shows no Sigma rules | SigmaHQ index never synced | Admin → Feed health → SigmaHQ → Sync (Alembic `035` creates empty tables only) |
 | RSS shows contest/promo headlines | Editorial filter gap | Add pattern to `EXCLUDED_NEWS_TITLE_PATTERNS` in `incident_news.py` |
 | `pytest` import errors | Wrong working directory | Run from `backend/` (tests prepend parent to `sys.path`) |
 | Frontend `/api` 404 in dev | Backend not running | Start uvicorn on `:8000` before `npm run dev` |

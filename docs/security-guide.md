@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 60
 sidebar_label: Security Guide
 description: The auth model, secret handling, network exposure, a hardening checklist, and how to report a vulnerability.
 ---
