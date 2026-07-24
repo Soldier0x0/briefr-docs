@@ -338,7 +338,7 @@ Flowchart: [`docs/diagrams/startup.mermaid`](https://github.com/Soldier0x0/brief
    `VULNCHECK_API_KEY` set) sets `cves.is_vulncheck_exploited` for risk v1.1b KEV
    component scoring below CISA KEV. HyperDX provisioning
    remains out of scope.
-6. **Forge redesign FR-1/FR-2 (2026-07, `docs/planning/specs/forge-redesign.md`):**
+6. **Forge redesign FR-1/FR-2 (2026-07, the Forge redesign spec):**
    `Forge.jsx` (~1090 lines) split into a thin shell + view components under
    `frontend/src/components/forge/` (`CoverageView`, `ScenariosView`,
    `CampaignsView`, `BacklogView`, `LibraryView`, `HuntPackRail`, `shared`) —
@@ -448,7 +448,7 @@ Signed-in users keep their pinned CVEs in `watchlist`; legacy snooze data is cle
 
 ### G. ML assist — embeddings + LLM product extraction (V1.3, env-gated)
 
-Both features follow the ML placement rules (`docs/planning/ROADMAP.md`): env-gated, CPU-only, scheduler-side only, deterministic fallback, tool fully functional with ML disabled. **Both are off by default.**
+Both features follow the ML placement rules (the product roadmap): env-gated, CPU-only, scheduler-side only, deterministic fallback, tool fully functional with ML disabled. **Both are off by default.**
 
 **Similar CVEs via embeddings (`EMBEDDINGS_ENABLED=1`):**
 

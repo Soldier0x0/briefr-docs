@@ -330,7 +330,7 @@ CVE — retry later or use `BRIEFR_STRICT_SMOKE=0`; the deploy itself is not rol
 ## Pre-release checklist (J4)
 
 Run before tagging or deploying a release to production. Encodes the
-[`ROADMAP.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/planning/ROADMAP.md) compatibility promise — each release should be a small,
+[public roadmap](/docs/roadmap) compatibility promise — each release should be a small,
 independent phase.
 
 | Step | Check |
@@ -648,7 +648,7 @@ To scale API concurrency:
 
 | Document | Role |
 |----------|------|
-| [`ROADMAP.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/planning/ROADMAP.md) | Release index |
+| [public roadmap](/docs/roadmap) | Release index |
 | [`archive/THREAT_MODEL.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/THREAT_MODEL.md) | Security |
 | [`POSTGRES.md`](./postgres.md) | PostgreSQL production guide |
 | [`ONBOARDING.md`](../developer-guide/onboarding.md) | Deploy scripts |

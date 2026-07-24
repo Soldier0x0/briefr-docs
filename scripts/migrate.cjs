@@ -116,6 +116,26 @@ function scrubForPublicPortal(body, dst) {
     'Retry or re-login recovers; multi-tab concurrent refresh can still hit session reuse detection by design.',
   );
 
+  out = out.replace(
+    /\[`ROADMAP\.md`\]\(https:\/\/github\.com\/Soldier0x0\/briefr\/blob\/main\/docs\/planning\/ROADMAP\.md\)/g,
+    '[public roadmap](/docs/roadmap)',
+  );
+
+  out = out.replace(
+    /`docs\/planning\/specs\/threat-modeling-security-architecture\.md` §8/g,
+    'the threat-modeling program design',
+  );
+
+  out = out.replace(
+    /`docs\/planning\/specs\/forge-redesign\.md`/g,
+    'the Forge redesign spec',
+  );
+
+  out = out.replace(
+    /`docs\/planning\/ROADMAP\.md`/g,
+    'the product roadmap',
+  );
+
   return out;
 }
 
@@ -159,6 +179,11 @@ const PORTAL_PATCHES = {
       '## Deeper reference\n\n| Doc | When |\n|-----|------|\n',
       `## Deeper reference\n\n| Doc | When |\n|-----|------|\n| [Pathways](/docs/pathways) | Pick Analyst, Architect, or System Design learning track |\n| [How BRIEFR Works](/docs/how-briefr-works) | Full learning section — intel lifecycle + how it's built |\n`,
     ),
+  'admin-guide/self-host.md': (body) =>
+    body.replace(
+      '`setup.sh` installs Python, clones to `/opt/briefr`, creates the venv, then runs `briefr-update.sh`.\n\n### Step 3',
+      '`setup.sh` installs Python, clones to `/opt/briefr`, creates the venv, then runs `briefr-update.sh`.\n\nAfter install, **systemd** runs BRIEFR continuously (`briefr-backend.service`). Run `briefr-update.sh` only when **upgrading** to a new release — not for day-to-day restarts.\n\n### Step 3',
+    ),
   'admin-guide/operations.md': (body) =>
     body.replace(
       '## Purpose\n\nDefines how BRIEFR runs in production',
@@ -175,9 +200,10 @@ for (const [rel, patch] of Object.entries(PORTAL_PATCHES)) {
 }
 
 const ASSET_RE = /\.(svg|png|webp)$/i;
+const ASSET_SKIP = new Set(['placeholder-diagram.svg']);
 const assets = fs
   .readdirSync(path.join(SRC, 'assets'))
-  .filter((f) => ASSET_RE.test(f));
+  .filter((f) => ASSET_RE.test(f) && !ASSET_SKIP.has(f));
 for (const dir of ASSET_DEST_DIRS) {
   fs.mkdirSync(path.join(DST, dir), {recursive: true});
   for (const f of assets) {

@@ -214,26 +214,13 @@ bash /opt/briefr/deploy/briefr-install.sh
 
 **Internet-connected** (clone from GitHub):
 
-First-time install on your server:
-
 ```bash
 bash deploy/setup.sh
 ```
 
 `setup.sh` installs Python, clones to `/opt/briefr`, creates the venv, then runs `briefr-update.sh`.
 
-After install, **systemd** runs BRIEFR continuously (`briefr-backend.service`).
-You only run `briefr-update.sh` again when **upgrading** to a new release — not
-for day-to-day use.
-
-| Checklist | Setting |
-|-----------|---------|
-| Database | `DATABASE_URL=postgresql://...` |
-| Require Postgres | `BRIEFR_REQUIRE_POSTGRES=1` |
-| CORS | `ALLOWED_ORIGINS` = your public URL |
-| Rate limits | `RATE_LIMIT_ENABLED=1` |
-| Swagger off | `BRIEFR_ENV=production` |
-| Static wallboard | optional `WALLBOARD_TOKEN` |
+After install, **systemd** runs BRIEFR continuously (`briefr-backend.service`). Run `briefr-update.sh` only when **upgrading** to a new release — not for day-to-day restarts.
 
 ### Step 3 — Configure `backend/.env`
 
