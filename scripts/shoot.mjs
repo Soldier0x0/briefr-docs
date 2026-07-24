@@ -5,7 +5,7 @@ const BASE = process.env.BASE_URL || 'http://localhost:3000';
 const ROUTES = [
   '/',
   '/docs/getting-started',
-  '/docs/how-briefr-works/pathways',
+  '/docs/pathways',
   '/docs/user-guide/using-briefr',
 ];
 const WIDTHS = [390, 768, 1440];

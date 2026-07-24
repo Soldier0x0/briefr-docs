@@ -15,6 +15,6 @@ not deploying it. If you're standing up a server, you want the
 | [How it works](./how-it-works.md) | The "why" behind the product — optional background reading. |
 | [Troubleshooting](./troubleshooting.md) | Symptom → fix. No need to read anything else first. |
 
-**Learning depth:** [Pathways](/docs/how-briefr-works/pathways) and
+**Learning depth:** [Pathways](/docs/pathways) and
 [How BRIEFR Works](/docs/how-briefr-works) walk through the intel lifecycle
 and system design in more detail than this guide.
