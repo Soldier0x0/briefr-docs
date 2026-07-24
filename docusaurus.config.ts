@@ -147,7 +147,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Sai Harsha Vardhan · BUSL-1.1 · Self-hosted — your data stays yours.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Sai Harsha Vardhan · Apache-2.0 · Self-hosted — your data stays yours.`,
     },
     prism: {
       theme: prismThemes.oneDark,

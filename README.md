@@ -32,4 +32,4 @@ Production is served at `https://docs.projectjupiter.in` (Cloudflare). `baseUrl`
 ## License
 
 Documentation content © Sai Harsha Vardhan. BRIEFR source is licensed under
-BUSL-1.1 — see the [product LICENSE](https://github.com/Soldier0x0/briefr/blob/main/LICENSE).
+Apache License 2.0 — see the [product LICENSE](https://github.com/Soldier0x0/briefr/blob/main/LICENSE).

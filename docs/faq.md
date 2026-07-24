@@ -14,11 +14,9 @@ and helps you ship detections.
 
 ### What's the license?
 
-**Business Source License 1.1 (BUSL-1.1).** You can self-host, modify, and use
-BRIEFR free of charge for personal and non-commercial purposes. Commercial use
-by a for-profit organization requires a one-time commercial license from the
-licensor. Source becomes available under Apache 2.0 after the change date
-defined in the license. Full text:
+**Apache License 2.0.** You can self-host, modify, and use BRIEFR free of charge
+for personal, commercial, and non-commercial purposes, subject to the license
+terms (attribution via `LICENSE` and `NOTICE`). Full text:
 [LICENSE](https://github.com/Soldier0x0/briefr/blob/main/LICENSE).
 
 ### What do I need to run it?

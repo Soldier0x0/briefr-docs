@@ -145,7 +145,7 @@ export default function Home(): ReactNode {
           <div className={styles.dispatch}>
             <span>BRIEFR — DOCUMENTATION</span>
             <span>CLASS: PUBLIC</span>
-            <span>LICENSE: BUSL-1.1</span>
+            <span>LICENSE: Apache-2.0</span>
             <span>REV 2026.07</span>
           </div>
 

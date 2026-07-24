@@ -39,7 +39,7 @@ What BRIEFR does today, in one pass:
   health, a token-guarded wallboard kiosk, and a production posture
   self-check.
 - **PostgreSQL-native** storage; SQLite remains only as the dev/test
-  fallback. License: BUSL-1.1 (Business Source License).
+  fallback. License: Apache License 2.0.
 
 Known gaps at this snapshot: no public Docker platform compose yet
 (Postgres compose exists), dark theme only.
