@@ -23,7 +23,7 @@ Take **briefr-docs** from “structurally complete, production-hosted” to **co
 |------|--------|
 | **Production URL** | `https://docs.projectjupiter.in`, `baseUrl: '/'` (`docusaurus.config.ts`) |
 | **Deploy** | Cloudflare Workers via `wrangler.jsonc` + `npm run deploy` (merged PR #11) |
-| **License on site** | BSL-1.1 in footer, FAQ, homepage dispatch strip (PR #15) |
+| **License on site** | Apache-2.0 in footer, FAQ, homepage dispatch strip |
 | **Navbar** | User · Admin · Developer · **Pathways** · Learn · API |
 | **Learn section** | 48 MDX pages under `docs/how-briefr-works/` (pathways + intel lifecycle + how-its-built + system-design + glossary) |
 | **Code pin** | `BRIEFR_DOCS_PIN = '04aba1ad17d18c1c45175881ceef56b7112abb36'` (`src/components/learn/pin.ts`) |
@@ -82,7 +82,7 @@ Take **briefr-docs** from “structurally complete, production-hosted” to **co
 
 ### D1 — Canonical vs portal-native content (unchanged)
 
-- **Migrated:** nine files from `briefr/docs` via `migrate.cjs`; BSL copyright stripped; portal patches applied post-migrate (`PORTAL_PATCHES` in `migrate.cjs`).
+- **Migrated:** nine files from `briefr/docs` via `migrate.cjs`; per-file copyright stripped; portal patches applied post-migrate (`PORTAL_PATCHES` in `migrate.cjs`).
 - **Portal-native:** Learn MDX, Security, Integrations, FAQ, Roadmap, Release Notes, guide landings.
 - **Never publish:** `synced/study-guide`, `synced/learn`, `docs-internal/`, `briefr/docs/planning/`, `briefr/docs/audit/`.
 
