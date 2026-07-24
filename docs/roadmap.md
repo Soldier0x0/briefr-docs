@@ -6,7 +6,7 @@ description: Where BRIEFR is going, and what is deliberately out of scope.
 
 # Roadmap
 
-BRIEFR is a **source-available**, self-hosted CVE intelligence and
+BRIEFR is **open source** (Apache License 2.0), self-hosted CVE intelligence and
 detection-engineering platform. The destination:
 
 > A **self-hosted analyst intelligence pane** — vulnerability and threat
