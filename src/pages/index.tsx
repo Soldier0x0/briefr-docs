@@ -137,6 +137,7 @@ function DraftMark() {
 export default function Home(): ReactNode {
   return (
     <Layout
+      wrapperClassName="homeLayout"
       title="Documentation"
       description="BRIEFR documentation — self-hosted CVE intelligence and detection engineering. User, administrator, developer, and security guides plus a full API reference.">
       <main className={styles.main}>
