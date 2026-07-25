@@ -17,6 +17,11 @@ page — follow in order or jump to what you need.
 - [Using BRIEFR](/docs/user-guide/using-briefr) — analyst shell tabs (BRIEF, FEED, IOC, Forge)
 - [FAQ](/docs/faq) — license, requirements, data ownership, scope
 
+Read [About this documentation](/docs/legal/about-this-site) for how product
+reference differs from learning notes, and for links to this portal's
+[Privacy Policy](/docs/legal/privacy-policy) and
+[Terms of Use](/docs/legal/terms-of-use).
+
 ## 2. Deploy BRIEFR (production)
 
 **Installing for real use?** Start here — not the Vite dev server.

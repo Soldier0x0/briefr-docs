@@ -1,0 +1,34 @@
+.root {
+  margin: 0 0 1.75rem;
+  padding: 1rem 1.15rem;
+  border: 1px solid var(--brf-hairline);
+  border-left: 3px solid var(--brf-accent);
+  border-radius: 4px;
+  background: var(--brf-surface);
+}
+
+.kicker {
+  margin: 0 0 0.65rem;
+  font-family: var(--brf-font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--brf-accent);
+}
+
+.body {
+  margin: 0 0 0.55rem;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--brf-text);
+}
+
+.body:last-child {
+  margin-bottom: 0;
+}
+
+.body strong {
+  color: var(--brf-bright);
+  font-weight: 600;
+}

@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import SiteDocsNotice from '@/components/SiteDocsNotice';
 import styles from './index.module.css';
 
 const GUIDES = [
@@ -169,6 +170,8 @@ export default function Home(): ReactNode {
             enrich them into decisions, and ship detections — on your own
             hardware, on your own terms.
           </p>
+
+          <SiteDocsNotice />
 
           <div className={styles.ctas}>
             <Link className={styles.ctaPrimary} to="/docs/getting-started">
