@@ -1,0 +1,31 @@
+.root {
+  margin: 1.35rem 0 0;
+  max-width: 52rem;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--brf-dim);
+}
+
+.label {
+  display: inline-block;
+  margin-right: 0.5rem;
+  font-family: var(--brf-font-mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--brf-accent);
+}
+
+.root strong {
+  color: var(--brf-text);
+  font-weight: 600;
+}
+
+.root a {
+  color: var(--brf-link);
+  text-decoration: none;
+}
+
+.root a:hover {
+  text-decoration: underline;
+}

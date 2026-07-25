@@ -150,8 +150,16 @@ const config: Config = {
             {label: 'GitHub', href: 'https://github.com/Soldier0x0/briefr'},
           ],
         },
+        {
+          title: 'Legal',
+          items: [
+            {label: 'About this site', to: '/docs/legal/about-this-site'},
+            {label: 'Privacy Policy', to: '/docs/legal/privacy-policy'},
+            {label: 'Terms of Use', to: '/docs/legal/terms-of-use'},
+          ],
+        },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Sai Harsha Vardhan · Apache-2.0 · Self-hosted — your data stays yours.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Sai Harsha Vardhan · Apache-2.0 · Self-hosted — your data stays yours. · Not a substitute for professional security advice.`,
     },
     prism: {
       theme: prismThemes.oneDark,

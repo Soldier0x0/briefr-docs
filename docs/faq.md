@@ -61,3 +61,21 @@ not a public issue. See the [Security Guide](/docs/security-guide).
 
 [Troubleshooting](/docs/user-guide/troubleshooting) is organized
 symptom-first; you don't need to read anything else before it.
+
+### Is this an official training course or certification program?
+
+No. The **User**, **Admin**, **API**, and **Troubleshooting** guides are
+official product documentation. **[Pathways](/docs/pathways)** and
+**[How BRIEFR Works](/docs/how-briefr-works)** are structured study notes
+shared for anyone exploring the tool — not an accredited curriculum,
+certification prep, or professional security advice. See
+[About this documentation](/docs/legal/about-this-site),
+[Privacy Policy](/docs/legal/privacy-policy), and
+[Terms of Use](/docs/legal/terms-of-use).
+
+### Where is the privacy policy for this docs site?
+
+This portal (`docs.projectjupiter.in`) has its own
+[Privacy Policy](/docs/legal/privacy-policy). The hosted BRIEFR **application**
+at `projectjupiter.in` has separate in-app privacy and terms pages when you
+sign in there.

@@ -1,0 +1,9 @@
+{
+  "label": "Legal",
+  "position": 90,
+  "link": {
+    "type": "generated-index",
+    "title": "Legal",
+    "description": "About this documentation portal, privacy, and terms of use."
+  }
+}

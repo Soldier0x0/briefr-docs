@@ -1,6 +1,7 @@
 import type {ComponentProps} from 'react';
 import MDXComponents from '@theme-original/MDXComponents';
 import ZoomableImage from '@site/src/components/ZoomableImage';
+import LearnDisclaimer from '@site/src/components/learn/LearnDisclaimer';
 
 function Img(props: ComponentProps<'img'>) {
   const {src} = props;
@@ -13,4 +14,5 @@ function Img(props: ComponentProps<'img'>) {
 export default {
   ...MDXComponents,
   img: Img,
+  LearnDisclaimer,
 };
