@@ -17,11 +17,18 @@ page — follow in order or jump to what you need.
 - [Using BRIEFR](/docs/user-guide/using-briefr) — analyst shell tabs (BRIEF, FEED, IOC, Forge)
 - [FAQ](/docs/faq) — license, requirements, data ownership, scope
 
-## 2. Deploy BRIEFR
+## 2. Deploy BRIEFR (production)
 
-- [Self-host BRIEFR](/docs/admin-guide/self-host) — install paths, quick start, production layout
+**Installing for real use?** Start here — not the Vite dev server.
+
+- [Self-host BRIEFR](/docs/admin-guide/self-host#3-production-debian--systemd--nginx) — **§3 Production**: Postgres + pgvector, `npm run build`, nginx/systemd (`briefr-install.sh`)
 - [PostgreSQL](/docs/admin-guide/postgres) — production database setup and maintenance
-- [Operations](/docs/admin-guide/operations) — upgrades, backups, day-2 care, stable config contract
+- [Operations](/docs/admin-guide/operations) — upgrades, backups, day-2 care
+
+### Local development only (not production)
+
+- [§1 Quick dev (SQLite)](/docs/admin-guide/self-host#1-quick-local-development-sqlite) — evaluate with zero DB setup; `npm run dev` on `:5173`
+- [§2 Postgres dev](/docs/admin-guide/self-host#2-local-development-with-postgresql--pgvector) — production-like local stack; still uses `npm run dev`, not a permanent install
 
 ## 3. Configure networking & integrations
 

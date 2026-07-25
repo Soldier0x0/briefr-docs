@@ -236,6 +236,13 @@ header h1 {
   background: var(--brf-surface);
 }
 
+/* ZoomableImage trigger owns border/hover — avoid double frame */
+.markdown button[class*='trigger'] img {
+  margin: 0;
+  border: none;
+  background: transparent;
+}
+
 .markdown table {
   font-size: 0.9rem;
   display: block;

@@ -239,7 +239,7 @@ env_file:            secrets (DATABASE_URL)
 ports:               127.0.0.1:8000:8000
 ```
 
-Same env vars as systemd. See [`archive/beta/Beta V2.0.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/beta/Beta%20V2.0.md).
+Same env vars as systemd. Container packaging is future work — see [`SELF_HOST.md`](./self-host.md) and [`POSTGRES.md`](./postgres.md) for current deploy paths.
 
 ---
 
@@ -327,11 +327,21 @@ CVE — retry later or use `BRIEFR_STRICT_SMOKE=0`; the deploy itself is not rol
 
 ---
 
+## Deploy compatibility promise
+
+Releases must remain **additive** for existing systemd + nginx + cloudflared deploys
+unless documented in this file:
+
+- Stable default paths: `DATABASE_URL`, `BACKUP_DIR`, `/opt/briefr`
+- Forward-only DB migrations (Alembic)
+- CLI backup/restore scripts remain supported as break-glass
+
+---
+
 ## Pre-release checklist (J4)
 
-Run before tagging or deploying a release to production. Encodes the
-[public roadmap](/docs/roadmap) compatibility promise — each release should be a small,
-independent phase.
+Run before tagging or deploying a release to production. Encodes the deploy
+**compatibility promise** — each release should be a small, independent phase.
 
 | Step | Check |
 |------|--------|
@@ -626,7 +636,7 @@ Read-only TV / SOC display at `/wallboard`. **Do not** bookmark URLs with tokens
 5. Optional: set user stack in the main app — wallboard KEV-on-stack tile reads it.
 6. Optional: append `?density=compact` for a denser tile layout on large displays (4K wall mounts).
 
-Optional layout tails are documented in the product repository when needed.
+Optional wallboard layout tails are tracked in the maintainer repo — see [`MAINTAINER_MIGRATION.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/MAINTAINER_MIGRATION.md).
 
 ---
 
@@ -648,8 +658,8 @@ To scale API concurrency:
 
 | Document | Role |
 |----------|------|
-| [public roadmap](/docs/roadmap) | Release index |
-| [`archive/THREAT_MODEL.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/THREAT_MODEL.md) | Security |
+| https://docs.projectjupiter.in | Online operator and architecture guides |
+| [`MAINTAINER_MIGRATION.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/MAINTAINER_MIGRATION.md) | Where internal planning/archive docs moved |
 | [`POSTGRES.md`](./postgres.md) | PostgreSQL production guide |
 | [`ONBOARDING.md`](../developer-guide/onboarding.md) | Deploy scripts |
 | [`../deploy/setup.sh`](https://github.com/Soldier0x0/briefr/blob/main/deploy/setup.sh) | Initial install (git) |

@@ -22,14 +22,12 @@ sidebar_position: 2
 |------|----------|-----|
 | 1 | [`index.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/index.md) + [`HOW_IT_WORKS.md`](../user-guide/how-it-works.md) | Quick product context (5 min) |
 | 2 | [`README.md`](https://github.com/Soldier0x0/briefr/blob/main/README.md) | Features and local quick start |
-| 3 | [`SYSTEM_DESIGN.md`](./system-design.md) | Architecture and trade-offs |
-| 4 | [`API_REFERENCE.md`](../api-reference.md) | Endpoints when you touch the API |
-| 5 | [`archive/snapshots/CODEBASE_CONTEXT.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/CODEBASE_CONTEXT.md) | Module map + AI guardrails |
-| 6 | Source + tests | `backend/tests/` and files named in [`archive/snapshots/APPLICATION_EXECUTION_MAP.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/APPLICATION_EXECUTION_MAP.md) |
+| 3 | [`CONTRIBUTOR_RULES.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/CONTRIBUTOR_RULES.md) | Danger zones, UI rules, merge gate |
+| 4 | [`SYSTEM_DESIGN.md`](./system-design.md) | Architecture and trade-offs |
+| 5 | [`API_REFERENCE.md`](../api-reference.md) | Endpoints when you touch the API |
+| 6 | Source + tests | `backend/tests/` and the subsystem you are changing |
 
-**Deep reference when needed:** [`archive/snapshots/FOLDER_STRUCTURE_GUIDE.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/FOLDER_STRUCTURE_GUIDE.md), [`archive/snapshots/TECHNICAL_INVENTORY.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/TECHNICAL_INVENTORY.md), [`OPERATIONS.md`](../admin-guide/operations.md), [`PRODUCT_STATUS.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/PRODUCT_STATUS.md).
-
-**Historical planning:** [`archive/`](https://github.com/Soldier0x0/briefr/tree/main/docs/archive/) (beta specs, agent notes — not required reading).
+**Deep reference when needed:** [`OPERATIONS.md`](../admin-guide/operations.md), [`PRODUCT_STATUS.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/PRODUCT_STATUS.md), [`decisions/`](https://github.com/Soldier0x0/briefr/tree/main/docs/decisions/), https://docs.projectjupiter.in
 
 **Printable architecture:** generate `SYSTEM_DESIGN.pdf` with `node scripts/generate_system_design_pdf.mjs` (not committed).
 
@@ -323,7 +321,7 @@ See [README.md § Backups and restore](https://github.com/Soldier0x0/briefr/blob
 | Detection rules | `backend/detection/` (`sigmahq_index.py`, `rule_sources.py`, `composer.py`) |
 | SigmaHQ local index | `backend/detection/sigmahq_index.py`, scheduler `sigmahq_index_sync`, Admin Feed health |
 | Scheduled ingest | `backend/scheduler.py`, `backend/feeds/` |
-| Database schema / SQL adaptation | `backend/database.py` (`init_db`), `backend/db/pg_adapt.py` (legacy SQLite-shaped SQL adapted at the Postgres connection boundary), [`archive/snapshots/TECHNICAL_INVENTORY.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/TECHNICAL_INVENTORY.md) §2 |
+| Database schema / SQL adaptation | `backend/database.py` (`init_db`), `backend/db/pg_adapt.py`, Alembic `backend/alembic/versions/` |
 | PDF export | `frontend/src/utils/pdfReport.js`, `backend/ai/summary.py` |
 | Morning brief | `frontend/src/components/MorningBrief.jsx` (unified `action_queue` list + filter chips) |
 | Analyst charts | `frontend/src/components/BriefCharts.jsx` (activity/KEV/vendor views + EPSS movers table), `CveDescriptionClamp.jsx`, `frontend/src/components/briefVendorChartRecharts.jsx`, `frontend/src/utils/rechartsTheme.js` |
@@ -373,7 +371,7 @@ curl -X POST http://127.0.0.1:8000/api/refresh
 |--------|---------|
 | `SYSTEM_DESIGN.pdf` | `cd frontend && npm install && node ../scripts/generate_system_design_pdf.mjs` |
 | `TECHNICAL_INVENTORY.xlsx` | `python3 scripts/generate_technical_inventory_xlsx.py` |
-| README screenshots | `python3 scripts/seed_screenshot_data.py` then `node scripts/capture_readme_screenshots.mjs` |
+| README screenshots | `python3 scripts/seed_screenshot_data.py` then `SCREENSHOT_USERNAME=admin SCREENSHOT_PASSWORD='…' node scripts/capture_readme_screenshots.mjs` (backend `:8000`, frontend `:5173`) |
 
 Update the source markdown in the same PR when you change behaviour those artifacts describe.
 
@@ -381,8 +379,7 @@ Update the source markdown in the same PR when you change behaviour those artifa
 
 ## Related documentation
 
-- [`archive/snapshots/CODEBASE_CONTEXT.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/CODEBASE_CONTEXT.md) — consolidated codebase reference (architecture, flows, AI guardrails)
 - [`SYSTEM_DESIGN.md`](./system-design.md) — architecture deep dive
 - [`API_REFERENCE.md`](../api-reference.md) — endpoint catalog
-- [`archive/snapshots/APPLICATION_EXECUTION_MAP.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/APPLICATION_EXECUTION_MAP.md) — runtime traces
-- [`archive/snapshots/FOLDER_STRUCTURE_GUIDE.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/archive/snapshots/FOLDER_STRUCTURE_GUIDE.md) — every file in the repo
+- [`CONTRIBUTOR_RULES.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/CONTRIBUTOR_RULES.md) — danger zones and conventions
+- https://docs.projectjupiter.in — online docs (synced from this repo)
