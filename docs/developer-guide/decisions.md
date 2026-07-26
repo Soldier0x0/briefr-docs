@@ -14,7 +14,7 @@ Canonical ADR files live in the product repository under
 
 | ADR | Title | Summary |
 | --- | --- | --- |
-| [ADR-001](https://github.com/Soldier0x0/briefr/blob/main/docs/decisions/ADR-001-intel-app-schema-split.md) | Intel vs app schema split (open-core data plane) | Separates publishable intel snapshot data from per-instance operator state (accounts, sessions, webhooks, watchlists) via documented export allowlists rather than raw production dumps. |
+| [ADR-001](https://github.com/Soldier0x0/briefr/blob/main/docs/decisions/ADR-001-intel-app-schema-split.md) | Intel vs app schema split (open-core data plane) | Postgres schemas `intel` (publishable CVE/correlation data) and `app` (operator state) plus export/import tooling — `pg_dump --schema=intel`, merge import, monthly public bundles. Implemented in Alembic `036`. |
 | [ADR-002](https://github.com/Soldier0x0/briefr/blob/main/docs/decisions/ADR-002-operational-priority.md) | BRIEFR scoring axes and Operational Priority | Replaces the v1.1b single additive blend with distinct Threat, Operational Priority, and Environment Relevance axes — deterministic, explainable, and backend-owned. |
 | [ADR-003](https://github.com/Soldier0x0/briefr/blob/main/docs/decisions/ADR-003-ui-design-system.md) | BRIEFR UI design system: semantic tokens + Radix primitives (no Tailwind) | Establishes semantic CSS tokens and Radix-based primitives as the UI architecture all future work follows. |
 | [ADR-004](https://github.com/Soldier0x0/briefr/blob/main/docs/decisions/ADR-004-correlation-precompute.md) | Move correlation off the request path (precomputed edges) | Moves per-CVE correlation computation from request time to a scheduler job writing precomputed rows; the request path becomes a cheap indexed read. |

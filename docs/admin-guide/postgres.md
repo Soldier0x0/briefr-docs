@@ -39,7 +39,23 @@ docker compose up -d
 docker compose ps    # confirm healthy
 ```
 
-BRIEFR only needs TCP access to the mapped port. Schema is applied by Alembic on backend startup (`alembic upgrade head` via `init_db()`).
+BRIEFR only needs TCP access to the mapped port. Schema is applied by Alembic on backend startup (`alembic upgrade head` via `init_db()`). When the database is already at Alembic head, **no migration runs** — including the one-time intel/app schema split (`036_intel_app_schema_split`).
+
+### Intel vs app schemas (revision 036)
+
+Production databases created before the schema split hold all tables in `public`.
+Revision `036` moves them in place (`ALTER TABLE … SET SCHEMA`) — **no row copy**.
+This runs **once** when you first deploy a release whose Alembic head includes
+`036`, not on every restart or `briefr-update` once head is current.
+
+**Before upgrading production:** encrypted backup +  
+`python scripts/schema_row_counts.py --output pre-036.json`  
+**After upgrade:**  
+`python scripts/verify_schema_split.py --manifest pre-036.json`
+
+Full runbook: [Intel snapshot](./intel-snapshot.md) and
+[`INTEL_PUBLISH.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/INTEL_PUBLISH.md)
+in the product repo.
 
 **Logs and volume backups** are configured in the infra repo (compose logging driver, volume snapshots). BRIEFR handles **logical backups** via `pg_dump` on the host.
 

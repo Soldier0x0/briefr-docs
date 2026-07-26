@@ -29,6 +29,8 @@ The application code talks to a thin connection abstraction (`db/connection.py`)
 
 This dual-backend approach reflects the deployment reality: SQLite handles the majority of self-hosted instances with minimal friction; Postgres handles the cases where operators need concurrent readers, proper backups, or the ability to run multiple API workers.
 
+On Postgres production databases, Alembic revision `036` further splits tables into **`intel`** (publishable CVE/correlation/embedding data) and **`app`** (operator credentials, IOC cache, webhooks, preferences). Export and merge-import tooling enforces that boundary so monthly public intel bundles never include operator secrets. See [Intel snapshot](/docs/admin-guide/intel-snapshot).
+
 ## Schema design: what BRIEFR stores and why
 
 The schema is organized around the intelligence objects BRIEFR tracks:
