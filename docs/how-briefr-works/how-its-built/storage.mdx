@@ -73,6 +73,15 @@ resolves `DATABASE_URL` (or `DB_PATH` for SQLite) and exposes `is_postgres()`.
 migrations in `backend/alembic/versions/` carry the Postgres schema forward; SQLite schema
 is applied by `init_db()` directly via `executescript()` at startup.
 
+### Intel vs app schemas (Postgres production)
+
+After Alembic revision `036_intel_app_schema_split`, production Postgres databases
+partition tables into schema **`intel`** (publishable CVE/correlation data) and
+**`app`** (operator accounts, sessions, IOC cache, webhooks). The asyncpg pool sets
+`search_path = app, intel, public`. Public monthly intel bundles export only
+`intel` via `scripts/export_intel_snapshot.py`; merge import (`--mode merge`)
+upserts intel rows without touching operator data. See [Intel snapshot](/docs/admin-guide/intel-snapshot).
+
 <InTheCode
   items={[
     {path: 'backend/database.py'},
