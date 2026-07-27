@@ -11,6 +11,11 @@ page — follow in order or jump to what you need.
 
 ---
 
+## 0. Try the UI (optional)
+
+- [Live demo](https://briefrdemo.projectjupiter.in) — 1:1 analyst shell with fixture data; no install, no login. Backend-dependent actions (hunt packs, live IOC enrichment) are visual-only.
+- [Example instance](https://briefr.projectjupiter.in) — full PostgreSQL-backed deployment with live feeds
+
 ## 1. Understand the product
 
 - [How it works](/docs/user-guide/how-it-works) — architecture, auth layers, and data flow

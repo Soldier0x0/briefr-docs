@@ -111,6 +111,11 @@ const config: Config = {
         {to: '/docs/security-guide', label: 'Security', position: 'left'},
         {to: '/docs/faq', label: 'FAQ', position: 'right'},
         {
+          href: 'https://briefrdemo.projectjupiter.in',
+          label: 'Live demo',
+          position: 'right',
+        },
+        {
           href: 'https://github.com/Soldier0x0/briefr',
           label: 'GitHub',
           position: 'right',
@@ -143,6 +148,10 @@ const config: Config = {
         {
           title: 'Project',
           items: [
+            {
+              label: 'Live demo',
+              href: 'https://briefrdemo.projectjupiter.in',
+            },
             {label: 'Getting started', to: '/docs/getting-started'},
             {label: 'Product status', to: '/docs/product-status'},
             {label: 'Roadmap', to: '/docs/roadmap'},

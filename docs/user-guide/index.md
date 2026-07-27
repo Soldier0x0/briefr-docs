@@ -9,6 +9,9 @@ For analysts, security enthusiasts, and anyone using BRIEFR through the UI —
 not deploying it. If you're standing up a server, you want the
 [Administrator Guide](/docs/admin-guide) instead.
 
+**New here?** Try the [live demo](https://briefrdemo.projectjupiter.in) first —
+same analyst shell as production, with fixture data and no install.
+
 | Chapter | What it covers |
 | --- | --- |
 | [Using BRIEFR](./using-briefr.md) | Daily workflow: feed, triage, ⌘K palette, notifications, enrichment, and settings. |
