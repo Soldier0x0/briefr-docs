@@ -4,6 +4,8 @@ Documentation portal for [BRIEFR](https://github.com/Soldier0x0/briefr) — a
 self-hosted CVE intelligence and detection-engineering platform. Built with
 Docusaurus.
 
+**Live demo:** https://briefrdemo.projectjupiter.in (static 1:1 UI, fixture data)
+
 ## Editing docs
 
 Every page is a Markdown file under `docs/`. Edit, commit, push — that's the

@@ -19,6 +19,15 @@ for personal, commercial, and non-commercial purposes, subject to the license
 terms (attribution via `LICENSE` and `NOTICE`). Full text:
 [LICENSE](https://github.com/Soldier0x0/briefr/blob/main/LICENSE).
 
+### Can I try BRIEFR without installing it?
+
+Yes. The [live demo](https://briefrdemo.projectjupiter.in) is a 1:1 copy of
+the analyst UI with fixture data — no login, no database, no API keys. Buttons
+that need a backend (hunt-pack generation, live IOC enrichment) are
+visual-only. For a full deployment with live feeds, see
+[Self-host BRIEFR](/docs/admin-guide/self-host) or the example instance at
+https://briefr.projectjupiter.in.
+
 ### What do I need to run it?
 
 A box you control with Docker (or Python 3 + Node directly), and PostgreSQL

@@ -174,7 +174,12 @@ export default function Home(): ReactNode {
           <SiteDocsNotice />
 
           <div className={styles.ctas}>
-            <Link className={styles.ctaPrimary} to="/docs/getting-started">
+            <Link
+              className={styles.ctaPrimary}
+              href="https://briefrdemo.projectjupiter.in">
+              Try live demo
+            </Link>
+            <Link className={styles.ctaGhost} to="/docs/getting-started">
               Get started
             </Link>
             <Link className={styles.ctaGhost} to="/docs/pathways">
