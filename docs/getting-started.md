@@ -14,7 +14,6 @@ page — follow in order or jump to what you need.
 ## 0. Try the UI (optional)
 
 - [Live demo](https://briefrdemo.projectjupiter.in) — 1:1 analyst shell with fixture data; no install, no login. Backend-dependent actions (hunt packs, live IOC enrichment) are visual-only.
-- [Live demo](https://briefrdemo.projectjupiter.in) — 1:1 analyst UI with fixture data (no install)
 - [Self-host BRIEFR](/docs/admin-guide/self-host) — full PostgreSQL-backed deployment on your hardware
 
 ## 1. Understand the product

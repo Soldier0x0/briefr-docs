@@ -39,13 +39,14 @@ required to use the learning sections.
   not call third-party enrichment services on your behalf. Running BRIEFR
   itself is separate — see [Self-host BRIEFR](/docs/admin-guide/self-host).
 
-## Hosted BRIEFR vs this docs site
+## Public Briefr surfaces vs this docs site
 
 | Property | URL | Privacy / terms |
 |----------|-----|-----------------|
 | **Documentation portal** (this site) | `https://docs.projectjupiter.in` | [Privacy Policy](/docs/legal/privacy-policy) · [Terms of Use](/docs/legal/terms-of-use) on this site |
-| **Hosted BRIEFR instance** (the application) | `https://projectjupiter.in` (when sign-in is enabled) | In-app [Privacy Policy](https://projectjupiter.in/privacy) · [Terms of Use](https://projectjupiter.in/terms) |
-| **Self-hosted BRIEFR** | Your operator's hostname | Your operator is responsible for that instance; the in-app legal pages describe the hosted demo only |
+| **Live demo** (static fixture preview) | `https://briefrdemo.projectjupiter.in` | Read-only showroom — no accounts, no backend, no persistent user data |
+| **Project Jupiter marketing site** | `https://projectjupiter.in` | [Privacy Policy](https://projectjupiter.in/privacy) · [Terms of Use](https://projectjupiter.in/terms) for the landing site only |
+| **Self-hosted BRIEFR** | Your operator's hostname | Your operator is the data fiduciary; in-app legal pages apply to that deployment |
 
 ## Accuracy and updates
 

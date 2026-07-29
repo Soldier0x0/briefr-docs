@@ -84,6 +84,8 @@ certification prep, or professional security advice. See
 ### Where is the privacy policy for this docs site?
 
 This portal (`docs.projectjupiter.in`) has its own
-[Privacy Policy](/docs/legal/privacy-policy). The hosted BRIEFR **application**
-at `projectjupiter.in` has separate in-app privacy and terms pages when you
-sign in there.
+[Privacy Policy](/docs/legal/privacy-policy). A **self-hosted BRIEFR instance**
+shows in-app privacy and terms for that deployment. The static
+[live demo](https://briefrdemo.projectjupiter.in) has no accounts or backend.
+The [Project Jupiter marketing site](https://projectjupiter.in/privacy) has
+separate policies for the landing page only.
