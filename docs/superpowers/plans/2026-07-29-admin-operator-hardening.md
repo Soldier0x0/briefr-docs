@@ -252,6 +252,62 @@ git commit -m "copy(admin): heartbeat terminology and correlation quality toolti
 
 ---
 
+### Task B6: Capitalization consistency (API Keys & metering)
+
+**Files:**
+- Modify: `briefr/frontend/src/pages/admin/ApiKeysPage.jsx`
+- Modify: `briefr/frontend/src/pages/admin/catalog.js` (add `formatMeteringActorLabel`)
+- Modify: `briefr/frontend/src/pages/AdminPage.css`
+
+- [ ] **Step 1: Rule — section headings and column headers: UPPERCASE; actor/source labels: Title Case**
+
+```javascript
+// catalog.js
+export function formatMeteringActorLabel(actorType) {
+  const map = { job: 'Job', queue: 'Queue', user: 'User' }
+  return map[actorType] || String(actorType || '').replace(/\b\w/g, c => c.toUpperCase())
+}
+```
+
+- [ ] **Step 2: Apply to MeteringTable actor rows and config section titles**
+- [ ] **Step 3: Commit**
+
+```bash
+git commit -m "fix(admin): capitalization consistency in API keys and metering"
+```
+
+---
+
+### Task B7: Heartbeat copy audit (tool-wide)
+
+**Files:**
+- Modify: `briefr/frontend/src/pages/admin/OverviewPage.jsx`
+- Modify: `briefr/frontend/src/pages/admin/ApiKeyHealthPanel.jsx`
+- Modify: `briefr/frontend/src/pages/admin/FeedHealthPage.jsx`
+- Modify: `briefr/frontend/src/pages/admin/SchedulerPage.jsx`
+- Modify: `briefr/frontend/src/pages/admin/StatusBar.jsx`
+- Modify: `briefr/frontend/src/components/AboutModal.jsx`
+- Modify: `briefr/frontend/src/pages/admin/catalog.js` (`TERM_GLOSSARY`)
+
+- [ ] **Step 1: Grep and replace** — `rg -n "every \\d+ second|auto-recheck|Run check now|last checked|health check" frontend/src`
+
+- [ ] **Step 2: Replace with heartbeat vocabulary where it means periodic status poll:**
+  - `refreshes every 30 seconds` → `status heartbeat every {n}s`
+  - `auto-rechecked every ~10 min` → `integrity heartbeat ~10 min`
+  - `Run check now` → `Run heartbeat now`
+  - `Last check` (feed health) → `Last heartbeat`
+  - Keep literal intervals in scheduler config labels but add HelpTip: "Scheduler heartbeat interval"
+
+- [ ] **Step 3: Do NOT rename** user-facing product copy in PrivacyPage ingest schedules (those describe data freshness, not subsystem health)
+
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "copy: heartbeat terminology audit across admin and shell"
+```
+
+---
+
 ## Phase C — Resources observability, efficiency optimization, Database metrics
 
 Phase C covers **item 1 in full**: (a) 100% accurate, dynamic consumption vs hardware ceiling display, and (b) efficiency optimizations without losing operational value.
@@ -535,6 +591,59 @@ git commit -m "fix(admin): accurate DB explorer row counts and metrics panel"
 
 ---
 
+### Task C8b: Table browser dropdown — dynamic label refresh
+
+**Files:**
+- Modify: `briefr/frontend/src/pages/admin/DbExplorerPanel.jsx`
+
+**RCA:** Dropdown labels are built once from `catalog.tables` at render time. If catalog loads async or row counts change after browse, the Select options can show stale `0 rows` until full page reload.
+
+- [ ] **Step 1: Re-fetch catalog when Database tab becomes active** — accept `active` prop from `AdminPage`, call `loadCatalog()` on `active` transition to true
+
+- [ ] **Step 2: After `loadRows`, patch catalog row_count for selected table from `rowsPayload.total`**
+
+```javascript
+useEffect(() => {
+  if (!rowsPayload?.total || !selectedTable) return
+  setCatalog(prev => prev ? {
+    ...prev,
+    tables: prev.tables.map(t =>
+      t.name === selectedTable ? { ...t, row_count: rowsPayload.total, row_count_estimated: false } : t
+    ),
+  } : prev)
+}, [rowsPayload?.total, selectedTable])
+```
+
+- [ ] **Step 3: Poll catalog every 60s while Database tab active** (optional, config-gated in UI)
+
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "fix(admin): DB explorer dropdown refreshes row counts dynamically"
+```
+
+---
+
+### Task C9: Resources tab charts — polish
+
+**Files:**
+- Modify: `briefr/frontend/src/pages/admin/ResourcesPage.jsx`
+- Modify: `briefr/frontend/src/pages/admin/resourcesChartsRecharts.jsx`
+- Modify: `briefr/frontend/src/pages/admin/resourceChartUtils.js`
+- Test: extend `formatters.test.js` / `resourceChartUtils.test.js`
+
+- [ ] **Step 1: Integer Y-axis ticks** for byte series (reuse `bytesChartScale.formatTick` — no `.0` floats)
+- [ ] **Step 2: Overlay host ceiling** on memory/CPU charts when `host_profile` available (horizontal reference line at 100%)
+- [ ] **Step 3: ChartDataTable default sort** — newest timestamp first (match Phase A backup table pattern)
+- [ ] **Step 4: Remove rotated Y-axis labels** that overlap ticks (caption above chart, same as backup chart fix)
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "fix(admin): resources chart axes, ceiling overlay, table sort"
+```
+
+---
+
 ## Phase D — API call audit trail
 
 ### Task D1: Audit API endpoint
@@ -568,6 +677,27 @@ git commit -m "fix(admin): accurate DB explorer row counts and metrics panel"
 
 ```bash
 git commit -m "feat(admin): API call audit trail for outbound requests"
+```
+
+---
+
+### Task D3: GreyNoise opt-in clarity in audit
+
+**Files:**
+- Modify: `briefr/frontend/src/pages/admin/ApiCallAuditPanel.jsx`
+- Modify: `briefr/frontend/src/components/IOCLookup.jsx` (quota panel copy only)
+- Modify: `briefr/frontend/src/pages/admin/catalog.js`
+
+- [ ] **Step 1: Audit panel HelpTip** — "GreyNoise calls only occur when IOC Lookup 'Include GreyNoise' is checked, or from background enrichment if explicitly enabled. Filter by source=greynoise to audit."
+
+- [ ] **Step 2: When filtering greynoise, show actor breakdown** (user IOC lookup vs job) prominently
+
+- [ ] **Step 3: IOC quota panel** — label GreyNoise as "Optional — per lookup"
+
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "copy(admin): GreyNoise optional opt-in clarity in audit and IOC"
 ```
 
 ---
@@ -651,6 +781,75 @@ ConfigField("AI_PER_MINUTE_CAP", "ml", "int", min=1, default=10)
 
 ---
 
+### Task E2b: Scheduler UI — provider label updates on failover
+
+**Files:**
+- Modify: `briefr/backend/routers/admin/helpers.py`
+- Modify: `briefr/frontend/src/pages/admin/shared/JobTable.jsx`
+- Modify: `briefr/frontend/src/pages/admin/SchedulerPage.jsx`
+
+- [ ] **Step 1: Expose `current_provider` + `providers_attempted[]` in job lock payload for LLM jobs**
+- [ ] **Step 2: JobTable progress text** — `Detection Context LLM: 8/10 (CVE-…) — trying openrouter → cerebras` on failover
+- [ ] **Step 3: Commit**
+
+```bash
+git commit -m "fix(scheduler): show LLM provider failover in job progress UI"
+```
+
+---
+
+### Task E4: Paid-tier rate limit presets
+
+**Files:**
+- Modify: `briefr/backend/source_rate_limits.py`
+- Modify: `briefr/backend/config_schema.py`
+- Modify: `briefr/frontend/src/pages/admin/ApiKeysPage.jsx`
+- Test: `briefr/backend/tests/test_rate_limit_tier_presets.py`
+
+- [ ] **Step 1: Add `OUTBOUND_PACING_TIER` enum: `free` | `premium_auto` | `custom`**
+
+```python
+def resolve_pacing_tier() -> str:
+    return os.environ.get("OUTBOUND_PACING_TIER", "free")
+
+def get_source_pacing(key: str) -> SourcePacing:
+    tier = resolve_pacing_tier()
+    if tier == "premium_auto" and _has_api_key_for_source(key):
+        return _premium_profile(key)
+    if tier == "custom":
+        return _custom_override(key) or PACING_PROFILES[...]
+    return PACING_PROFILES[...]
+```
+
+- [ ] **Step 2: ApiKeysPage — tier selector** ("Premium auto: relax limits for sources where you've saved an API key")
+- [ ] **Step 3: Custom tier reveals per-source interval fields**
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "feat(config): outbound pacing tier presets free vs premium"
+```
+
+---
+
+### Task E5: AI API anti-abuse guards
+
+**Files:**
+- Modify: `briefr/backend/ai/llm_router.py`
+- Modify: `briefr/frontend/src/pages/admin/AiOperationsPage.jsx`
+- Test: `briefr/backend/tests/test_ai_rate_guards.py`
+
+- [ ] **Step 1: Per-minute and daily caps** enforced in `chat_completion_task` before any provider call
+- [ ] **Step 2: Idempotency** — reject duplicate same-task/same-cve within 30s window
+- [ ] **Step 3: Frontend** — disable manual trigger buttons for 5s after click (`useBusyGuard` hook)
+- [ ] **Step 4: Admin counter** — "AI requests today: X / cap" on AI Operations page
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(ai): strict rate caps and UI debounce for LLM calls"
+```
+
+---
+
 ## Phase F — IOC polish, IPv4/IPv6, responsive tokens
 
 ### Task F1: IPv4/IPv6 display helpers
@@ -723,6 +922,40 @@ git commit -m "feat(ui): responsive shell tokens and IOC lookup polish"
 
 ---
 
+### Task F4: Tool-wide responsive audit (split-screen)
+
+**Files:**
+- Modify: `briefr/frontend/src/App.css` (tokens)
+- Modify: `briefr/frontend/src/pages/AdminPage.css`
+- Modify: `briefr/frontend/src/components/DetailDrawer.css` (or module)
+- Modify: `briefr/frontend/src/components/IOCLookup.css`
+- Modify: `briefr/frontend/src/pages/WallboardPage.css` (if exists)
+- Create: `briefr/frontend/docs/responsive-checklist.md` (QA checklist for 1280×720 split)
+
+**Scope:** Apply `--shell-*` tokens to minimum touch targets (44px) and readable body font (≥13px effective) on:
+- Main CVE shell + DetailDrawer tabs
+- IOC Lookup (F2)
+- Admin panel (F3 partial)
+- StatusBar pills
+- Wallboard kiosk view
+
+- [ ] **Step 1: Audit** — list components with `font-size < 12px` or control height `< 40px` in main user paths
+
+```bash
+rg -n "font-size:\s*0\.(6|65|7|72|75)rem|font-size:\s*11px" briefr/frontend/src --glob '*.{css,jsx}'
+```
+
+- [ ] **Step 2: Fix highest-traffic surfaces** (shell header, drawer overview, IOC, admin config)
+- [ ] **Step 3: Add `@media (max-width: 1400px)` breakpoints** for side-by-side window snapping — stack toolbars, widen min column widths
+- [ ] **Step 4: Manual QA at 1280×720 with two snapped windows**
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(ui): tool-wide responsive tokens and split-screen breakpoints"
+```
+
+---
+
 ## Verification matrix
 
 | Requirement | Phase | Verify |
@@ -748,6 +981,15 @@ git commit -m "feat(ui): responsive shell tokens and IOC lookup polish"
 | IOC lookup size | F | Visual + 44px targets |
 | Heartbeat copy | B | Grep old phrases gone |
 | Correlation HelpTips | B | Analyst overview hover |
+| Capitalization consistency | B6 | Metering shows Job/Queue/User |
+| Heartbeat tool-wide audit | B7 | Feed health, StatusBar, Scheduler |
+| DB dropdown dynamic refresh | C8b | Browse rows → dropdown count updates |
+| Resources chart polish | C9 | Integer ticks, ceiling overlay |
+| GreyNoise audit clarity | D3 | Filter greynoise → actor breakdown |
+| Premium tier rate presets | E4 | Tier selector in API Keys |
+| AI anti-abuse guards | E5 | Double-click debounce + daily cap |
+| LLM failover UI | E2b | Provider name updates in Scheduler |
+| Tool-wide responsive | F4 | 1280×720 split-screen QA |
 
 ---
 
@@ -757,20 +999,22 @@ git commit -m "feat(ui): responsive shell tokens and IOC lookup polish"
 |-----------|-----------|
 | 1a Resource display (ceiling/consumption) | C1, C2, C6 |
 | **1b Resource efficiency optimization** | **C3, C4, C5** |
-| 2 Database metrics + projection + table browser | C7, C8 |
+| 2 Database metrics + projection + table browser | C7, C8, C8b |
 | 3 Scroll RCA | B1 |
-| 4 User rate limits | E1 |
-| 5 Scheduler stuck / LLM failover | E2 |
-| 6 Custom AI providers + limits | E3 |
+| 4 User rate limits | E1, E4 |
+| 5 Scheduler stuck / LLM failover | E2, E2b |
+| 6 Custom AI providers + limits | E3, E5 |
 | 7 IPv4/IPv6 | F1 |
 | 8 Remove status legend | B2 |
 | 9 Search tokens clarity | B3 |
 | 10 API keys hierarchy + metering | B4 |
 | 11 API audit trail | D1, D2 |
-| 12 IOC + responsive | F2, F3 |
+| 12 IOC + responsive | F2, F3, F4 |
 | 13 Correlation quality help | B5 |
-| 14 Heartbeat wording | B5 |
-| Prior ops charts | Phase A (separate plan) |
+| 14 Heartbeat wording | B5, B7 |
+| Prior ops charts (backup/ingest/storage) | Phase A Tasks 1–6 |
+| Prior webhook chart | Phase A Task 7 |
+| Prior resources charts | Phase C Task C9 |
 
 No placeholders remain in task definitions. Each phase produces an independently mergeable PR.
 

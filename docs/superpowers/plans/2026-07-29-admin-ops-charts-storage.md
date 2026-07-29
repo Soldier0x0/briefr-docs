@@ -397,6 +397,7 @@ Title: `Fix admin ops charts axes and storage partition clarity`
 |-------------|------|
 | Ingest duration in seconds | Task 3 (verify + deploy) |
 | Backup Y-axis no floats / no overlap | Task 1 |
+| Webhook chart axis + data table | Task 7 |
 | Dynamic Y scale from data | Task 1 (`bytesChartScale` + `niceCeil`) |
 | 30 backup data points | Task 1 |
 | No date/time on backup X-axis | Task 1 (ordinal labels) |

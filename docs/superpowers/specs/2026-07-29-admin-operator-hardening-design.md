@@ -29,7 +29,49 @@ This spec decomposes the work into **six independent sub-projects** that can shi
 
 ---
 
-## Root-cause analysis (confirmed in codebase)
+## Full requirement coverage matrix
+
+Cross-check of every point from the operator review (2026-07-29) against the current plan.
+
+| # | Requirement | Status | Phase / task | Gap notes |
+|---|-------------|--------|--------------|-----------|
+| **Prior** | Ops charts (ingest seconds, backup ordinal/30pt, data table order) | Covered | A (Tasks 1–3) | Deploy gap documented |
+| **Prior** | Storage dynamic data + same-mount explanation | Covered | A (Task 4) | — |
+| **Prior** | Static/hardcoded value audit | Covered | A (Task 5) | — |
+| **Prior** | **Webhook deliveries chart** polish | **Partial** | **A (Task 7 — added)** | Was named in decomposition but had **no tasks**; Y-axis overlap, 7-day cap from 200-row limit |
+| **Prior** | **Resources tab charts** polish | **Partial** | **C (Task C9 — added)** | Tooltip/index fix exists; missing ceiling overlay, integer Y ticks, data table default sort |
+| 1a | 100% accurate resource display, floor/ceiling, dynamic H/W | Covered | C1, C2, C6 | — |
+| 1b | Optimize RAM/CPU/storage/DB without losing function | Covered | C3, C4, C5 | — |
+| 2 | Database metrics (not just integrity OK) | Covered | C7 | — |
+| 2 | Projected disk utilization with **color** trend | Covered | C7 | Color thresholds in task |
+| 2 | Table browser dropdown 0 rows + **not updated dynamically** | **Partial** | C8 + **C8b** | Row-count fix planned; **dynamic refresh** of Select labels when catalog/rows change needs explicit task |
+| 3 | Scroll position carries across admin tabs | Covered | B1 | — |
+| 4 | User-configurable rate limits for **all** API calls | **Partial** | E1 + **E4** | Outbound pacing planned; **paid-tier presets** (higher limits when operator has premium keys) not explicit; inbound limits already in config but need UI grouping |
+| 4 | Defaults = free tier; overrides in `app_settings` DB | Covered | E1, E4 | Instance-wide (self-host operator model) |
+| 5 | Scheduler jobs stuck on one provider; failover | Covered | E2 | — |
+| 5 | UI shows provider switch during job | **Partial** | **E2b** | Failover exists in code; scheduler UI must update provider label on failover |
+| 6 | Custom AI: Deepseek, Kimi, OpenAI, Claude, Gemini | Covered | E3 | — |
+| 6 | Catalog **or** user-pasted model name | Covered | E3 | Custom OpenAI-compatible slot |
+| 6 | **Strict limits** — bugs, double-click, malicious use | **Partial** | E3 + **E5** | Caps mentioned; **UI debounce, per-route throttle, idempotency keys** need explicit tasks |
+| 7 | Security + Inbound limits: IPv4 **and** IPv6, even private | Covered | F1 | — |
+| 7 | Show `N/A` when unavailable | Covered | F1 | — |
+| 8 | Remove status legend from admin sidebar | Covered | B2 | — |
+| 9 | Search API tokens — clarify purpose | Covered | B3 | — |
+| 10 | API keys: key vs value color differentiation | Covered | B4 | — |
+| 10 | Font size standardization | **Partial** | B4, F3 | B4 = API Keys page only; **F4** extends tool-wide |
+| 10 | **Capitalization consistency** (headings + actor labels) | **Partial** | **B6** | BY ACTOR header uppercase but values `job`/`queue`/`user` lowercase — needs explicit rule |
+| 10 | BY SOURCE / BY ACTOR aligned table | Covered | B4 | — |
+| 11 | API call audit: when, destination, process | Covered | D1, D2 | — |
+| 11 | GreyNoise quota explainability; **optional** where available | **Partial** | D2 + **D3** | RCA in spec; **GreyNoise opt-in** callout in audit + IOC docs needs task |
+| 12 | IOC: bigger search bar, Clear/Lookup right, Lookup accent | Covered | F2 | — |
+| 12 | Quota info legible font | Covered | F2 | — |
+| 12 | Responsive/dynamic for **entire tool** (split-screen) | **Partial** | F3 + **F4** | F3 = tokens only; **F4** = shell, drawer, wallboard, analyst views audit |
+| 13 | Analyst: explain correlation quality values | Covered | B5 | — |
+| 14 | Heartbeat wording **across tool** where relevant | **Partial** | B5 + **B7** | B5 lists ~5 strings; **B7** = repo-wide copy audit (Feed health, StatusBar, Scheduler, About, etc.) |
+
+**Summary:** 14 numbered items are **addressed** in the plan; **9 sub-requirements** were under-specified and are added below (Tasks A7, B6–B7, C8b, C9, E2b, E4–E5, D3, F4).
+
+---
 
 ### Scroll position carries across tabs (item 3)
 
@@ -126,6 +168,13 @@ Item 1 has **two halves** that must ship together in Phase C:
 
 **Fix:** Add `outbound_pacing` section to config schema (per-source `min_interval_seconds`, optional daily caps) stored in `app_settings`, defaults = current free-tier values. `get_source_pacing()` reads DB override then falls back to code defaults.
 
+**Paid-tier presets (item 4 nuance):** Operators with premium API keys (e.g. VirusTotal premium, NVD API key, OTX key) need one-click **tier profiles** — not billing integration:
+- `Free tier (default)` — today's `PACING_PROFILES`
+- `Premium / keyed` — auto-relax limits for sources where a valid API key is configured (detect via `config` health / key presence)
+- `Custom` — per-source overrides
+
+Stored in `app_settings` alongside other operator config (same DB as API keys).
+
 ### Custom AI providers (item 6)
 
 **Current:** Fixed chain in `ai/model_catalog.py` (Groq → Cerebras → OpenRouter → Gemini). No Deepseek, Kimi, OpenAI, Claude as first-class providers.
@@ -208,8 +257,8 @@ Introduce `--shell-*` CSS tokens in `App.css`:
 
 ## Out of scope (this cycle)
 
-- Multi-tenant per-user rate limits (single-operator self-host assumed; config is instance-wide)
-- Billing integration for paid API tiers
+- Per-end-user rate limits in `user_preferences` (self-host uses instance-wide `app_settings`; tier presets are operator-level)
+- Billing integration or payment for paid API tiers (tier presets only adjust pacing when keys are present)
 - Removing Search API tokens feature entirely (clarify + fix instead)
 - `briefr-demo` full admin parity (sync script only)
 
@@ -223,7 +272,7 @@ Introduce `--shell-*` CSS tokens in `App.css`:
 4. At least **five code-level optimizations** ship with defaults preserving current behavior (scheduler poll gate, config exposure, optional event batching, optional post-purge VACUUM, embeddings dedup guard).
 5. Database tab shows ≥8 live metrics + disk projection; table dropdown row counts match reality (± estimate label on PG).
 6. Tab switch always opens at scroll top.
-7. Outbound pacing editable in Admin → API Keys with free-tier defaults.
+7. Outbound pacing editable in Admin → API Keys with **free-tier defaults + premium-tier presets** when API keys are configured.
 8. LLM enrichment job fails over within 2× per-provider timeout; stuck jobs surface warning in Scheduler.
 9. API call audit answers “who called GreyNoise when”.
 10. IOC lookup controls meet 44px touch target; readable at 1280px half-width.
