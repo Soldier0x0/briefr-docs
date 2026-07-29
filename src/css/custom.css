@@ -407,6 +407,19 @@ header h1 {
   margin-top: 2rem;
 }
 
+/* Legal & about pages — slightly larger type for readability */
+article[class*='docId-legal'] .markdown,
+article[class*='docId-legal'] .markdown p,
+article[class*='docId-legal'] .markdown li,
+article[class*='docId-legal'] .markdown td {
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+article[class*='docId-legal'] .markdown h1 {
+  font-size: 2.05rem;
+}
+
 /* ---------- Motion discipline ---------- */
 
 @media (max-width: 40em) {

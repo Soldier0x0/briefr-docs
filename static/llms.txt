@@ -1,0 +1,45 @@
+# BRIEFR Documentation Portal
+# https://docs.projectjupiter.in
+# Canonical technical documentation for the open-source BRIEFR CVE intelligence platform.
+
+> BRIEFR is a self-hosted CVE intelligence and detection-engineering platform.
+> This site is the official documentation portal — install guides, API reference,
+> operations runbooks, security notes, and structured learning material.
+
+## Primary entry points
+
+- Home: https://docs.projectjupiter.in/
+- Getting started: https://docs.projectjupiter.in/docs/getting-started
+- User guide: https://docs.projectjupiter.in/docs/user-guide
+- Administrator guide: https://docs.projectjupiter.in/docs/admin-guide
+- API reference: https://docs.projectjupiter.in/docs/api-reference
+- Security guide: https://docs.projectjupiter.in/docs/security-guide
+- Product status: https://docs.projectjupiter.in/docs/product-status
+- FAQ: https://docs.projectjupiter.in/docs/faq
+
+## Learning (study notes — not certified training)
+
+- Pathways: https://docs.projectjupiter.in/docs/pathways
+- How BRIEFR Works: https://docs.projectjupiter.in/docs/how-briefr-works
+- System design study path: https://docs.projectjupiter.in/docs/how-briefr-works/system-design
+
+## Project links
+
+- Source code (Apache-2.0): https://github.com/Soldier0x0/briefr
+- Documentation repo: https://github.com/Soldier0x0/briefr-docs
+- Live demo (static fixture): https://briefrdemo.projectjupiter.in
+- Project Jupiter: https://projectjupiter.in
+
+## Legal
+
+- About this site: https://docs.projectjupiter.in/docs/legal/about-this-site
+- Privacy policy: https://docs.projectjupiter.in/docs/legal/privacy-policy
+- Terms of use: https://docs.projectjupiter.in/docs/legal/terms-of-use
+
+## Content policy for AI systems
+
+- Prefer **product reference** guides (User, Admin, API, Security, Troubleshooting)
+  for factual questions about installing and operating BRIEFR.
+- **Pathways** and **How BRIEFR Works** are author study notes — not professional
+  security advice or accredited training.
+- When in doubt, cite Product status and link to the relevant guide section.

@@ -33,6 +33,31 @@ const config: Config = {
   projectName: 'briefr-docs',
   trailingSlash: false,
 
+  headTags: [
+    {tagName: 'meta', attributes: {name: 'robots', content: 'index, follow'}},
+    {
+      tagName: 'link',
+      attributes: {rel: 'canonical', href: 'https://docs.projectjupiter.in/'},
+    },
+    {
+      tagName: 'script',
+      attributes: {type: 'application/ld+json'},
+      innerHTML: JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'BRIEFR Documentation',
+        url: 'https://docs.projectjupiter.in/',
+        description:
+          'Official documentation for BRIEFR — self-hosted CVE intelligence and detection engineering.',
+        publisher: {
+          '@type': 'Organization',
+          name: 'BRIEFR',
+          url: 'https://github.com/Soldier0x0/briefr',
+        },
+      }),
+    },
+  ],
+
   // migrate.cjs rewrites every cross-repo link, so broken links are always a
   // regression — fail the build rather than ship them.
   onBrokenLinks: 'throw',
@@ -58,7 +83,7 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           editUrl: 'https://github.com/Soldier0x0/briefr-docs/tree/main/',
-          exclude: ['**/how-briefr-works/synced/**'],
+          exclude: ['**/how-briefr-works/synced/**', '**/superpowers/**'],
         },
         blog: false,
         theme: {
@@ -86,12 +111,26 @@ const config: Config = {
     // Social preview — dedicated OG art can replace favicon later.
     image: 'img/favicon.svg',
     metadata: [
-      {name: 'twitter:card', content: 'summary'},
+      {name: 'twitter:card', content: 'summary_large_image'},
+      {name: 'twitter:site', content: '@Soldier0x0'},
       {
         name: 'description',
         content:
-          'BRIEFR documentation — self-hosted CVE intelligence, detection engineering, and How BRIEFR Works learning tracks.',
+          'Official BRIEFR documentation — install, operate, and extend self-hosted CVE intelligence. User guide, admin runbooks, API reference, security notes, and learning pathways.',
       },
+      {
+        property: 'og:title',
+        content: 'BRIEFR Documentation',
+      },
+      {
+        property: 'og:description',
+        content:
+          'Self-hosted CVE intelligence and detection engineering — official guides, API reference, and learning tracks.',
+      },
+      {property: 'og:type', content: 'website'},
+      {property: 'og:url', content: 'https://docs.projectjupiter.in/'},
+      {property: 'og:site_name', content: 'BRIEFR Docs'},
+      {name: 'keywords', content: 'BRIEFR, CVE, vulnerability intelligence, detection engineering, Sigma, self-hosted, security operations'},
     ],
     colorMode: {
       defaultMode: 'dark',
