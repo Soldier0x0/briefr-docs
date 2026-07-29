@@ -61,13 +61,15 @@
 
 .full {
   display: block;
+  /* Fill the lightbox up to viewport limits — never smaller than the inline thumb. */
+  width: min(96vw, 120rem);
   max-width: 100%;
-  max-height: min(82vh, 1200px);
-  width: auto;
+  max-height: min(90vh, 1400px);
   height: auto;
   margin: 0 auto;
+  object-fit: contain;
   border: 1px solid var(--brf-hairline-2);
-  border-radius: 4px;
+  border-radius: 6px;
   background: var(--brf-surface);
 }
 
