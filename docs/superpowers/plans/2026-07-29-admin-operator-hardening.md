@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan phase-by-phase. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship accurate resource/database observability, API audit trail, configurable outbound limits, LLM failover hardening, and admin/IOC UX polish across six phased PRs.
+**Goal:** Ship accurate resource/database observability, **resource efficiency optimization with operator-visible savings**, API audit trail, configurable outbound limits, LLM failover hardening, and admin/IOC UX polish across six phased PRs.
 
 **Architecture:** Each phase is an independent PR on `Soldier0x0/briefr`. Backend extends existing admin routers (`storage.py`, `database.py`, `jobs.py`, `config.py`) and `source_rate_limits.py`. Frontend follows established admin patterns (`AdminDataGrid`, `HelpTip`, `formatters.js`, `ChartDataTable`). Phase A reuses the existing ops-charts plan verbatim.
 
@@ -29,7 +29,7 @@
 |-------|--------|----------|------------|
 | **A** | `cursor/admin-phase-a-cc35` | Fix admin ops charts axes and storage partition clarity | — |
 | **B** | `cursor/admin-phase-b-cc35` | Admin UX: scroll, metering table, tokens, legend, heartbeat copy | — |
-| **C** | `cursor/admin-phase-c-cc35` | Resources ceiling + Database metrics overhaul | — |
+| **C** | `cursor/admin-phase-c-cc35` | Resources ceiling, efficiency audit/optimization, Database metrics | — |
 | **D** | `cursor/admin-phase-d-cc35` | API call audit trail panel | B (metering styles) |
 | **E** | `cursor/admin-phase-e-cc35` | Configurable outbound limits + LLM failover + custom AI providers | — |
 | **F** | `cursor/admin-phase-f-cc35` | IOC lookup polish + IPv4/IPv6 + responsive shell tokens | B |
@@ -252,7 +252,9 @@ git commit -m "copy(admin): heartbeat terminology and correlation quality toolti
 
 ---
 
-## Phase C — Resources ceiling + Database metrics
+## Phase C — Resources observability, efficiency optimization, Database metrics
+
+Phase C covers **item 1 in full**: (a) 100% accurate, dynamic consumption vs hardware ceiling display, and (b) efficiency optimizations without losing operational value.
 
 ### Task C1: Host profile API (floor/ceiling)
 
@@ -307,11 +309,174 @@ function HostCapacityCard({ profile }) {
 ```
 
 - [ ] **Step 2: Style capacity bars with green/amber/red thresholds at 70/90%**
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Add scoped metric labels** — each chart/summary card shows scope badge: `BRIEFR`, `PostgreSQL`, `Host`, `DB file`
+- [ ] **Step 4: Commit**
 
 ---
 
-### Task C3: Database metrics panel
+### Task C3: Efficiency audit API
+
+**Files:**
+- Create: `briefr/backend/efficiency_audit.py`
+- Modify: `briefr/backend/routers/admin/storage.py` (add `GET /resources/efficiency`)
+- Modify: `briefr/backend/db/resource_metrics.py`
+- Modify: `briefr/backend/storage_metrics.py`
+- Test: `briefr/backend/tests/test_efficiency_audit.py`
+
+**Interfaces:**
+- Produces: `EfficiencyReport: { generated_at, host_profile, subsystems: [{ id, label, bytes, rows, requests_per_day, pct_of_disk, pct_of_ram }], recommendations: [{ id, severity, title, description, config_key, current_value, suggested_value, estimated_savings: { bytes?, rows?, requests_per_day? } }] }`
+
+- [ ] **Step 1: Write failing test**
+
+```python
+async def test_efficiency_report_includes_subsystems_and_recommendations(db):
+    from efficiency_audit import build_efficiency_report
+    report = await build_efficiency_report(db)
+    assert "subsystems" in report
+    assert any(s["id"] == "api_call_events" for s in report["subsystems"])
+    assert isinstance(report["recommendations"], list)
+```
+
+- [ ] **Step 2: Implement subsystem breakdown** — query live sizes from `storage_metrics.table_sizes`, backup dir, pool stats (`get_pool_stats`), `resource_metrics` row count, cache table counts (`feed_cache`, `ioc_cache`), estimate scheduler poll cost from config.
+
+- [ ] **Step 3: Implement recommendation rules** (examples):
+
+```python
+RECOMMENDATIONS = [
+    # if api_call_events > 500MB and API_CALL_EVENTS_ENABLED
+    {"id": "api_events_volume", "config_key": "API_CALL_EVENTS_ENABLED", ...},
+    # if backup archive count > 50 and disk pct > 70%
+    {"id": "backup_retention", "config_key": "BACKUP_RETENTION_COUNT", "suggested_value": 30, ...},
+    # if RESOURCE_SAMPLE_INTERVAL_SECONDS < 120 and collector CPU > threshold
+    {"id": "sample_interval", "config_key": "RESOURCE_SAMPLE_INTERVAL_SECONDS", "suggested_value": 120, ...},
+    # if OTX continuous enabled and otx events > N/day
+    {"id": "otx_budget", "config_key": "OTX_CONTINUOUS_BUDGET_PER_RUN", ...},
+    # if DATABASE_POOL_SIZE > recommended from in_use stats
+    {"id": "pool_rightsize", "config_key": "DATABASE_POOL_SIZE", ...},
+]
+```
+
+- [ ] **Step 4: Wire `GET /api/admin/resources/efficiency`**
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(admin): efficiency audit API with subsystem breakdown"
+```
+
+---
+
+### Task C4: Efficiency recommendations UI + config exposure
+
+**Files:**
+- Modify: `briefr/frontend/src/pages/admin/ResourcesPage.jsx`
+- Modify: `briefr/backend/config_schema.py`
+- Modify: `briefr/backend/scheduler.py` (read new config keys)
+- Modify: `briefr/backend/db/resource_metrics.py`
+- Test: `briefr/frontend/src/pages/admin/efficiencyReport.test.js` (new)
+
+- [ ] **Step 1: Add config fields for env-only knobs today**
+
+```python
+ConfigField("RESOURCE_SAMPLE_INTERVAL_SECONDS", "queue", "int", min=30, max=3600, default=60, apply_strategy="scheduler_reschedule"),
+ConfigField("RESOURCE_METRICS_RETENTION_DAYS", "queue", "int", min=7, max=90, default=30, apply_strategy="restart"),
+ConfigField("OTX_CONTINUOUS_BUDGET_PER_RUN", "ingest", "int", min=50, max=2000, default=600),
+ConfigField("POSTGRES_VACUUM_AFTER_RETENTION", "queue", "bool", default=False, restart_required=True),
+```
+
+- [ ] **Step 2: ResourcesPage — `EfficiencyPanel` component**
+
+```jsx
+function EfficiencyPanel({ report, onApplyConfig }) {
+  return (
+    <div className="admin-card">
+      <div className="admin-card-title">
+        Efficiency recommendations
+        <HelpTip text="Live analysis of disk, memory, DB, and API overhead. Suggestions preserve functionality — review before applying." />
+      </div>
+      <SubsystemTable rows={report.subsystems} />
+      {report.recommendations.map(rec => (
+        <RecommendationRow key={rec.id} rec={rec} onApply={() => onApplyConfig(rec.config_key, rec.suggested_value)} />
+      ))}
+    </div>
+  )
+}
+```
+
+- [ ] **Step 3: Show estimated savings per recommendation** (e.g. `~1.2 GB disk`, `~15k fewer DB writes/day`)
+- [ ] **Step 4: Apply button opens config diff modal (reuse `DiffReviewModal` pattern from ApiKeysPage)**
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(admin): efficiency recommendations panel and config knobs"
+```
+
+---
+
+### Task C5: Code-level optimizations (zero default behavior change)
+
+**Files:**
+- Modify: `briefr/frontend/src/pages/admin/SchedulerPage.jsx` — gate 3s poll on `active` prop
+- Modify: `briefr/frontend/src/pages/admin/AdminPage.jsx` — pass `active={page === id}` to each page component
+- Modify: `briefr/backend/db/api_metering.py` — optional batched flush (`API_CALL_EVENTS_BATCH_MS`, default `0` = disabled)
+- Modify: `briefr/backend/db/cache_retention.py` — optional `VACUUM (ANALYZE)` after purge when `POSTGRES_VACUUM_AFTER_RETENTION=1`
+- Modify: `briefr/backend/ml/embeddings.py` — skip ingest-tail embed when backfill queue depth > `EMBEDDINGS_INGEST_SKIP_QUEUE_DEPTH` (default high = no change)
+- Modify: `briefr/backend/db/cache_retention.py` — `ssvc:` physical retention 8760h → 168h (read TTL in `feeds/` unchanged)
+- Test: `briefr/backend/tests/test_efficiency_optimizations.py`
+
+- [ ] **Step 1: Scheduler poll gate**
+
+```jsx
+// SchedulerPage.jsx
+useEffect(() => {
+  if (!active) return
+  const id = setInterval(loadJobs, 3000)
+  return () => clearInterval(id)
+}, [active, loadJobs])
+```
+
+- [ ] **Step 2: API events batch flush** — when `API_CALL_EVENTS_BATCH_MS > 0`, buffer inserts and flush every N ms (default 0 preserves current per-request insert)
+
+- [ ] **Step 3: Post-purge VACUUM** — after `run_retention_cleanup()`, if PG and flag set, run `VACUUM (ANALYZE)` on `api_call_events`, `feed_cache`, `ioc_cache`
+
+- [ ] **Step 4: Embeddings dedup guard** — in NVD ingest path, if pending embeddings backfill > threshold, skip `EMBEDDINGS_AUTO_ON_INGEST` tail
+
+- [ ] **Step 5: feed_cache `ssvc:` retention** — change `FEED_CACHE_PREFIX_RETENTION["ssvc:"]` from 8760 to 168
+
+- [ ] **Step 6: Run tests**
+
+```bash
+pytest briefr/backend/tests/test_efficiency_optimizations.py -q
+cd briefr/frontend && npm run test:unit
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git commit -m "perf: efficiency optimizations with safe defaults preserved"
+```
+
+---
+
+### Task C6: Accurate resource metrics — pool + collector scope
+
+**Files:**
+- Modify: `briefr/backend/resource_collector.py`
+- Modify: `briefr/backend/routers/admin/storage.py`
+- Modify: `briefr/frontend/src/pages/admin/ResourcesPage.jsx`
+
+- [ ] **Step 1: Add `pool_stats` to resources response** — `{ size, in_use, idle, waiting }` from `get_pool_stats()`
+- [ ] **Step 2: Add `db_file_bytes` separate from `host disk_used`** — avoid conflating DB file size with partition usage
+- [ ] **Step 3: Resources UI — Connection pool card**: `in_use / size` with ceiling bar
+- [ ] **Step 4: Document collector scope in HelpTip** — “BRIEFR CPU/RSS = backend process tree only; Host memory = entire machine”
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(admin): accurate scoped resource metrics and pool display"
+```
+
+---
+
+### Task C7: Database metrics panel
 
 **Files:**
 - Modify: `briefr/backend/routers/admin/database.py`
@@ -335,7 +500,7 @@ def project_disk_usage(samples: list[dict], horizon_days: int = 30) -> dict:
 
 ---
 
-### Task C4: Table browser row count fix
+### Task C8: Table browser row count fix
 
 **Files:**
 - Modify: `briefr/backend/db/explorer.py`
@@ -568,7 +733,11 @@ git commit -m "feat(ui): responsive shell tokens and IOC lookup polish"
 | Metering aligned table | B | Visual |
 | Search tokens load | B | Create token → list shows row |
 | Status legend gone | B | Sidebar visual |
-| Host capacity bars | C | `GET /resources` + UI |
+| **Host capacity bars (dynamic ceiling)** | C | `GET /resources` + UI |
+| **Efficiency audit API** | C | `GET /resources/efficiency` returns subsystems |
+| **Efficiency recommendations UI** | C | Panel shows savings + Apply |
+| **Code optimizations (safe defaults)** | C | Scheduler poll gated; pytest green |
+| **Scoped accurate metrics** | C | Pool stats, DB file vs disk separate |
 | DB metrics + projection | C | `GET /database` + UI colors |
 | Table row counts | C | PG + SQLite explorer |
 | API audit trail | D | Trigger IOC lookup → event row |
@@ -586,8 +755,9 @@ git commit -m "feat(ui): responsive shell tokens and IOC lookup polish"
 
 | Spec item | Plan task |
 |-----------|-----------|
-| 1 Resource optimization + ceiling | C1, C2 |
-| 2 Database metrics + projection + table browser | C3, C4 |
+| 1a Resource display (ceiling/consumption) | C1, C2, C6 |
+| **1b Resource efficiency optimization** | **C3, C4, C5** |
+| 2 Database metrics + projection + table browser | C7, C8 |
 | 3 Scroll RCA | B1 |
 | 4 User rate limits | E1 |
 | 5 Scheduler stuck / LLM failover | E2 |
