@@ -219,11 +219,83 @@ header h1 {
 
 .markdown code {
   border: 1px solid var(--brf-hairline);
-  padding: 0.12rem 0.35rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.84em;
+  background: var(--brf-raise);
 }
 
-.markdown a code {
-  color: inherit;
+/* Fenced code blocks — Geist-inspired panel (header strip + warm surface) */
+.theme-code-block {
+  --prism-background-color: var(--brf-raise) !important;
+  --prism-color: var(--brf-body) !important;
+  margin: 1.25rem 0;
+  border: 1px solid var(--brf-hairline);
+  border-radius: 8px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  overflow: hidden;
+  background: var(--brf-raise);
+}
+
+.theme-code-block .codeBlockTitle_OeMC,
+.theme-code-block .codeBlockTitle {
+  font-family: var(--brf-font-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brf-dim);
+  background: var(--brf-surface);
+  border-bottom: 1px solid var(--brf-hairline);
+  padding: 0.55rem 1rem;
+}
+
+.theme-code-block .codeBlockContent_QJqH,
+.theme-code-block .codeBlockContent {
+  background: var(--brf-raise);
+}
+
+.theme-code-block pre,
+.theme-code-block .prism-code {
+  margin: 0 !important;
+  padding: 1rem 1.1rem 1.1rem !important;
+  background: var(--brf-raise) !important;
+  color: var(--brf-body) !important;
+  font-size: 0.84rem;
+  line-height: 1.65;
+  text-shadow: none !important;
+  border-radius: 0;
+}
+
+.theme-code-block .buttonGroup_M5ko,
+.theme-code-block .buttonGroup {
+  top: 0.45rem;
+  right: 0.45rem;
+}
+
+.theme-code-block .buttonGroup_M5ko button,
+.theme-code-block .buttonGroup button {
+  border: 1px solid var(--brf-hairline);
+  border-radius: 6px;
+  background: var(--brf-surface);
+  color: var(--brf-dim);
+  opacity: 1;
+  transition: border-color 150ms ease-out, color 150ms ease-out;
+}
+
+.theme-code-block .buttonGroup_M5ko button:hover,
+.theme-code-block .buttonGroup button:hover {
+  border-color: var(--brf-hairline-2);
+  color: var(--brf-bright);
+  background: var(--brf-raise);
+}
+
+/* Architecture SVGs: vector, full width, no misleading zoom affordance */
+.markdown > p > img[alt*='architecture'],
+.markdown > p > img[alt*='pipeline'],
+.markdown > p > img[alt*='layers'] {
+  width: 100%;
+  max-width: 920px;
 }
 
 .markdown img {
@@ -260,9 +332,8 @@ header h1 {
   background: var(--brf-surface);
 }
 
-.theme-code-block {
-  border: 1px solid var(--brf-hairline);
-  box-shadow: none;
+.markdown a code {
+  color: inherit;
 }
 
 .markdown blockquote {
