@@ -25,8 +25,7 @@ Yes. The [live demo](https://briefrdemo.projectjupiter.in) is a 1:1 copy of
 the analyst UI with fixture data — no login, no database, no API keys. Buttons
 that need a backend (hunt-pack generation, live IOC enrichment) are
 visual-only. For a full deployment with live feeds, see
-[Self-host BRIEFR](/docs/admin-guide/self-host) or the example instance at
-https://briefr.projectjupiter.in.
+[Self-host BRIEFR](/docs/admin-guide/self-host).
 
 ### What do I need to run it?
 
