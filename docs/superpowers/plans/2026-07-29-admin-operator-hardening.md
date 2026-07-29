@@ -1294,7 +1294,8 @@ Review performed per `brainstorming`, `writing-plans`, `using-superpowers`, `req
 | E | #780 | **Merged** |
 | F+G | #781 | **Merged** (includes UX polish: quota chips, PDF footer, live host CPU, drawer borders) |
 | Metering hotfix | #783 | **Merged** |
-| H | — | **Complete** — verification on `main` @ `37a46448` |
+| FastAPI bump | #784 | **Merged** (0.140.13 + corpus regen; closes dependabot #775) |
+| H | — | **Complete** — verification on `main` @ `2fa17f76` |
 
 **Skipped:** #752 SQLite removal (per operator request).
 
