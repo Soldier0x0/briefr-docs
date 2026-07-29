@@ -693,16 +693,31 @@ git commit -m "feat(admin): API call audit trail for outbound requests"
 - Modify: `briefr/frontend/src/components/IOCLookup.jsx` (quota panel copy only)
 - Modify: `briefr/frontend/src/pages/admin/catalog.js`
 
-- [ ] **Step 1: Audit panel HelpTip** — "GreyNoise calls only occur when IOC Lookup 'Include GreyNoise' is checked, or from background enrichment if explicitly enabled. Filter by source=greynoise to audit."
-
-- [ ] **Step 2: When filtering greynoise, show actor breakdown** (user IOC lookup vs job) prominently
-
+- [ ] **Step 1: Audit panel HelpTip** — GreyNoise opt-in explanation + filter by source=greynoise
+- [ ] **Step 2: When filtering greynoise, show actor breakdown** (user IOC lookup vs job)
 - [ ] **Step 3: IOC quota panel** — label GreyNoise as "Optional — per lookup"
+- [ ] **Step 4: Commit**
 
+---
+
+### Task D4: API audit CSV export (30d in-DB + export)
+
+**Files:**
+- Modify: `briefr/backend/routers/admin/jobs.py` (or `api_audit.py`)
+- Modify: `briefr/frontend/src/pages/admin/ApiCallAuditPanel.jsx`
+- Test: `briefr/backend/tests/test_api_audit_export.py`
+
+**Interfaces:**
+- `GET /api/admin/api-usage/events/export?hours=168&source=greynoise` → `text/csv` download
+- UI: "Export CSV" button alongside filters; HelpTip explains 30-day DB retention vs unlimited export window up to `hours` param max (168)
+
+- [ ] **Step 1: Write failing test for CSV response headers and row format**
+- [ ] **Step 2: Implement streaming CSV from `api_call_events` query**
+- [ ] **Step 3: Export button in audit panel**
 - [ ] **Step 4: Commit**
 
 ```bash
-git commit -m "copy(admin): GreyNoise optional opt-in clarity in audit and IOC"
+git commit -m "feat(admin): API call audit CSV export alongside 30d retention"
 ```
 
 ---
@@ -1267,6 +1282,23 @@ Review performed per `brainstorming`, `writing-plans`, `using-superpowers`, `req
 **Assessment:** Plan is ready for operator approval. No blocking gaps remain in documentation.
 
 ---
+
+## Execution status (2026-07-29)
+
+| Phase | PR | Status |
+|-------|-----|--------|
+| A | #777 | **Merged** |
+| B | #776 | **Merged** |
+| C | #778 | **Merged** |
+| D | #779 | **Merged** |
+| E | #780 | **Merged** |
+| F+G | #781 | **Merged** (includes UX polish: quota chips, PDF footer, live host CPU, drawer borders) |
+| Metering hotfix | #783 | **Merged** |
+| H | — | Verification on `main` @ `37a46448` |
+
+**Skipped:** #752 SQLite removal (per operator request).
+
+**CI hardening applied:** job timeouts, playwright `domcontentloaded`, `pytest-timeout` with `func_only=True`, security corpus regen on route changes.
 
 ## Execution handoff
 
