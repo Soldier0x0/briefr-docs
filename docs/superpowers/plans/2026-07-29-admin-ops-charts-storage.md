@@ -4,6 +4,8 @@
 
 **Goal:** Fix Operator Overview ops charts (ingest duration, backup sizes) and Storage disk panels so axes read cleanly, data scales from live API values (never hardcoded), backup history shows 30 points, and data tables default to newest-first.
 
+> **Parent plan:** This file is **Phase A** of the broader admin hardening program. See `docs/superpowers/plans/2026-07-29-admin-operator-hardening.md` and design spec `docs/superpowers/specs/2026-07-29-admin-operator-hardening-design.md`.
+
 **Architecture:** All chart math lives in pure helpers (`formatters.js`, `backupChartUtils.js`) with node:test coverage. Recharts components only map rows → display values. Storage disk stats come from `shutil.disk_usage` on the real `db_path` and `BACKUP_DIR` paths; the API will expose mount identity so the UI can explain when both panels share one filesystem. No changes to `briefr-demo` runtime (static preview); sync UI from `briefr/frontend` when demo is refreshed.
 
 **Tech Stack:** React 19, Recharts, FastAPI, `shutil.disk_usage`, node:test (`npm run test:unit` in `briefr/frontend`).
