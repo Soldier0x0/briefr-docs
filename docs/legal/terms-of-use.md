@@ -10,10 +10,12 @@ description: Terms for using the BRIEFR documentation portal at docs.projectjupi
 **Effective July 2026 — docs.projectjupiter.in**
 
 These terms apply to your use of the **BRIEFR documentation portal**
-(`https://docs.projectjupiter.in`). Use of the BRIEFR **software** or the
-hosted **application** at `projectjupiter.in` is also subject to the
-[application Terms of Use](https://projectjupiter.in/terms) when you interact
-with that instance.
+(`https://docs.projectjupiter.in`). Use of the BRIEFR **software** is governed
+by the [Apache License 2.0](https://github.com/Soldier0x0/briefr/blob/main/LICENSE).
+Self-hosted deployments and the static live demo at
+`https://briefrdemo.projectjupiter.in` have separate in-app terms. The
+[Project Jupiter marketing site](https://projectjupiter.in/terms) has its own
+terms of use.
 
 ## 1. What this site is
 

@@ -12,11 +12,13 @@ description: Privacy practices for the BRIEFR documentation portal at docs.proje
 This policy describes data practices for the **BRIEFR documentation portal**
 only (`https://docs.projectjupiter.in`). It does **not** govern:
 
-- The hosted BRIEFR **application** at `projectjupiter.in` — see the in-app
-  [Privacy Policy](https://projectjupiter.in/privacy) when you use that instance.
+- The **live demo** at `https://briefrdemo.projectjupiter.in` — a static
+  fixture preview with no accounts or backend.
 - Any **self-hosted** BRIEFR deployment — your operator is the data fiduciary.
+- The **Project Jupiter marketing site** at `https://projectjupiter.in` — see
+  [its privacy policy](https://projectjupiter.in/privacy).
 
-**Data Fiduciary:** Sai Harsha Vardhan, sole operator of projectjupiter.in.
+**Data Fiduciary (this docs site):** Sai Harsha Vardhan.
 
 ## 1. What we do not collect on this docs site
 
@@ -71,8 +73,9 @@ builders. It is not directed at children under 13.
 Because we do not maintain user accounts on this portal, there is typically no
 personal profile to export or erase here. If you believe connection logs held
 by our hosting provider relate to you and wish to raise a request, contact our
-Grievance Officer (below). For data held by the **BRIEFR application** when you
-sign in to `projectjupiter.in`, use the application privacy policy instead.
+Grievance Officer (below). For data held by a **self-hosted BRIEFR instance**
+or the static live demo, contact that operator or see the in-app privacy page
+on that deployment.
 
 ## 6. Changes
 

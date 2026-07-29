@@ -11,9 +11,8 @@
 ## Global Constraints
 
 - **Live demo URL:** `https://briefrdemo.projectjupiter.in` — static 1:1 UI, fixture data, no backend.
-- **Example instance URL:** `https://briefr.projectjupiter.in` — full PostgreSQL deployment.
 - **Docs URL:** `https://docs.projectjupiter.in`.
-- **Landing URL:** `https://projectjupiter.in` — must link demo, docs, and example instance.
+- **Landing URL:** `https://projectjupiter.in` — must link demo and docs (not a public production BRIEFR instance).
 - **Dependabot baseline (merged):** `briefr` PR #769 on `main` — fastapi 0.140.7, ruff 0.16.0, react 19.2.8, recharts 3.10.1, playwright 1.62.0, eslint **held at ^9.39.5** (eslint 10 breaks `eslint-plugin-react@7.37.5`).
 - **Out of scope:** `briefr` PR #752 (SQLite removal) unless explicitly re-opened by maintainer.
 - **Quality gate (briefr):** `./scripts/verify-local.sh` required; `./scripts/verify-local.sh --full` before production deploy.
@@ -84,7 +83,6 @@ Expected: only #752 (SQLite draft), not #765–#768.
 | URL | Label | What it is |
 |-----|-------|------------|
 | `briefrdemo.projectjupiter.in` | **Live demo** | Static 1:1 UI, fixtures, no auth |
-| `briefr.projectjupiter.in` | **Example instance** | Full Postgres + live APIs |
 | `docs.projectjupiter.in` | **Documentation** | This portal |
 
 ### Task 1: `briefr` README and canonical docs
@@ -107,10 +105,9 @@ Replace single “Example instance” line with:
 | Link | What it is |
 |------|------------|
 | **Live demo** | https://briefrdemo.projectjupiter.in — 1:1 analyst UI with fixture data (no install, no backend) |
-| **Example instance** | https://briefr.projectjupiter.in — full PostgreSQL-backed deployment with live feeds |
 | **Documentation** | https://docs.projectjupiter.in |
 
-The demo is a static showroom ([`briefr-demo`](https://github.com/Soldier0x0/briefr-demo)): same shell as production, frozen JSON instead of a database.
+The demo is a static showroom ([`briefr-demo`](https://github.com/Soldier0x0/briefr-demo)): same shell as production, frozen JSON instead of a database. Full deployments are self-hosted — see the docs portal.
 ```
 
 Add to Documentation table: `| Try the UI (no install) | https://briefrdemo.projectjupiter.in |`
@@ -137,7 +134,7 @@ git remote set-url origin "https://x-access-token:${GITHUB_BRIEFR_DOCS_TOKEN}@gi
 git push -u origin cursor/demo-url-docs-cc35
 GITHUB_TOKEN="$GITHUB_BRIEFR_DOCS_TOKEN" gh pr create --repo Soldier0x0/briefr --base main --head cursor/demo-url-docs-cc35 \
   --title "docs: add live demo URL across README and canonical docs" \
-  --body "Links https://briefrdemo.projectjupiter.in as the static showroom; distinguishes from the full example instance and docs portal."
+  --body "Links https://briefrdemo.projectjupiter.in as the static showroom; points to docs for self-host."
 ```
 
 - [ ] **Step 5: Merge after CI green**
@@ -194,7 +191,7 @@ Branch `cursor/demo-url-readme-cc35` may already exist on remote — open PR if 
 
 ```bash
 GITHUB_TOKEN="$GITHUB_BRIEFR_DOCS_TOKEN" gh repo create Soldier0x0/projectjupiter-landing --public \
-  --description "Project Jupiter landing — BRIEFR demo, docs, and example instance links"
+  --description "Project Jupiter landing — BRIEFR demo and docs links"
 ```
 
 If 403: create repo manually in GitHub UI, then continue.
