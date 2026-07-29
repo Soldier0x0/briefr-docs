@@ -10,7 +10,7 @@
 
 Operators and analysts using the BRIEFR admin panel report inaccurate or opaque resource/database metrics, confusing API metering and token UX, scroll-position bugs when switching tabs, scheduler jobs that appear stuck on a single LLM provider, no audit trail for outbound API calls (e.g. GreyNoise quota drift), and inconsistent terminology (“auto-checked every X” vs heartbeat). IOC lookup and several admin panels need responsive polish and clearer visual hierarchy.
 
-This spec decomposes the work into **six independent sub-projects** that can ship as separate PRs without blocking each other.
+This spec decomposes the work into **seven independent sub-projects** that can ship as separate PRs without blocking each other.
 
 ---
 
@@ -24,8 +24,10 @@ This spec decomposes the work into **six independent sub-projects** that can shi
 | **D** | API audit trail & metering | 11 (+ extends 10) | `db/api_metering.py`, `ApiKeysPage.jsx`, new `ApiCallAuditPage` or panel |
 | **E** | Configurable limits & AI providers | 4, 5, 6 | `source_rate_limits.py`, `config_schema.py`, `ai/llm_router.py`, `scheduler.py` |
 | **F** | Tool-wide responsive & IOC polish | 7, 12 | `IOCLookup.jsx`, `RateLimitPage.jsx`, `SecurityPage.jsx`, shared CSS tokens |
+| **G** | Codebase performance + accessibility | 1 (code-level), cross-cutting | `briefr/backend/**`, `briefr/frontend/**` — see audit inventory |
+| **H** | Quality gates (per-phase review) | All | Tests, a11y scan, code review checklist — no feature code |
 
-**Recommended ship order:** A → B → C → D → E → F (each phase is independently testable).
+**Recommended ship order:** A → B → C → D → E → F → G (H runs after every phase).
 
 ---
 
@@ -160,7 +162,40 @@ Item 1 has **two halves** that must ship together in Phase C:
 4. **Code-level optimizations** — implement only changes that preserve defaults (zero behavior change on upgrade) but reduce overhead when operators opt in or when obvious bugs exist (e.g. Scheduler poll when tab hidden).
 5. **Verification** — each optimization includes before/after measurement hooks surfaced in Resources tab (same API, compare `baseline_id` snapshots).
 
-**Out of scope for optimization:** disabling features by default, removing OTX/embeddings/correlation entirely, or multi-tenant per-user caps.
+#### 1c. Codebase-level performance efficiency (without changing behavior)
+
+**Distinction:** Items 1a–1b tune *runtime resources* (RAM, disk, API quotas). Item 1c tunes *code paths* — fewer queries, fewer round-trips, less CPU per request — with **zero functional regression**.
+
+**Principles:**
+- Every change ships behind existing tests + new benchmarks where hot paths are touched.
+- No API contract breaks without version bump; list payloads may slim only with frontend consuming new fields.
+- Measure before/after: p95 latency, query count, bytes transferred, React render count.
+
+**Three optimization layers:**
+
+| Layer | Examples | Phase |
+|-------|----------|-------|
+| **Ops / config** | Sample interval, cache retention, pool size | C3–C5 |
+| **Backend code** | N+1 elimination, batch DB, connection reuse, SQL push-down | G1 |
+| **Frontend code** | Dedup fetches, memo stability, lazy tabs, visibility-aware polls | G2 |
+
+**High-priority backend targets (from codebase audit):**
+- `correlation/engine.py` — OTX prefetch: one `get_db()` per loop → batch connection + commits
+- `wallboard/service.py` — N× `calculate_momentum()` → batch EPSS/OTX/KEV fetch
+- `routers/cves/list.py` — correlated subqueries per row → join or denormalize campaign flags
+- `db/metadata.py` — `count_ai_ml_profile_alerts` full-table Python filter → SQL or precomputed tags
+- `detection/context_llm_sync.py` — per-CVE `get_db()` → single scheduler-scoped connection
+- `dependencies.py` — `require_user` DB hit every request → short-TTL in-process cache with invalidation
+
+**High-priority frontend targets:**
+- `Sidebar.jsx` + `TimelineHeatmap.jsx` — duplicate `fetchStatsTimeline` → shared cache hook
+- `BriefCharts.jsx` — N parallel EPSS history calls → batch endpoint or include in `/api/changes`
+- `DetailDrawer/index.jsx` — bundle + separate risk fetch → extend drawer bundle
+- `CVEFeed.jsx` — inline handlers defeating `CVECard` memo → stable callbacks
+- `AdminPage.jsx` + child pages — consolidate polls; `useVisibilityAwareInterval` everywhere
+- `WallboardPage.jsx` — pause poll when tab hidden
+
+**Verification:** Each G-task records baseline metrics in PR description (`EXPLAIN ANALYZE`, network waterfall, pytest timing).
 
 ### Outbound rate limits not user-configurable (item 4)
 
@@ -168,12 +203,13 @@ Item 1 has **two halves** that must ship together in Phase C:
 
 **Fix:** Add `outbound_pacing` section to config schema (per-source `min_interval_seconds`, optional daily caps) stored in `app_settings`, defaults = current free-tier values. `get_source_pacing()` reads DB override then falls back to code defaults.
 
-**Paid-tier presets (item 4 nuance):** Operators with premium API keys (e.g. VirusTotal premium, NVD API key, OTX key) need one-click **tier profiles** — not billing integration:
-- `Free tier (default)` — today's `PACING_PROFILES`
-- `Premium / keyed` — auto-relax limits for sources where a valid API key is configured (detect via `config` health / key presence)
-- `Custom` — per-source overrides
+**Paid-tier presets (item 4 — confirmed scope):** Instance-wide operator settings in `app_settings` (same DB as API keys). **Not** per-user limits in `user_preferences` at this time.
 
-Stored in `app_settings` alongside other operator config (same DB as API keys).
+- `Free tier (default)` — today's `PACING_PROFILES`
+- `Premium / keyed` — auto-relax limits for sources where a valid API key is configured
+- `Custom` — per-source overrides editable in Admin → API Keys
+
+Stored via existing config apply flow; no new per-login-user rate limit tables.
 
 ### Custom AI providers (item 6)
 
@@ -204,7 +240,7 @@ Phase C ships **both** accurate metering **and** an efficiency program. Summary:
 | **Audit API** | `GET /api/admin/resources/efficiency` — subsystem breakdown | — |
 | **Recommendations** | Ranked suggestions with estimated savings + config key | Operator choice |
 | **Config exposure** | `RESOURCE_SAMPLE_INTERVAL_SECONDS`, `RESOURCE_METRICS_RETENTION_DAYS`, OTX budget, backup retention — in `config_schema.py` | Current defaults = today’s behavior |
-| **Code fixes** | Scheduler poll gated on active tab; optional `api_call_events` batch flush; post-purge `VACUUM ANALYZE` (PG, config-gated) | No silent feature removal |
+| **Codebase** | Backend N+1/batch fixes, frontend fetch dedup, memo stability | G1, G2 |
 | **Embeddings dedup** | Skip ingest-tail embed when backfill queue saturated | Search quality (backfill still runs) |
 | **feed_cache `ssvc:`** | Physical retention 8760h → 168h (read TTL unchanged) | SSVC data still cached 6h reads |
 
@@ -245,7 +281,35 @@ Add `HelpTip` on each metric card in `OverviewPage.jsx` `AnalystOverview`:
 
 Link to docs anchor when available.
 
-### 6. Responsive design (item 12 + F)
+### 7. Accessibility (WCAG 2.1 AA) — admin + IOC surfaces
+
+Phases B, F, and G touch UI. Accessibility is not optional:
+
+| Requirement | Applies to |
+|-------------|------------|
+| Color contrast ≥ 4.5:1 (text), 3:1 (large text/UI) | API Keys metering tables, IOC quota panel, capacity bars |
+| Keyboard navigation for all interactive controls | IOC Clear/Lookup, metering tables, efficiency Apply buttons |
+| Form labels + `aria-*` on Select/input | DbExplorerPanel, ApiKeysPage, IOCLookup |
+| Chart accessibility | `ariaLabel` on Recharts shells (extend Phase A/C chart work) |
+| Focus management on tab switch | Admin scroll-to-top (B1) must not trap focus; restore focus to breadcrumbs |
+| Touch targets ≥ 44px | F2, F4 |
+
+**Process:** Run BrowserStack accessibility scan (or equivalent) on Admin → Resources, API Keys, IOC Lookup before merging F/G. Fix Critical/High violations in same PR.
+
+### 8. Per-phase quality gates (code review discipline)
+
+After **each** phase merge candidate (per `requesting-code-review` skill):
+
+1. **Spec compliance** — every task checkbox maps to a commit or explicit deferral
+2. **Regression tests** — `npm run test:unit`, targeted pytest, `npm run build`
+3. **No behavior drift** — golden fixtures for feed sort, drawer bundle, correlation output where backend hot paths change
+4. **Accessibility** — scan touched pages; zero Critical a11y violations
+5. **Performance** — if G-tasks or C5 touched: before/after metric in PR body
+6. **Deslop** — no drive-by refactors; diff stays phase-scoped
+
+`/thermo-nuclear-code-quality-review` skill was not found in the workspace; quality bar above substitutes explicit thermo-nuclear checklist.
+
+### 9. Responsive design (item 12 + F)
 
 Introduce `--shell-*` CSS tokens in `App.css`:
 - `--shell-control-height: clamp(40px, 5vh, 48px)`
@@ -269,14 +333,15 @@ Introduce `--shell-*` CSS tokens in `App.css`:
 1. Resources tab shows **100% dynamic** host ceiling vs consumption (psutil-sourced, per-host unique, never hardcoded).
 2. Resources tab labels **what each metric includes** (BRIEFR / Postgres / host / DB file) and shows `N/A` when unavailable.
 3. Resources tab includes **Efficiency recommendations** panel with estimated savings and links to config keys; operator must confirm before apply.
-4. At least **five code-level optimizations** ship with defaults preserving current behavior (scheduler poll gate, config exposure, optional event batching, optional post-purge VACUUM, embeddings dedup guard).
-5. Database tab shows ≥8 live metrics + disk projection; table dropdown row counts match reality (± estimate label on PG).
-6. Tab switch always opens at scroll top.
-7. Outbound pacing editable in Admin → API Keys with **free-tier defaults + premium-tier presets** when API keys are configured.
-8. LLM enrichment job fails over within 2× per-provider timeout; stuck jobs surface warning in Scheduler.
-9. API call audit answers “who called GreyNoise when”.
-10. IOC lookup controls meet 44px touch target; readable at 1280px half-width.
-11. Status legend removed from sidebar; heartbeat terminology consistent.
+4. At least **five ops-level optimizations** ship with defaults preserving current behavior (scheduler poll gate, config exposure, optional event batching, optional post-purge VACUUM, embeddings dedup guard).
+5. At least **six codebase-level optimizations** ship with measured before/after metrics and zero functional regression (Phase G).
+6. Database tab shows ≥8 live metrics + disk projection; table dropdown row counts match reality (± estimate label on PG).
+7. Tab switch always opens at scroll top.
+8. Outbound pacing editable in Admin → API Keys with **free-tier defaults + premium-tier presets** (instance-wide `app_settings` only — not per-user).
+9. LLM enrichment job fails over within 2× per-provider timeout; stuck jobs surface warning in Scheduler.
+10. API call audit answers “who called GreyNoise when”.
+11. IOC lookup controls meet 44px touch target; readable at 1280px half-width; WCAG 2.1 AA on touched surfaces.
+12. Status legend removed from sidebar; heartbeat terminology consistent.
 
 ---
 
@@ -285,3 +350,6 @@ Introduce `--shell-*` CSS tokens in `App.css`:
 1. **Scroll behavior:** Always scroll to top on tab change, or remember per-tab position? (Spec assumes always top.)
 2. **Custom AI provider:** Prefer fixed catalog only, or catalog + one custom OpenAI-compatible endpoint?
 3. **API audit retention:** Keep 30 days or add export-to-CSV for longer retention?
+4. **Phase G priority:** Ship all six backend hot-path fixes in one PR, or split G1 (backend) and G2 (frontend) separately?
+
+**Resolved:** Item 4 rate limits are **instance-wide** via `app_settings` — not per-user `user_preferences`.

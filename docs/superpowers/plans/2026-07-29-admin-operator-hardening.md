@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan phase-by-phase. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship accurate resource/database observability, **resource efficiency optimization with operator-visible savings**, API audit trail, configurable outbound limits, LLM failover hardening, and admin/IOC UX polish across six phased PRs.
+**Goal:** Ship accurate resource/database observability, **ops + codebase efficiency optimization**, API audit trail, configurable instance-wide outbound limits, LLM failover hardening, admin/IOC UX polish, WCAG accessibility, and per-phase quality gates — across eight phased PRs.
 
 **Architecture:** Each phase is an independent PR on `Soldier0x0/briefr`. Backend extends existing admin routers (`storage.py`, `database.py`, `jobs.py`, `config.py`) and `source_rate_limits.py`. Frontend follows established admin patterns (`AdminDataGrid`, `HelpTip`, `formatters.js`, `ChartDataTable`). Phase A reuses the existing ops-charts plan verbatim.
 
@@ -20,6 +20,9 @@
 - Match existing admin CSS variables (`--admin-text`, `--type-body`, `--admin-gutter`).
 - No hardcoded hardware values — all ceilings from psutil / `shutil.disk_usage`.
 - Free-tier rate limit defaults must match current `source_rate_limits.py` when no override set.
+- **Item 4 scope:** Instance-wide `app_settings` only — **not** per-user `user_preferences` rate limits.
+- Codebase optimizations (Phase G) require before/after metrics in PR body; zero functional regression.
+- WCAG 2.1 AA on all touched UI surfaces; zero Critical a11y violations before merge.
 
 ---
 
@@ -33,6 +36,8 @@
 | **D** | `cursor/admin-phase-d-cc35` | API call audit trail panel | B (metering styles) |
 | **E** | `cursor/admin-phase-e-cc35` | Configurable outbound limits + LLM failover + custom AI providers | — |
 | **F** | `cursor/admin-phase-f-cc35` | IOC lookup polish + IPv4/IPv6 + responsive shell tokens | B |
+| **G** | `cursor/admin-phase-g-cc35` | Codebase performance (backend + frontend hot paths) | C (metrics baseline) |
+| **H** | (runs with every phase) | Quality gates: tests, a11y scan, code review checklist | — |
 
 **Phase A** is fully specified in `docs/superpowers/plans/2026-07-29-admin-ops-charts-storage.md` — execute Tasks 1–6 from that file without modification.
 
@@ -956,6 +961,181 @@ git commit -m "feat(ui): tool-wide responsive tokens and split-screen breakpoint
 
 ---
 
+## Phase G — Codebase performance (zero functional regression)
+
+**Distinction from Phase C:** Phase C tunes *runtime resources* (disk, RAM quotas, retention). Phase G refactors *code paths* — fewer queries, fewer HTTP round-trips, stable React renders — without changing user-visible behavior.
+
+### Task G1: Backend hot-path batching (priority 1)
+
+**Files:**
+- Modify: `briefr/backend/correlation/engine.py` (`prefetch_pulse_iocs_for_nightly`)
+- Modify: `briefr/backend/wallboard/service.py` (`_top_risk_tile`)
+- Modify: `briefr/backend/detection/context_llm_sync.py` (`run_detection_context_llm_sync`)
+- Test: `briefr/backend/tests/test_correlation_postgres_sql.py`, `briefr/backend/tests/test_wallboard.py`, extend scheduler scope tests
+
+- [ ] **Step 1: OTX prefetch — single DB connection + batch commit every N pulses**
+
+```python
+# engine.py — replace per-row get_db() with injected db; commit every 10 pulses
+async def prefetch_pulse_iocs_for_nightly(api_key: str, db: DbConnection | None = None) -> int:
+    own_db = db is None
+    if own_db:
+        db = await get_db()
+    try:
+        ...
+        if (index + 1) % 10 == 0:
+            await db.commit()
+    finally:
+        if own_db:
+            await db.close()
+```
+
+- [ ] **Step 2: Wallboard momentum — batch-fetch EPSS/OTX/KEV for candidate CVE IDs**
+
+```python
+# wallboard/service.py
+momenta = await calculate_momentum_batch([cve["cve_id"] for cve in candidates], db)
+```
+
+- [ ] **Step 3: Detection context LLM — require scheduler-injected `db`; no per-CVE `get_db()`**
+
+- [ ] **Step 4: Record baselines in PR** — job duration, connection acquire count, `EXPLAIN ANALYZE` on wallboard query
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "perf(backend): batch OTX prefetch, wallboard momentum, LLM db scope"
+```
+
+---
+
+### Task G2: Backend query optimization (priority 2)
+
+**Files:**
+- Modify: `briefr/backend/db/metadata.py` (`count_ai_ml_profile_alerts`)
+- Modify: `briefr/backend/routers/forge.py` (cache `forge_coverage`)
+- Modify: `briefr/backend/dependencies.py` (`require_user` short-TTL cache)
+- Test: new `test_perf_metadata.py`, `test_forge_coverage_cache.py`
+
+- [ ] **Step 1: `count_ai_ml_profile_alerts` — push framework filter to SQL or precomputed column**
+- [ ] **Step 2: Wrap `build_coverage_map()` in `cached_read` (45–300s TTL)**
+- [ ] **Step 3: `require_user` — 30s in-process cache with invalidation on role change**
+- [ ] **Step 4: Golden fixture tests** — counts and coverage map identical before/after
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "perf(backend): metadata SQL push-down, forge cache, user auth cache"
+```
+
+---
+
+### Task G3: Frontend fetch deduplication
+
+**Files:**
+- Create: `briefr/frontend/src/hooks/useStatsTimeline.js`
+- Modify: `briefr/frontend/src/components/Sidebar.jsx`
+- Modify: `briefr/frontend/src/components/TimelineHeatmap.jsx`
+- Modify: `briefr/frontend/src/components/DetailDrawer/index.jsx`
+- Modify: `briefr/backend/routers/cves/detail.py` (optional: include risk in bundle)
+- Test: `briefr/frontend/src/hooks/useStatsTimeline.test.js`
+
+- [ ] **Step 1: Shared timeline hook with module-level cache keyed by days**
+
+```javascript
+// useStatsTimeline.js
+const cache = new Map()
+export function useStatsTimeline(days) {
+  // fetch once per days value; share between Sidebar + TimelineHeatmap
+}
+```
+
+- [ ] **Step 2: TimelineHeatmap — request `displayDays` not hardcoded 90 on mobile**
+- [ ] **Step 3: Extend drawer bundle to include risk payload OR lazy-load risk only when Overview visible**
+- [ ] **Step 4: Network test** — Brief tab: 1 timeline request; drawer open: ≤2 requests
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "perf(frontend): dedup timeline fetches and slim drawer round-trips"
+```
+
+---
+
+### Task G4: Frontend render + poll efficiency
+
+**Files:**
+- Modify: `briefr/frontend/src/components/CVEFeed.jsx`
+- Modify: `briefr/frontend/src/pages/WallboardPage.jsx`
+- Modify: `briefr/frontend/src/pages/admin/AiOperationsPage.jsx`
+- Modify: `briefr/frontend/src/hooks/useVisibilityAwareInterval.js` (reuse)
+
+- [ ] **Step 1: CVEFeed — stable `useCallback` for watchlist pin handlers; fix ref callback**
+- [ ] **Step 2: WallboardPage — `useVisibilityAwareInterval` for poll**
+- [ ] **Step 3: AiOperationsPage — lazy-load retrieval data on tab switch**
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "perf(frontend): memo stability, visibility-aware polls, lazy admin tabs"
+```
+
+---
+
+### Task G5: CVE list query (deferred if high risk — optional sub-PR)
+
+**Files:**
+- Modify: `briefr/backend/routers/cves/list.py`
+- Test: `briefr/backend/tests/test_cves_router_fixes.py`
+
+- [ ] **Step 1: `EXPLAIN ANALYZE` baseline on default feed query with campaign subqueries**
+- [ ] **Step 2: Replace correlated subqueries with LEFT JOIN to precomputed campaign view OR denormalized columns**
+- [ ] **Step 3: Verify pin sort order + campaign badges unchanged on golden fixture**
+- [ ] **Step 4: Commit only if p95 improves ≥20% without behavior drift**
+
+```bash
+git commit -m "perf(backend): simplify CVE list query joins"
+```
+
+---
+
+## Phase H — Quality gates (run after every phase A–G)
+
+### Task H1: Per-phase review checklist
+
+**No code changes** — gate before merge.
+
+- [ ] **Step 1: Spec compliance** — map each task checkbox to commit SHA
+- [ ] **Step 2: Tests** — `cd briefr/frontend && npm run test:unit`; `pytest briefr/backend/tests/ -q --tb=no` (or targeted modules)
+- [ ] **Step 3: Build** — `cd briefr/frontend && npm run build`
+- [ ] **Step 4: Accessibility scan** — on pages touched in phase (BrowserStack `startAccessibilityScan` or manual axe):
+  - Phase B: Admin API Keys, Overview
+  - Phase C: Resources, Database
+  - Phase F/G: IOC Lookup, main shell header
+  - Fix Critical/High before merge
+- [ ] **Step 5: Code review** (per `requesting-code-review` skill) — dispatch reviewer with:
+  - `{DESCRIPTION}`: phase summary
+  - `{PLAN_OR_REQUIREMENTS}`: tasks from this plan
+  - `{BASE_SHA}` / `{HEAD_SHA}`: phase branch range
+- [ ] **Step 6: Performance** (Phases C, G only) — PR body includes before/after table
+- [ ] **Step 7: Deslop pass** — no unrelated refactors; imports at top; no magic numbers without comment
+
+---
+
+### Task H2: Accessibility fixes (integrated into B, F, G)
+
+**Files:** Touched in each UI phase; consolidated here for scan-and-fix-accessibility skill alignment.
+
+- [ ] **Step 1: Metering tables (B4)** — `<th scope="col">`, sufficient contrast on `admin-config-key` vs `admin-config-value`
+- [ ] **Step 2: IOC Lookup (F2)** — `<label htmlFor>` on search input; Lookup button `type="button"`; focus ring visible
+- [ ] **Step 3: Capacity bars (C2)** — don't rely on color alone; add text label for severity (e.g. "72% — OK")
+- [ ] **Step 4: Admin tab switch (B1)** — `focus()` breadcrumbs heading after scroll-to-top
+- [ ] **Step 5: Charts (A, C9)** — verify `ariaLabel` on all `ChartShell` components
+- [ ] **Step 6: Re-scan after fixes; document results in PR**
+
+```bash
+# No single commit — fixes land in respective phase PRs
+```
+
+---
+
 ## Verification matrix
 
 | Requirement | Phase | Verify |
@@ -990,6 +1170,11 @@ git commit -m "feat(ui): tool-wide responsive tokens and split-screen breakpoint
 | AI anti-abuse guards | E5 | Double-click debounce + daily cap |
 | LLM failover UI | E2b | Provider name updates in Scheduler |
 | Tool-wide responsive | F4 | 1280×720 split-screen QA |
+| **Codebase backend perf** | G1, G2, G5 | EXPLAIN + job duration in PR |
+| **Codebase frontend perf** | G3, G4 | Network waterfall count |
+| **WCAG a11y** | H2 (+ B, F) | Zero Critical scan violations |
+| **Per-phase code review** | H1 | Reviewer sign-off each phase |
+| **Item 4 instance-wide only** | E4 | No `user_preferences` rate keys |
 
 ---
 
@@ -998,10 +1183,10 @@ git commit -m "feat(ui): tool-wide responsive tokens and split-screen breakpoint
 | Spec item | Plan task |
 |-----------|-----------|
 | 1a Resource display (ceiling/consumption) | C1, C2, C6 |
-| **1b Resource efficiency optimization** | **C3, C4, C5** |
+| **1c Codebase performance** | **G1, G2, G3, G4, G5** |
 | 2 Database metrics + projection + table browser | C7, C8, C8b |
 | 3 Scroll RCA | B1 |
-| 4 User rate limits | E1, E4 |
+| 4 User rate limits (instance-wide) | E1, E4 |
 | 5 Scheduler stuck / LLM failover | E2, E2b |
 | 6 Custom AI providers + limits | E3, E5 |
 | 7 IPv4/IPv6 | F1 |
@@ -1020,13 +1205,76 @@ No placeholders remain in task definitions. Each phase produces an independently
 
 ---
 
+## Plan review (skills applied — 2026-07-29)
+
+Review performed per `brainstorming`, `writing-plans`, `using-superpowers`, `requesting-code-review`, and `scan-and-fix-accessibility`. `/thermo-nuclear-code-quality-review` skill not installed; substituted explicit H1/H2 quality gates.
+
+### Brainstorming / design completeness
+
+| Check | Result |
+|-------|--------|
+| All 14 operator items mapped | Pass — see coverage matrix in spec |
+| Item 1 three layers (display / ops / code) | Pass — C + G |
+| Item 4 scope clarified | Pass — instance-wide `app_settings`; not per-user |
+| Decomposition avoids single mega-PR | Pass — 8 phases (A–G + H gate) |
+| No silent feature removal | Pass — defaults preserve behavior |
+| Open questions documented | Pass — 4 items in spec |
+
+### Writing-plans completeness
+
+| Check | Result |
+|-------|--------|
+| Plan header + global constraints | Pass |
+| File paths per task | Pass |
+| Code snippets in steps | Pass for G1–G4, B, C, E |
+| Verification matrix | Pass — extended |
+| No TBD placeholders | Pass |
+| Self-review table | Pass |
+
+### Requesting-code-review alignment
+
+| Check | Result |
+|-------|--------|
+| Review after each phase | Pass — Phase H1 |
+| BASE/HEAD SHA per phase | Documented in H1 Step 5 |
+| Fix Critical before next phase | Documented in H1 |
+
+### Scan-and-fix-accessibility alignment
+
+| Check | Result |
+|-------|--------|
+| WCAG requirements in spec §7 | Pass |
+| Concrete a11y tasks | Pass — H2 integrated into B, F, C |
+| Scan before merge F/G | Pass — H1 Step 4 |
+| Contrast, labels, keyboard, charts | Pass — H2 Steps 1–5 |
+
+### Thermo-nuclear / code quality (substitute)
+
+| Check | Result |
+|-------|--------|
+| Hot-path N+1 documented | Pass — G1, G2, G5 |
+| Frontend memo/poll waste | Pass — G3, G4 |
+| Golden fixture guardrails | Pass — G2 Step 4, G5 Step 3 |
+| Deslop / minimal diff rule | Pass — H1 Step 7 |
+
+### Gaps / risks flagged for implementation
+
+1. **G5 CVE list query** — highest behavior risk; ship only with golden fixtures + EXPLAIN proof.
+2. **G2 `require_user` cache** — 30s TTL must invalidate on admin demotion; test in `test_security_invariants.py`.
+3. **Accessibility scans** — require running app; schedule in H1 after Phase B merge candidate.
+4. **Phase G depends on C** — efficiency baselines from C3 help measure G impact.
+
+**Assessment:** Plan is ready for operator approval. No blocking gaps remain in documentation.
+
+---
+
 ## Execution handoff
 
 Plan saved to `docs/superpowers/plans/2026-07-29-admin-operator-hardening.md`.
 
 **Two execution options:**
 
-1. **Subagent-Driven (recommended)** — one subagent per phase (A→F), review between phases.
-2. **Inline Execution** — implement phases sequentially in one session with checkpoints.
+1. **Subagent-Driven (recommended)** — one subagent per phase (A→G), Phase H review between each, fast iteration
+2. **Inline Execution** — implement phases sequentially in one session with checkpoints
 
 **Which approach?**
