@@ -1294,11 +1294,25 @@ Review performed per `brainstorming`, `writing-plans`, `using-superpowers`, `req
 | E | #780 | **Merged** |
 | F+G | #781 | **Merged** (includes UX polish: quota chips, PDF footer, live host CPU, drawer borders) |
 | Metering hotfix | #783 | **Merged** |
-| H | — | Verification on `main` @ `37a46448` |
+| H | — | **Complete** — verification on `main` @ `37a46448` |
 
 **Skipped:** #752 SQLite removal (per operator request).
 
 **CI hardening applied:** job timeouts, playwright `domcontentloaded`, `pytest-timeout` with `func_only=True`, security corpus regen on route changes.
+
+### Phase H verification (2026-07-29)
+
+| Gate | Result |
+|------|--------|
+| `pytest tests/ -q` | **1658 passed**, 20 skipped (~10m38s) |
+| Targeted phase modules | **114 passed** (host profile, efficiency, LLM failover, audit, wallboard, security corpus, etc.) |
+| `npm run test:unit` | **341 passed** |
+| `npm run build` | **Green** |
+| H2 code audit | Metering `<th scope="col">`, IOC `htmlFor` + `type="button"`, capacity bars show `%` text, admin tab `focus()` on breadcrumbs, chart `ariaLabel` — all present on `main` |
+| axe scan (IOC + BRIEF shell) | **0 Critical/High** on touched surfaces; only `meta-refresh` on `briefrdemo` host (demo CDN artifact, not in `briefr` repo) |
+| BrowserStack scan | Skipped — invalid credentials in cloud agent env; substituted axe-core CLI |
+
+**Program status: COMPLETE.** All phases A–H merged or verified on `main`.
 
 ## Execution handoff
 
