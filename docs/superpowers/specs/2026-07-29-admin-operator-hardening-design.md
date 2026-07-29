@@ -43,13 +43,14 @@ Cross-check of every point from the operator review (2026-07-29) against the cur
 | **Prior** | **Webhook deliveries chart** polish | **Partial** | **A (Task 7 — added)** | Was named in decomposition but had **no tasks**; Y-axis overlap, 7-day cap from 200-row limit |
 | **Prior** | **Resources tab charts** polish | **Partial** | **C (Task C9 — added)** | Tooltip/index fix exists; missing ceiling overlay, integer Y ticks, data table default sort |
 | 1a | 100% accurate resource display, floor/ceiling, dynamic H/W | Covered | C1, C2, C6 | — |
-| 1b | Optimize RAM/CPU/storage/DB without losing function | Covered | C3, C4, C5 | — |
+| 1b | Optimize RAM/CPU/storage/DB without losing function | Covered | C3, C4, C5 | Ops/config layer |
+| **1c** | **Codebase code-level performance (queries, fetches, renders)** | **Covered** | **G1–G5** | **Added — distinct from 1b** |
 | 2 | Database metrics (not just integrity OK) | Covered | C7 | — |
 | 2 | Projected disk utilization with **color** trend | Covered | C7 | Color thresholds in task |
 | 2 | Table browser dropdown 0 rows + **not updated dynamically** | **Partial** | C8 + **C8b** | Row-count fix planned; **dynamic refresh** of Select labels when catalog/rows change needs explicit task |
 | 3 | Scroll position carries across admin tabs | Covered | B1 | — |
 | 4 | User-configurable rate limits for **all** API calls | **Partial** | E1 + **E4** | Outbound pacing planned; **paid-tier presets** (higher limits when operator has premium keys) not explicit; inbound limits already in config but need UI grouping |
-| 4 | Defaults = free tier; overrides in `app_settings` DB | Covered | E1, E4 | Instance-wide (self-host operator model) |
+| 4 | Defaults = free tier; overrides in `app_settings` DB | Covered | E1, E4 | **Instance-wide only — not per-user (confirmed)** |
 | 5 | Scheduler jobs stuck on one provider; failover | Covered | E2 | — |
 | 5 | UI shows provider switch during job | **Partial** | **E2b** | Failover exists in code; scheduler UI must update provider label on failover |
 | 6 | Custom AI: Deepseek, Kimi, OpenAI, Claude, Gemini | Covered | E3 | — |
@@ -71,7 +72,7 @@ Cross-check of every point from the operator review (2026-07-29) against the cur
 | 13 | Analyst: explain correlation quality values | Covered | B5 | — |
 | 14 | Heartbeat wording **across tool** where relevant | **Partial** | B5 + **B7** | B5 lists ~5 strings; **B7** = repo-wide copy audit (Feed health, StatusBar, Scheduler, About, etc.) |
 
-**Summary:** 14 numbered items are **addressed** in the plan; **9 sub-requirements** were under-specified and are added below (Tasks A7, B6–B7, C8b, C9, E2b, E4–E5, D3, F4).
+**Summary:** 14 numbered items are **addressed** in the plan; **1c codebase performance** and **accessibility/quality gates** added in latest revision.
 
 ---
 
@@ -347,9 +348,13 @@ Introduce `--shell-*` CSS tokens in `App.css`:
 
 ## Open questions for operator
 
-1. **Scroll behavior:** Always scroll to top on tab change, or remember per-tab position? (Spec assumes always top.)
-2. **Custom AI provider:** Prefer fixed catalog only, or catalog + one custom OpenAI-compatible endpoint?
-3. **API audit retention:** Keep 30 days or add export-to-CSV for longer retention?
-4. **Phase G priority:** Ship all six backend hot-path fixes in one PR, or split G1 (backend) and G2 (frontend) separately?
+**All resolved (2026-07-29):**
 
-**Resolved:** Item 4 rate limits are **instance-wide** via `app_settings` — not per-user `user_preferences`.
+| # | Question | Decision |
+|---|----------|----------|
+| 1 | Scroll behavior | **Always scroll to top** on admin tab change |
+| 2 | Custom AI provider | **Catalog + custom OpenAI-compatible endpoint** — catalog entries researched for 2026-07-29 (see `docs/AI_PROVIDER_CATALOG.md` in briefr) |
+| 3 | API audit retention | **Both** — 30-day in-DB retention **and** CSV export for longer forensic windows |
+| 4 | Phase G split | **Recommended: G1 backend PR, then G2 frontend PR** — each with green CI before merge |
+
+**Item 4 rate limits:** Instance-wide `app_settings` only — not per-user `user_preferences` (confirmed).
