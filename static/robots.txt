@@ -1,0 +1,8 @@
+# BRIEFR documentation portal — https://docs.projectjupiter.in
+User-agent: *
+Allow: /
+
+# Internal agent planning artifacts are not published (excluded from docs build).
+Disallow: /docs/superpowers/
+
+Sitemap: https://docs.projectjupiter.in/sitemap.xml
