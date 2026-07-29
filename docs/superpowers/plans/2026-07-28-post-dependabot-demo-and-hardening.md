@@ -13,19 +13,22 @@
 - **Live demo URL:** `https://briefrdemo.projectjupiter.in` — static 1:1 UI, fixture data, no backend.
 - **Docs URL:** `https://docs.projectjupiter.in`.
 - **Landing URL:** `https://projectjupiter.in` — must link demo and docs (not a public production BRIEFR instance).
-- **Dependabot baseline (merged):** `briefr` PR #769 on `main` — fastapi 0.140.7, ruff 0.16.0, react 19.2.8, recharts 3.10.1, playwright 1.62.0, eslint **held at ^9.39.5** (eslint 10 breaks `eslint-plugin-react@7.37.5`).
+- **Dependabot baseline (merged):** `briefr` PR #769 on `main` — fastapi **0.140.13** (via #784, 2026-07-29), ruff 0.16.0, react 19.2.8, recharts 3.10.1, playwright 1.62.0, eslint **held at ^9.39.5** (eslint 10 breaks `eslint-plugin-react@7.37.5`). Dependabot #775 closed by #784 (required `generate_security_corpus.py` regen).
 - **Out of scope:** `briefr` PR #752 (SQLite removal) unless explicitly re-opened by maintainer.
 - **Quality gate (briefr):** `./scripts/verify-local.sh` required; `./scripts/verify-local.sh --full` before production deploy.
 - **Quality gate (briefr-docs):** `npm run build` (broken links fail the build).
 - **Branch naming (cloud agents):** `cursor/<descriptive-name>-cc35`.
 - **Git push token:** Use `GITHUB_BRIEFR_DOCS_TOKEN` for `Soldier0x0/briefr` when `cursor[bot]` gets 403.
 
-## Status snapshot (2026-07-28)
+## Status snapshot (2026-07-29)
 
 | Item | Status |
 |------|--------|
 | Dependabot consolidated (`briefr` #769) | **Merged** — full CI green incl. Postgres + Playwright |
+| FastAPI 0.140.13 (`briefr` #784) | **Merged** — closes dependabot #775; corpus regen included |
+| Admin operator hardening A–H (`briefr` #776–#781, #783) | **Merged** — program complete; see `2026-07-29-admin-operator-hardening.md` |
 | Docs portal demo links (`briefr-docs` #25) | **Merged** |
+| Admin hardening plan (`briefr-docs` #29) | **Open** — mergeable; marks program complete |
 | `briefr` README/docs demo URLs | **Not merged** — local branch never pushed |
 | `briefr-demo` README live URL | **Branch pushed** — PR not opened/merged |
 | `projectjupiter-landing` | **Local scaffold only** — GitHub repo does not exist |
