@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SRC =
-  process.env.BRIEFR_MAIN_DOCS || path.resolve(__dirname, '../../docs');
+  process.env.BRIEFR_MAIN_DOCS || path.resolve(__dirname, '../../briefr/docs');
 const DST = path.resolve(__dirname, '../docs');
 
 const FILES = [
