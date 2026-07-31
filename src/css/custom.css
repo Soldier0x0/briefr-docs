@@ -128,20 +128,20 @@ html {
 }
 
 .navbar__title {
-  font-family: var(--brf-font-mono);
-  font-weight: 600;
-  font-size: 0.95rem;
-  letter-spacing: 0.22em;
+  font-family: var(--brf-font-display);
+  font-weight: 400;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
   color: var(--brf-bright);
 }
 
 .navbar__brand::before {
   content: '';
   display: inline-block;
-  width: 9px;
-  height: 9px;
+  width: 20px;
+  height: 20px;
   margin-right: 10px;
-  background: var(--brf-accent);
+  background: url('/img/mark.svg') no-repeat center / contain;
   flex-shrink: 0;
 }
 

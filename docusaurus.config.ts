@@ -108,8 +108,7 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Social preview — dedicated OG art can replace favicon later.
-    image: 'img/favicon.svg',
+    image: 'img/og-image.png',
     metadata: [
       {name: 'twitter:card', content: 'summary_large_image'},
       {name: 'twitter:site', content: '@Soldier0x0'},
