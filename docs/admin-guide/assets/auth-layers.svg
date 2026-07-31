@@ -4,9 +4,9 @@
       .bg { fill: #0a0a08; }
       .box { fill: #111110; stroke: #2a2a25; }
       .optional { stroke-dasharray: 6 4; stroke: #6eb5ff; }
-      .title { fill: #c8b88a; font: 600 13px 'IBM Plex Mono', monospace; }
-      .label { fill: #e8e6df; font: 500 12px 'IBM Plex Sans', system-ui, sans-serif; }
-      .sub { fill: #9a9890; font: 400 11px 'IBM Plex Sans', system-ui, sans-serif; }
+      .title { fill: #c8b88a; font: 600 13px 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace; }
+      .label { fill: #e8e6df; font: 500 12px system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      .sub { fill: #9a9890; font: 400 11px system-ui, -apple-system, 'Segoe UI', sans-serif; }
       .arrow { stroke: #c8b88a; stroke-width: 2; fill: none; marker-end: url(#ah); }
     </style>
     <marker id="ah" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
