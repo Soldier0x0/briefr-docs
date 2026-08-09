@@ -2309,7 +2309,7 @@ FastAPI auto-generates OpenAPI spec at runtime. It is exposed at `/api/openapi.j
 
 To export:
 
-1. Start backend with `BRIEFR_ENV` unset or set to `development`: `cd backend && uvicorn main:app --host 0.0.0.0 --port 8000`
+1. Start backend with `BRIEFR_ENV=development`: `cd backend && BRIEFR_ENV=development uvicorn main:app --host 0.0.0.0 --port 8000`
 2. `curl http://localhost:8000/api/openapi.json > docs/openapi.json`
 3. Import `openapi.json` into Postman or Swagger UI for interactive docs
 

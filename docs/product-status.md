@@ -18,7 +18,7 @@ disagree, the canonical file wins.
 | --- | --- |
 | **Release** | **v1.5.0** — V1.5 phases 1–3 + 5 shipped; Phase 4 STIX excluded |
 | **License** | **BSL-1.1** — personal/non-commercial free; commercial requires one-time license; Apache-2.0 after four years per version |
-| **Database** | **PostgreSQL required** (`DATABASE_URL`, `BRIEFR_REQUIRE_POSTGRES=1`). SQLite removed from production |
+| **Database** | **PostgreSQL-first by default** — `settings.briefr_require_postgres=True` (product default); startup refuses a non-Postgres `DATABASE_URL` unless `BRIEFR_REQUIRE_POSTGRES=0` opts out explicitly. SQLite survives only as the zero-config dev/test escape hatch (`DATABASE_URL="" BRIEFR_REQUIRE_POSTGRES=0`); production is Postgres-only |
 | **Auth** | Session cookies; analyst routes require login; admin/refresh require `admin` role. Wallboard token header-only (`X-BRIEFR-Wallboard-Token`) |
 | **Rate limits** | Token buckets; `RATE_LIMIT_ENABLED=1` in production. Multi-worker: `BRIEFR_RATE_LIMIT_STORE=db`; API-only: `BRIEFR_SCHEDULER_ENABLED=0` |
 | **Theme** | Dark only |
