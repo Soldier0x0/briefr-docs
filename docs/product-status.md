@@ -6,8 +6,8 @@ description: Digest of what is true in production today — canonical source liv
 
 # Product status
 
-**Digest of** [`docs/PRODUCT_STATUS.md`](https://github.com/Soldier0x0/briefr/blob/04aba1a/docs/PRODUCT_STATUS.md)
-**at pin `04aba1a`** (2026-07-21). When this portal and the product repo
+**Digest of** [`docs/PRODUCT_STATUS.md`](https://github.com/Soldier0x0/briefr/blob/de2dba9c5718af0990818f86d8aac41d9e29824c/docs/PRODUCT_STATUS.md)
+**at pin `de2dba9c`** (2026-08-15). When this portal and the product repo
 disagree, the canonical file wins.
 
 ---
@@ -17,11 +17,18 @@ disagree, the canonical file wins.
 | Area | Status |
 | --- | --- |
 | **Release** | **v1.5.0** — V1.5 phases 1–3 + 5 shipped; Phase 4 STIX excluded |
-| **License** | **BSL-1.1** — personal/non-commercial free; commercial requires one-time license; Apache-2.0 after four years per version |
+| **License** | **Apache License 2.0** — OSI-approved open source; free for personal, commercial, and self-hosted use with attribution |
 | **Database** | **PostgreSQL-first by default** — `settings.briefr_require_postgres=True` (product default); startup refuses a non-Postgres `DATABASE_URL` unless `BRIEFR_REQUIRE_POSTGRES=0` opts out explicitly. SQLite survives only as the zero-config dev/test escape hatch (`DATABASE_URL="" BRIEFR_REQUIRE_POSTGRES=0`); production is Postgres-only |
 | **Auth** | Session cookies; analyst routes require login; admin/refresh require `admin` role. Wallboard token header-only (`X-BRIEFR-Wallboard-Token`) |
 | **Rate limits** | Token buckets; `RATE_LIMIT_ENABLED=1` in production. Multi-worker: `BRIEFR_RATE_LIMIT_STORE=db`; API-only: `BRIEFR_SCHEDULER_ENABLED=0` |
 | **Theme** | Dark only |
+
+**August 2026 ships (pin `de2dba9c`):**
+
+- **Threat intel mirror (`ti_mirror`)** — unified catalog table for ThreatFox (#821); URLhaus and MalwareBazaar ingest (#822).
+- **Blocklist export** — canonical TXT/JSON/CSV from one build; admin page loading UX (#834–#837).
+- **Postgres-first default** — production startup requires Postgres unless explicitly opted out (#826).
+- **CodeQL** — all 15 open code-scanning alerts resolved; **0 open alerts** on `main` (Aug 2026, #819).
 
 ---
 
@@ -101,4 +108,4 @@ then Threat (W2).
 | --- | --- |
 | Postgres, auth, correlation v3, Forge, admin ops, webhooks, wallboard v2, AI ops, Track I, security architecture (PM-3/PM-4), detection composer DC-1…DC-4 | Full `docker-compose.yml` (V2.0), STIX export (excluded), MkDocs site |
 
-Details: [`ROADMAP.md`](https://github.com/Soldier0x0/briefr/blob/04aba1a/docs/planning/ROADMAP.md).
+Details: [`ROADMAP.md`](https://github.com/Soldier0x0/briefr/blob/de2dba9c5718af0990818f86d8aac41d9e29824c/docs/planning/ROADMAP.md).

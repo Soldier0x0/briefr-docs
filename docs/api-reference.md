@@ -789,7 +789,7 @@ Admin-managed tokens for agent/script retrieval. Plaintext shown **once** at cre
 
 | Job id | Default schedule | Env gates | Writes |
 |---|---|---|---|
-| `threatfox_sync` | Every 24h (`THREATFOX_SYNC_INTERVAL_HOURS`) | `ABUSECH_AUTH_KEY` | `threatfox_iocs` |
+| `threatfox_sync` | Every 24h (`THREATFOX_SYNC_INTERVAL_HOURS`) | `ABUSECH_AUTH_KEY` | `ti_mirror_iocs` (compat view `threatfox_iocs`) |
 | `vulncheck_kev_sync` | Every 24h (`VULNCHECK_KEV_SYNC_INTERVAL_HOURS`) | `VULNCHECK_API_KEY` | `cves.is_vulncheck_exploited` |
 | `ioc_retro_match` | Daily cron (`IOC_RETRO_MATCH_HOUR`/`MINUTE`, default 04:00) | — | dispatches `ioc_watchlist_hit` webhooks |
 
@@ -2305,7 +2305,7 @@ Aggregated intel posture payload for the `/wallboard` kiosk view. Built from exi
 
 ## OpenAPI / Swagger
 
-FastAPI auto-generates OpenAPI spec at runtime. It is exposed at `/api/openapi.json` outside production only; `BRIEFR_ENV=production` sets `openapi_url=None`, `docs_url=None`, and `redoc_url=None`.
+FastAPI auto-generates OpenAPI spec at runtime. It is exposed at `/api/openapi.json` outside production only; `BRIEFR_ENV=production` (the default) sets `openapi_url=None`, `docs_url=None`, and `redoc_url=None`.
 
 To export:
 
@@ -2313,7 +2313,7 @@ To export:
 2. `curl http://localhost:8000/api/openapi.json > docs/openapi.json`
 3. Import `openapi.json` into Postman or Swagger UI for interactive docs
 
-The `/api/docs` endpoint (Swagger UI) is available at `http://localhost:8000/api/docs` when running locally.
+The `/api/docs` endpoint (Swagger UI) is available at `http://localhost:8000/api/docs` when running locally in development.
 
 **NOTE:** `/api/docs`, `/api/redoc`, and `/api/openapi.json` are intentionally unprotected in development; production disables them in `main.py`.
 

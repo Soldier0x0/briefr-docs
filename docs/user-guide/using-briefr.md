@@ -7,7 +7,7 @@ sidebar_position: 1
 
 For analysts using the UI — not deploying it. Install guide: [SELF_HOST.md](../admin-guide/self-host.md).
 
-**Try it first:** [Live demo](https://briefrdemo.projectjupiter.in) — 1:1 analyst shell with fixture data (no login). Hunt-pack generation and live IOC enrichment are visual-only in the demo. For a full instance, see [Self-host BRIEFR](/docs/admin-guide/self-host).
+**Try it first:** https://briefrdemo.projectjupiter.in — the live demo is a 1:1 copy of the analyst shell with fixture data (no login, no database). Buttons that need a backend (hunt-pack generation, live IOC enrichment) are visual-only. For a full deployment with live feeds, follow [SELF_HOST.md](../admin-guide/self-host.md).
 
 ---
 

@@ -53,9 +53,7 @@ This runs **once** when you first deploy a release whose Alembic head includes
 **After upgrade:**  
 `python scripts/verify_schema_split.py --manifest pre-036.json`
 
-Full runbook: [Intel snapshot](./intel-snapshot.md) and
-[`INTEL_PUBLISH.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/INTEL_PUBLISH.md)
-in the product repo.
+Full runbook: `docs/INTEL_PUBLISH.md`.
 
 **Logs and volume backups** are configured in the infra repo (compose logging driver, volume snapshots). BRIEFR handles **logical backups** via `pg_dump` on the host.
 

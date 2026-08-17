@@ -5,9 +5,9 @@
       .node { fill: #111110; stroke: #2a2a25; }
       .accent { stroke: #c8b88a; }
       .purple { fill: #2a2438; stroke: #8b7ec8; }
-      .title { fill: #c8b88a; font: 600 13px 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace; }
-      .label { fill: #e8e6df; font: 500 12px system-ui, -apple-system, 'Segoe UI', sans-serif; }
-      .sub { fill: #9a9890; font: 400 11px system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      .title { fill: #c8b88a; font: 600 13px 'IBM Plex Mono', monospace; }
+      .label { fill: #e8e6df; font: 500 12px 'IBM Plex Sans', system-ui, sans-serif; }
+      .sub { fill: #9a9890; font: 400 11px 'IBM Plex Sans', system-ui, sans-serif; }
       .arrow { stroke: #c8b88a; stroke-width: 2; fill: none; marker-end: url(#ah); }
       .lane { fill: #1a1a17; stroke: #3d3d38; }
     </style>
