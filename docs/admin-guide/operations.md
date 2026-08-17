@@ -168,7 +168,9 @@ The deploy file rotates `/var/lib/briefr/logs/*.log` daily (14 generations, comp
 - **Ring buffer:** in-process, last 500 `INFO+` JSON log lines (`structured_logging._RingBufferHandler`); no `journalctl` from the app.
 - **API:** `GET /api/admin/logs` — admin-gated, refresh rate-limited; filters: `level`, `logger`, `request_id`, `category`.
 - **Categories:** Application, Scheduler, Backup, Webhooks, Security (derived from logger name).
-- **Redaction:** secret-like `extra` keys (`password`, `api_key`, `*_TOKEN`, etc.) stored as `[REDACTED]` in buffer entries.
+- **Redaction:** secret-like `extra` keys (`password`, `api_key`, `*_TOKEN`, etc.) stored as `[REDACTED]` in buffer entries; log `message` / `exc_info` text is scrubbed for URLs and bearer tokens before export.
+- **Client correlation:** every API response carries `X-Request-ID`; unhandled **500** responses also include `request_id` in the JSON body (`{"detail":"Internal server error","request_id":"..."}`).
+- **Operator rule:** never log raw API keys or webhook URLs in free-form log messages — use structured fields with redactable names or omit secrets.
 - **UI:** Admin pane → **Application logs** — tail, filter, auto-refresh (10s), NDJSON export.
 - Support pack export: health JSON + version + truncated logs (future)
 
@@ -509,7 +511,7 @@ archives until the box is verified stable for 24h.
 |----------|------|
 | New self-host / greenfield intel DB | Import into empty Postgres, then point BRIEFR at it |
 | Dev fixture / CI | Same as greenfield (see `test_intel_snapshot_export.py`) |
-| Production operator instance (catch-up) | **`--mode merge`** — upserts `intel.*` only; `app.*` unchanged |
+| Production operator instance (catch-up) | **`--mode merge`** — upserts `intel.*` only; `app.*` (users, stack, settings, IOC cache) unchanged |
 | Production operator instance (greenfield seed) | **`--mode bootstrap`** only when operator tables are empty |
 | Monthly intel refresh on a **seed** DB | `--mode bootstrap --replace-intel` on a DB with **zero** operator rows |
 
@@ -517,7 +519,7 @@ archives until the box is verified stable for 24h.
 
 - Postgres **16+** and matching `postgresql-client` (`pg_dump` / `pg_restore`).
 - Bundle + sidecar manifest from `scripts/export_intel_snapshot.py`.
-- Target `DATABASE_URL` pointing at the BRIEFR database.
+- Target `DATABASE_URL` pointing at a dedicated database (not shared prod with users).
 
 ### 1. Verify the bundle
 
@@ -538,8 +540,7 @@ export DATABASE_URL=postgresql://briefr:pass@127.0.0.1:5432/briefr_intel
 
 python3 scripts/import_intel_snapshot.py \
   --input briefr-intel-2026-07.pgdump.gz \
-  --database-url "$DATABASE_URL" \
-  --mode bootstrap
+  --database-url "$DATABASE_URL"
 ```
 
 The import script:

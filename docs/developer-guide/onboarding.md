@@ -40,7 +40,7 @@ sidebar_position: 2
 ### Prerequisites
 
 - Python 3.11+
-- Node.js 18+
+- Node.js 22.22+ (required by `react-router` 8.x pinned in the frontend)
 - Git
 
 Recommended API keys for full functionality: NVD, VirusTotal, AbuseIPDB. See [Environment variables](#4-environment-variables) for the full list.
@@ -106,7 +106,7 @@ Use the local merge gate when possible:
 ./scripts/verify-local.sh
 ```
 
-That mirrors the core CI checks (backend pytest, frontend build, dependency audit, frontend unit tests). Use `./scripts/verify-local.sh --full` when Postgres, gitleaks, and Playwright smoke are available.
+That mirrors the core CI checks (backend pytest, ruff, frontend build/lint/unit tests, design-token lint, dependency audit). Use `./scripts/verify-local.sh --full` when Postgres, gitleaks, and Playwright smoke are available.
 
 Backend tests use **pytest**:
 
@@ -172,8 +172,8 @@ All four LLM keys are optional and gate a fixed failover chain (Groq → Cerebra
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DATABASE_URL` | — | PostgreSQL DSN (`postgresql://user:pass@host:5432/dbname`); omit **or** set empty (`DATABASE_URL=""`) for zero-config local SQLite. If `.env` has a placeholder Postgres DSN and nothing listens on `:5432`, startup fails with `ConnectionRefusedError` — clear the URL and set `BRIEFR_REQUIRE_POSTGRES=0` (cloud/bare VM; see [Contributor onboarding](/docs/developer-guide/onboarding)) |
-| `BRIEFR_REQUIRE_POSTGRES` | `1` | Refuse startup unless `DATABASE_URL` is a real Postgres connection (product default). Set `0` with empty `DATABASE_URL` for SQLite-only cloud/dev boxes without Docker |
+| `DATABASE_URL` | — | PostgreSQL DSN (`postgresql://user:pass@host:5432/dbname`); omit **or** set empty (`DATABASE_URL=""`) for zero-config local SQLite. If `.env` has a placeholder Postgres DSN and nothing listens on `:5432`, startup fails with `ConnectionRefusedError` — clear the URL and set `BRIEFR_REQUIRE_POSTGRES=0` (bare VM without Docker) |
+| `BRIEFR_REQUIRE_POSTGRES` | `1` | Refuse startup unless `DATABASE_URL` is a real PostgreSQL connection (product default; production is Postgres-only). Set `0` only as an explicit dev/test SQLite fallback with an empty `DATABASE_URL` |
 | `DATABASE_POOL_SIZE` | `10` | asyncpg pool size |
 | `DATABASE_POOL_COMMAND_TIMEOUT_SECONDS` | `60` | SQL statement timeout only — not feed HTTP; see [POSTGRES.md](../admin-guide/postgres.md) |
 | `BACKUP_DIR` | `/var/lib/briefr/backups` | Integrity-checked archive directory |

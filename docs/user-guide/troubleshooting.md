@@ -33,6 +33,7 @@ Find your **symptom** → try the **fix**. No need to read other docs first.
 | **`/api` 404 in dev** | Start backend on `:8000` before frontend |
 | **Model download / HF warnings** | Optional: `HF_TOKEN`, `EMBEDDINGS_CACHE_DIR=/var/lib/briefr/models`; embeddings are optional |
 | **Wallboard asks for token** | Set `WALLBOARD_TOKEN`, restart backend, open `/wallboard`, enter the token once to create the read-only session cookie |
+| **Backend won't start: `Failed to set up mount namespacing: /var/lib/briefr/intel-publish`** | PR #788 added this path to systemd `ReadWritePaths`; the directory must exist before restart. Run `sudo mkdir -p /var/lib/briefr/intel-publish && sudo chown briefr:briefr /var/lib/briefr/intel-publish`, then `sudo systemctl restart briefr-backend`. Fixed in deploy scripts from the next release — re-run `briefr-update.sh` after pulling |
 | **Production UI blank or stale** | Production serves `frontend/dist` via nginx — not Vite. Re-run `npm run build` in `frontend/` (or `briefr-update.sh` / `briefr-deploy.sh`) after frontend changes |
 | **Installed Postgres but still on `npm run dev`** | `npm run dev` is local development only (`:5173`). Production uses [SELF_HOST §3](../admin-guide/self-host.md#3-production-debian--systemd--nginx): `briefr-install.sh`, nginx on `:80`, `BRIEFR_ENV=production` |
 | **API keys / `.env` changes ignored** | Process env vars win over `backend/.env`, but a running backend does not reload them — **restart** `uvicorn` or `briefr-backend` after changes |
@@ -48,4 +49,6 @@ Find your **symptom** → try the **fix**. No need to read other docs first.
 - [`SELF_HOST.md`](../admin-guide/self-host.md) — install paths and verification checklist
 - [PRODUCT_STATUS.md](https://github.com/Soldier0x0/briefr/blob/main/docs/PRODUCT_STATUS.md) — what's supposed to work today
 - [HOW_IT_WORKS.md](./how-it-works.md) — architecture if you need context
-- GitHub issues on the repo
+- [Official docs](https://docs.projectjupiter.in) — user guide, FAQ, integrations
+- [GitHub Discussions → Q&A](https://github.com/Soldier0x0/briefr/discussions/new?category=q-a) — community help (preferred over issues for questions)
+- [GitHub issues](https://github.com/Soldier0x0/briefr/issues/new/choose) — reproducible bugs only

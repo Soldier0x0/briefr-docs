@@ -44,3 +44,10 @@ What BRIEFR does today, in one pass:
 
 Known gaps at this snapshot: no public Docker platform compose yet
 (Postgres compose exists), dark theme only.
+
+## 2026-08-15 (briefr `de2dba9c`)
+
+- **Threat intel:** Unified `ti_mirror` for ThreatFox (#821); URLhaus and MalwareBazaar ingest (#822).
+- **Admin:** Canonical blocklist export TXT/JSON/CSV with loading UX (#834–#837).
+- **Posture:** Production + Postgres-first defaults (#826); CodeQL alerts cleared (#819).
+- **Docs portal:** Migrated guides from product repo; pin `de2dba9c`.
