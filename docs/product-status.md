@@ -6,8 +6,8 @@ description: Digest of what is true in production today — canonical source liv
 
 # Product status
 
-**Digest of** [`docs/PRODUCT_STATUS.md`](https://github.com/Soldier0x0/briefr/blob/de2dba9c5718af0990818f86d8aac41d9e29824c/docs/PRODUCT_STATUS.md)
-**at pin `de2dba9c`** (2026-08-15). When this portal and the product repo
+**Digest of** [`docs/PRODUCT_STATUS.md`](https://github.com/Soldier0x0/briefr/blob/e6c6929d4239d1b4213c92847be0dec6df13e8da/docs/PRODUCT_STATUS.md)
+**at pin `e6c6929d`** (2026-08-20). When this portal and the product repo
 disagree, the canonical file wins.
 
 ---
@@ -23,8 +23,10 @@ disagree, the canonical file wins.
 | **Rate limits** | Token buckets; `RATE_LIMIT_ENABLED=1` in production. Multi-worker: `BRIEFR_RATE_LIMIT_STORE=db`; API-only: `BRIEFR_SCHEDULER_ENABLED=0` |
 | **Theme** | Dark only |
 
-**August 2026 ships (pin `de2dba9c`):**
+**August 2026 ships (pin `e6c6929d`):**
 
+- **INVESTIGATE Obsidian+ canvas (#861)** — local-first graph map with architecture camera (wheel zoom, drag pan, FIT/RESET), click inspect / double-click expand, evidence inspector with `edge_class` provenance.
+- **INVESTIGATE graph fixes (#863)** — eliminates dual-writer SVG pan/drag glitches; smoother camera and node drag on the investigation canvas.
 - **Threat intel mirror (`ti_mirror`)** — unified catalog table for ThreatFox (#821); URLhaus and MalwareBazaar ingest (#822).
 - **Blocklist export** — canonical TXT/JSON/CSV from one build; admin page loading UX (#834–#837).
 - **Postgres-first default** — production startup requires Postgres unless explicitly opted out (#826).
@@ -108,4 +110,4 @@ then Threat (W2).
 | --- | --- |
 | Postgres, auth, correlation v3, Forge, admin ops, webhooks, wallboard v2, AI ops, Track I, security architecture (PM-3/PM-4), detection composer DC-1…DC-4 | Full `docker-compose.yml` (V2.0), STIX export (excluded), MkDocs site |
 
-Details: [`ROADMAP.md`](https://github.com/Soldier0x0/briefr/blob/de2dba9c5718af0990818f86d8aac41d9e29824c/docs/planning/ROADMAP.md).
+Details: [`ROADMAP.md`](https://github.com/Soldier0x0/briefr/blob/e6c6929d4239d1b4213c92847be0dec6df13e8da/docs/planning/ROADMAP.md).

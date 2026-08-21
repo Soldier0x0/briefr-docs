@@ -1,5 +1,5 @@
 /** Bump when refreshing "In the code" deep links after a briefr docs/code cut. */
-export const BRIEFR_DOCS_PIN = 'de2dba9c5718af0990818f86d8aac41d9e29824c';
+export const BRIEFR_DOCS_PIN = 'e6c6929d4239d1b4213c92847be0dec6df13e8da';
 
 const GH = 'https://github.com/Soldier0x0/briefr';
 
