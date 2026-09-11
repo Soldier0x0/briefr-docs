@@ -289,15 +289,34 @@ function patchSystemDesign(body) {
   return out;
 }
 
+function patchPostgres(body) {
+  return insertAfterLineContaining(
+    body,
+    'This document is the **deep reference**',
+    'production-architecture',
+    'BRIEFR production architecture',
+  );
+}
+
+function patchOperations(body) {
+  let out = body.replace(
+    '## Purpose\n\nDefines how BRIEFR runs in production',
+    `## Purpose\n\n> **Day-to-day:** BRIEFR runs under **systemd** (\`briefr-backend.service\`). Routine operation does not require running any update script — systemd keeps the backend and nginx serving the built frontend.\n>\n> **Upgrades:** Run \`briefr-update.sh\` only when installing a new release (pull, Alembic, frontend build, health gate). This is not a development hot-reload workflow.\n\nDefines how BRIEFR runs in production`,
+  );
+  return insertAfterLineContaining(
+    out,
+    '## Purpose',
+    'production-architecture',
+    'BRIEFR production architecture',
+  );
+}
+
 const PORTAL_PATCHES = {
   'user-guide/how-it-works.md': patchHowItWorks,
   'admin-guide/self-host.md': patchSelfHost,
   'developer-guide/system-design.md': patchSystemDesign,
-  'admin-guide/operations.md': (body) =>
-    body.replace(
-      '## Purpose\n\nDefines how BRIEFR runs in production',
-      `## Purpose\n\n> **Day-to-day:** BRIEFR runs under **systemd** (\`briefr-backend.service\`). Routine operation does not require running any update script — systemd keeps the backend and nginx serving the built frontend.\n>\n> **Upgrades:** Run \`briefr-update.sh\` only when installing a new release (pull, Alembic, frontend build, health gate). This is not a development hot-reload workflow.\n\nDefines how BRIEFR runs in production`,
-    ),
+  'admin-guide/postgres.md': patchPostgres,
+  'admin-guide/operations.md': patchOperations,
 };
 
 for (const [rel, patch] of Object.entries(PORTAL_PATCHES)) {

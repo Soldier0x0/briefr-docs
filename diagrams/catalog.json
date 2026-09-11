@@ -12,8 +12,13 @@
         "docs/how-briefr-works/how-its-built/index.mdx",
         "docs/how-briefr-works/system-design/04-storage.mdx",
         "docs/how-briefr-works/system-design/01-foundations.mdx",
+        "docs/how-briefr-works/system-design/index.mdx",
+        "docs/how-briefr-works/system-design/02-requirements.mdx",
+        "docs/how-briefr-works/system-design/15-case-study.mdx",
         "docs/developer-guide/system-design.md",
-        "docs/developer-guide/flows.mdx"
+        "docs/developer-guide/flows.mdx",
+        "docs/admin-guide/postgres.md",
+        "docs/admin-guide/operations.md"
       ]
     },
     {
@@ -56,7 +61,8 @@
         "docs/how-briefr-works/intel-lifecycle/index.mdx",
         "docs/how-briefr-works/intel-lifecycle/normalize.mdx",
         "docs/how-briefr-works/intel-lifecycle/enrich.mdx",
-        "docs/how-briefr-works/intel-lifecycle/prioritize.mdx"
+        "docs/how-briefr-works/intel-lifecycle/prioritize.mdx",
+        "docs/how-briefr-works/index.mdx"
       ]
     },
     {
@@ -156,7 +162,10 @@
       "id": "webhooks-ops",
       "type": "dataflow",
       "title": "Webhooks and notifications",
-      "pages": ["docs/how-briefr-works/how-its-built/webhooks-ops.mdx"]
+      "pages": [
+        "docs/how-briefr-works/how-its-built/webhooks-ops.mdx",
+        "docs/admin-guide/webhooks.md"
+      ]
     },
     {
       "id": "resilience",
