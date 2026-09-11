@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "OSV.dev on demand",
+    "subtitle": "Package ranges attach on CVE detail",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      480
+    ],
+    "views": [
+      {
+        "id": "osv-source-path",
+        "label": "Path",
+        "focus": [
+          "ui",
+          "api",
+          "osv",
+          "pg"
+        ],
+        "note": "OSV is additive package context, not the CVE backbone."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "Drawer"
+    },
+    {
+      "label": "API"
+    },
+    {
+      "label": "OSV"
+    },
+    {
+      "label": "CVE row"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "CVE detail",
+      "sublabel": "packages",
+      "stage": 0,
+      "row": 1,
+      "tag": "lazy"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sublabel": "osv_packages",
+      "stage": 1,
+      "row": 1,
+      "tag": "best effort"
+    },
+    {
+      "id": "osv",
+      "type": "external",
+      "label": "OSV.dev",
+      "sublabel": "ranges",
+      "stage": 2,
+      "row": 1,
+      "tag": "public"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "attach",
+      "stage": 3,
+      "row": 1,
+      "tag": "local"
+    }
+  ],
+  "flows": [
+    {
+      "id": "u-a",
+      "from": "ui",
+      "to": "api",
+      "label": "open CVE",
+      "classification": "request",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "a-o",
+      "from": "api",
+      "to": "osv",
+      "label": "query",
+      "classification": "upstream",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "o-p",
+      "from": "osv",
+      "to": "pg",
+      "label": "osv_packages",
+      "classification": "local",
+      "variant": "dashed",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Data movement",
+      "items": [
+        "This work is scheduled or on-demand — not a FEED page render"
+      ]
+    }
+  ]
+}

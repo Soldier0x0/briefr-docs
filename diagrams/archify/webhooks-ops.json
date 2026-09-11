@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Webhooks and notifications",
+    "subtitle": "Alert rules enqueue deliveries to operator channels",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      480
+    ],
+    "views": [
+      {
+        "id": "webhooks-ops-path",
+        "label": "Path",
+        "focus": [
+          "evt",
+          "rules",
+          "q",
+          "ch"
+        ],
+        "note": "Destinations are operator-configured; SSRF checks apply."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "Event"
+    },
+    {
+      "label": "Rules"
+    },
+    {
+      "label": "Queue"
+    },
+    {
+      "label": "Channel"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "evt",
+      "type": "backend",
+      "label": "Alert event",
+      "sublabel": "KEV / EPSS",
+      "stage": 0,
+      "row": 1,
+      "tag": "local"
+    },
+    {
+      "id": "rules",
+      "type": "backend",
+      "label": "Rules engine",
+      "sublabel": "match",
+      "stage": 1,
+      "row": 1,
+      "tag": "filter"
+    },
+    {
+      "id": "q",
+      "type": "messagebus",
+      "label": "Delivery",
+      "sublabel": "queue",
+      "stage": 2,
+      "row": 1,
+      "tag": "retry"
+    },
+    {
+      "id": "ch",
+      "type": "external",
+      "label": "Webhook",
+      "sublabel": "Slack HTTPS",
+      "stage": 3,
+      "row": 1,
+      "tag": "SSRF gated"
+    }
+  ],
+  "flows": [
+    {
+      "id": "e-r",
+      "from": "evt",
+      "to": "rules",
+      "label": "match",
+      "classification": "local",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "r-q",
+      "from": "rules",
+      "to": "q",
+      "label": "enqueue",
+      "classification": "ops",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "q-c",
+      "from": "q",
+      "to": "ch",
+      "label": "POST JSON",
+      "classification": "outbound",
+      "variant": "emphasis",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Data movement",
+      "items": [
+        "This work is scheduled or on-demand — not a FEED page render"
+      ]
+    }
+  ]
+}

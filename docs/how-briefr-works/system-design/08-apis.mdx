@@ -8,10 +8,13 @@ description: BRIEFR's REST surface, auth layer, and webhook contracts — with a
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
 import InTheCode from '@site/src/components/learn/InTheCode';
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Unit 8: APIs & service contracts
 
 <CoverageBadge coverage="briefr" />
+
+<ArchifyDiagram id="auth-layers" title="BRIEFR auth layers" />
 
 BRIEFR's public surface is a REST HTTP API under the `/api/` prefix, built on FastAPI. Every route — CVE queries, intel feeds, admin operations, search, webhooks, and session management — follows the same layered structure: middleware first, then session gate, then role check, then handler. The full engineering treatment lives in [API and auth](/docs/how-briefr-works/how-its-built/api-auth) and [Webhooks and operations](/docs/how-briefr-works/how-its-built/webhooks-ops). This unit frames those chapters in system-design terms.
 
@@ -24,6 +27,8 @@ BRIEFR's public surface is a REST HTTP API under the `/api/` prefix, built on Fa
 **Content type: JSON throughout.** Every endpoint consumes and produces `application/json`. There are no file upload endpoints, no binary protocol routes, and no content negotiation beyond GZip compression applied by middleware to large responses.
 
 **Versioning: no explicit version prefix.** The API is consumed only by the bundled frontend and operator scripts; there are no external API consumers whose breakage BRIEFR must protect. Adding a version prefix would introduce complexity without benefit at current scale.
+
+<ArchifyDiagram id="cve-feed" title="CVE feed request" />
 
 ## Authentication: three caller types
 

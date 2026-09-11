@@ -8,10 +8,13 @@ description: Auth, secrets posture, SSRF mitigations, rate limits, and audit sur
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
 import InTheCode from '@site/src/components/learn/InTheCode';
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Unit 13: Security & privacy
 
 <CoverageBadge coverage="briefr" />
+
+<ArchifyDiagram id="auth-layers" title="BRIEFR auth layers" />
 
 Security in BRIEFR is designed for the threat model of a self-hosted tool: a trusted team on a private network, behind a reverse proxy, accessing one server. The controls address real risks — session hijacking, admin privilege escalation, SSRF via user-supplied URLs, API quota abuse, and operator configuration drift — without requiring a dedicated security team to operate.
 

@@ -9,10 +9,13 @@ import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
 import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
 import InTheCode from '@site/src/components/learn/InTheCode';
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Unit 6: Consistency, reliability, fault tolerance
 
 <CoverageBadge coverage="partial" />
+
+<ArchifyDiagram id="resilience" title="Source resilience" />
 
 A reliable system continues to work correctly even when things go wrong — hardware fails, upstream services return errors, and jobs take longer than expected. BRIEFR's reliability design targets the failure modes that matter for a self-hosted CVE portal on a single box: upstream source failures, slow or stalled ingest jobs, and database consistency under concurrent scheduler writes.
 

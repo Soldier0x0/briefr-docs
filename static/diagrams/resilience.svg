@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1080 480" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="signal-flow" data-quality-profile="showcase">
+        <title id="archify-diagram-title">Source resilience</title>
+        <desc id="archify-diagram-description">Circuit breaker and retry around public intel HTTP</desc>
+        <!-- Definitions -->
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-default" />
+          </marker>
+          <marker id="arrowhead-emphasis" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis" />
+          </marker>
+          <marker id="arrowhead-security" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-security" />
+          </marker>
+          <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <!-- Background Grid -->
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- Data Stages -->
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="0" x="16" y="46" width="168" height="360" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="100" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">01 / Job</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="1" x="231" y="46" width="168" height="360" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="315" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">02 / Breaker</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="2" x="446" y="46" width="168" height="360" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="530" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">03 / Source</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="3" x="661" y="46" width="168" height="360" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="745" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">04 / Cache</text>
+
+        <!-- Flow paths -->
+        <path data-edge-from="job" data-edge-to="cb" data-edge-label="fetch" data-edge-key="0" data-edge-id="j-c" data-composition-points="156,271;259,271" d="M 156 271 L 259 271" class="a-emphasis" data-animate="edge" style="--step:0" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="cb" data-edge-to="http" data-edge-label="if closed" data-edge-key="1" data-edge-id="c-h" data-composition-points="371,271;474,271" d="M 371 271 L 474 271" class="a-emphasis" data-animate="edge" style="--step:1" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="http" data-edge-to="pg" data-edge-label="persist or skip" data-edge-key="2" data-edge-id="h-p" data-composition-points="586,271;689,271" d="M 586 271 L 689 271" class="a-dashed" data-animate="edge" style="--step:2" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+
+        <!-- Nodes -->
+        <g id="node-job" data-node-id="job" data-node-label="Ingest job" tabindex="0" role="button" aria-label="Focus Ingest job, scheduler, 01 / Job" aria-pressed="false" data-node-kind="backend" data-node-sublabel="scheduler" data-node-tag="lock" data-node-context="01 / Job">
+          <title>Ingest job · scheduler · 01 / Job · lock</title>
+          <rect x="44" y="242" width="112" height="58" rx="6" class="c-mask"/>
+          <rect x="44" y="242" width="112" height="58" rx="6" class="c-backend" data-animate="node" style="--step:0" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(50 248) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="100" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Ingest job</text>
+          <text data-detail="context" x="100" y="279" class="t-muted" font-size="7" text-anchor="middle">scheduler</text>
+        <text data-detail="fine" x="100" y="289" class="t-backend" font-size="7" text-anchor="middle">lock</text>
+        </g>
+
+        <g id="node-cb" data-node-id="cb" data-node-label="Breaker" tabindex="0" role="button" aria-label="Focus Breaker, resilient_client, 02 / Breaker" aria-pressed="false" data-node-kind="security" data-node-sublabel="resilient_client" data-node-tag="cooldown" data-node-context="02 / Breaker">
+          <title>Breaker · resilient_client · 02 / Breaker · cooldown</title>
+          <rect x="259" y="242" width="112" height="58" rx="6" class="c-mask"/>
+          <rect x="259" y="242" width="112" height="58" rx="6" class="c-security" data-animate="node" style="--step:1" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="security" class="semantic-sigil s-security" transform="translate(265 248) scale(0.6875)">
+            <path d="M8 2.2 13 4v3.5c0 3.1-1.8 5.4-5 6.5-3.2-1.1-5-3.4-5-6.5V4Z"/>
+            <path d="m5.8 8 1.5 1.5 3-3"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="315" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Breaker</text>
+          <text data-detail="context" x="315" y="279" class="t-muted" font-size="7" text-anchor="middle">resilient_client</text>
+        <text data-detail="fine" x="315" y="289" class="t-security" font-size="7" text-anchor="middle">cooldown</text>
+        </g>
+
+        <g id="node-http" data-node-id="http" data-node-label="Public source" tabindex="0" role="button" aria-label="Focus Public source, NVD etc, 03 / Source" aria-pressed="false" data-node-kind="external" data-node-sublabel="NVD etc" data-node-tag="503" data-node-context="03 / Source">
+          <title>Public source · NVD etc · 03 / Source · 503</title>
+          <rect x="474" y="242" width="112" height="58" rx="6" class="c-mask"/>
+          <rect x="474" y="242" width="112" height="58" rx="6" class="c-external" data-animate="node" style="--step:2" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(480 248) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="530" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Public source</text>
+          <text data-detail="context" x="530" y="279" class="t-muted" font-size="7" text-anchor="middle">NVD etc</text>
+        <text data-detail="fine" x="530" y="289" class="t-external" font-size="7" text-anchor="middle">503</text>
+        </g>
+
+        <g id="node-pg" data-node-id="pg" data-node-label="Last-good" tabindex="0" role="button" aria-label="Focus Last-good, PostgreSQL, 04 / Cache" aria-pressed="false" data-node-kind="database" data-node-sublabel="PostgreSQL" data-node-tag="stale ok" data-node-context="04 / Cache">
+          <title>Last-good · PostgreSQL · 04 / Cache · stale ok</title>
+          <rect x="689" y="242" width="112" height="58" rx="6" class="c-mask"/>
+          <rect x="689" y="242" width="112" height="58" rx="6" class="c-database" data-animate="node" style="--step:3" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(695 248) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="745" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Last-good</text>
+          <text data-detail="context" x="745" y="279" class="t-muted" font-size="7" text-anchor="middle">PostgreSQL</text>
+        <text data-detail="fine" x="745" y="289" class="t-database" font-size="7" text-anchor="middle">stale ok</text>
+        </g>
+
+        <!-- Flow labels -->
+        <g data-detail="context" data-edge-from="job" data-edge-to="cb" data-edge-label="fetch" data-edge-key="0" data-edge-id="j-c">
+          <rect x="181.9" y="250" width="51.2" height="27" rx="4" class="c-mask"/>
+          <text x="207.5" y="261" class="t-backend" font-size="8" text-anchor="middle">fetch</text>
+        <text data-detail="fine" x="207.5" y="272" class="t-dim" font-size="7" text-anchor="middle">outbound</text>
+        </g>
+        <g data-detail="context" data-edge-from="cb" data-edge-to="http" data-edge-label="if closed" data-edge-key="1" data-edge-id="c-h">
+          <rect x="394.45" y="250" width="56.1" height="27" rx="4" class="c-mask"/>
+          <text x="422.5" y="261" class="t-backend" font-size="8" text-anchor="middle">if closed</text>
+        <text data-detail="fine" x="422.5" y="272" class="t-dim" font-size="7" text-anchor="middle">upstream</text>
+        </g>
+        <g data-detail="context" data-edge-from="http" data-edge-to="pg" data-edge-label="persist or skip" data-edge-key="2" data-edge-id="h-p">
+          <rect x="594.75" y="250" width="85.5" height="27" rx="4" class="c-mask"/>
+          <text x="637.5" y="261" class="t-messagebus" font-size="8" text-anchor="middle">persist or skip</text>
+        <text data-detail="fine" x="637.5" y="272" class="t-dim" font-size="7" text-anchor="middle">local</text>
+        </g>
+
+        <!-- Legend -->
+        <g data-legend="" data-legend-bridge="">
+          <text x="40" y="424" class="t-primary" font-size="12" font-weight="650">Legend</text>
+          <g data-legend-semantic-kind="emphasis" data-legend-x="40" data-legend-baseline="444" data-legend-width="103">
+            <path d="M 40 441 L 74 441" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+            <text x="83" y="444" class="t-muted" font-size="10" font-weight="500">primary data</text>
+          </g>
+          <g data-legend-semantic-kind="dashed" data-legend-x="165" data-legend-baseline="444" data-legend-width="98">
+            <path d="M 165 441 L 199 441" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+            <text x="208" y="444" class="t-muted" font-size="10" font-weight="500">async batch</text>
+          </g>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="data store" data-legend-x="285" data-legend-baseline="444" data-legend-width="93">
+            <rect x="285" y="436" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+            <text x="307" y="444" class="t-muted" font-size="10" font-weight="500">data store</text>
+          </g>
+        </g>
+      </svg>

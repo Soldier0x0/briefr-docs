@@ -17,4 +17,4 @@ node scripts/extract-archify-svg.mjs "static/diagrams/${id}.html" "static/diagra
 node scripts/check-archify.mjs
 ```
 
-Do not paste Archify HTML into Markdown. Use `<ArchifyDiagram id="..." title="..." />`.
+Do not paste Archify HTML into Markdown. Use `<ArchifyDiagram id="..." title="..." />` on MDX pages. Migrated CommonMark (`.md`) uses a same-origin iframe plus noscript SVG via `scripts/migrate.cjs`.

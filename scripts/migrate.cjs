@@ -245,9 +245,54 @@ function patchSelfHost(body) {
 
 // Portal-only rewrites after migrate (briefr canonical files may link maintainer
 // study content that is not part of the public docs site).
+function insertAfterLineContaining(body, snippet, id, title) {
+  if (body.includes(`/diagrams/${id}.html`)) return body;
+  const lines = body.split('\n');
+  const i = lines.findIndex((line) => line.includes(snippet));
+  if (i < 0) return body;
+  lines.splice(i + 1, 0, '', archifyIframe(id, title), '');
+  return lines.join('\n');
+}
+
+function patchSystemDesign(body) {
+  let out = body;
+  out = insertAfterLineContaining(
+    out,
+    'Mermaid sources: master graph',
+    'production-architecture',
+    'BRIEFR production architecture',
+  );
+  out = insertAfterLineContaining(
+    out,
+    'flow_cve_feed.mermaid',
+    'cve-feed',
+    'CVE feed request',
+  );
+  out = insertAfterLineContaining(
+    out,
+    'flow_cve_detail.mermaid',
+    'cve-detail',
+    'CVE detail drawer',
+  );
+  out = insertAfterLineContaining(
+    out,
+    'flow_ioc_lookup.mermaid',
+    'ioc-lookup',
+    'IOC lookup',
+  );
+  out = insertAfterLineContaining(
+    out,
+    'startup.mermaid',
+    'startup',
+    'Backend startup',
+  );
+  return out;
+}
+
 const PORTAL_PATCHES = {
   'user-guide/how-it-works.md': patchHowItWorks,
   'admin-guide/self-host.md': patchSelfHost,
+  'developer-guide/system-design.md': patchSystemDesign,
   'admin-guide/operations.md': (body) =>
     body.replace(
       '## Purpose\n\nDefines how BRIEFR runs in production',

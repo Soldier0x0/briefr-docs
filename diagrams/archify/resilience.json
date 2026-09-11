@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Source resilience",
+    "subtitle": "Circuit breaker and retry around public intel HTTP",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      480
+    ],
+    "views": [
+      {
+        "id": "resilience-path",
+        "label": "Path",
+        "focus": [
+          "job",
+          "cb",
+          "http",
+          "pg"
+        ],
+        "note": "Open breaker skips the source; FEED still serves local rows."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "Job"
+    },
+    {
+      "label": "Breaker"
+    },
+    {
+      "label": "Source"
+    },
+    {
+      "label": "Cache"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "job",
+      "type": "backend",
+      "label": "Ingest job",
+      "sublabel": "scheduler",
+      "stage": 0,
+      "row": 1,
+      "tag": "lock"
+    },
+    {
+      "id": "cb",
+      "type": "security",
+      "label": "Breaker",
+      "sublabel": "resilient_client",
+      "stage": 1,
+      "row": 1,
+      "tag": "cooldown"
+    },
+    {
+      "id": "http",
+      "type": "external",
+      "label": "Public source",
+      "sublabel": "NVD etc",
+      "stage": 2,
+      "row": 1,
+      "tag": "503"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "Last-good",
+      "sublabel": "PostgreSQL",
+      "stage": 3,
+      "row": 1,
+      "tag": "stale ok"
+    }
+  ],
+  "flows": [
+    {
+      "id": "j-c",
+      "from": "job",
+      "to": "cb",
+      "label": "fetch",
+      "classification": "outbound",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "c-h",
+      "from": "cb",
+      "to": "http",
+      "label": "if closed",
+      "classification": "upstream",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "h-p",
+      "from": "http",
+      "to": "pg",
+      "label": "persist or skip",
+      "classification": "local",
+      "variant": "dashed",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Data movement",
+      "items": [
+        "This work is scheduled or on-demand — not a FEED page render"
+      ]
+    }
+  ]
+}

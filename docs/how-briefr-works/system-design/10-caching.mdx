@@ -9,10 +9,13 @@ import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
 import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
 import InTheCode from '@site/src/components/learn/InTheCode';
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Unit 10: Caching & performance
 
 <CoverageBadge coverage="partial" />
+
+<ArchifyDiagram id="ioc-lookup" title="IOC lookup" />
 
 Caching accelerates reads by storing results that are expensive to recompute. BRIEFR's caching strategy is deliberately simple: two database-backed cache tables hold the expensive results — feed snapshots and IOC enrichment — and the request path reads from those tables rather than calling external APIs. No separate cache process, no distributed cache tier, no cache invalidation protocol.
 

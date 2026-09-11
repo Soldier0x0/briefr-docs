@@ -8,10 +8,13 @@ description: BRIEFR's search and embedding layer — an honest look at what it d
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
 import InTheCode from '@site/src/components/learn/InTheCode';
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Unit 11: Search & retrieval
 
 <CoverageBadge coverage="briefr" />
+
+<ArchifyDiagram id="search-pipeline" title="Search and embeddings" />
 
 BRIEFR provides two complementary retrieval mechanisms: full-text keyword search over its local CVE and threat corpus, and optional vector (semantic) search for natural-language queries. Both run entirely on a single box — no external search cluster, no dedicated search process. The full engineering detail lives in [Search and embeddings](/docs/how-briefr-works/how-its-built/search-embeddings). This unit explains the design from a system-design perspective.
 

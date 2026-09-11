@@ -9,10 +9,13 @@ import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
 import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
 import InTheCode from '@site/src/components/learn/InTheCode';
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Unit 12: Observability & operations
 
 <CoverageBadge coverage="partial" />
+
+<ArchifyDiagram id="resilience" title="Source resilience" />
 
 A system that fails silently is worse than a system that fails loudly. BRIEFR's operations design is built on that principle: health state is exposed at a structured endpoint, significant events push notifications rather than requiring polling, backups announce their own staleness, and admin operations are surfaced in a single panel rather than scattered across config files.
 

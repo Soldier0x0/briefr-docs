@@ -1,0 +1,49 @@
+---
+sidebar_label: Request and startup flows
+sidebar_position: 1.5
+title: Request and startup flows
+description: Interactive Archify maps for CVE feed, detail, IOC lookup, and backend startup.
+---
+
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
+
+# Request and startup flows
+
+These maps show how analyst clicks become SQL and JSON, and what happens when
+the API process starts. They replace GitHub-only Mermaid for the docs portal.
+Product screenshots stay on the user guide.
+
+The migrated [system design](./system-design.md) page embeds the same artifacts
+next to each flow description (CommonMark iframes, reapplied after weekly
+sync). Use this page when you want the interactive maps without scrolling the
+full design document.
+
+## Production architecture
+
+<ArchifyDiagram id="production-architecture" title="BRIEFR production architecture" />
+
+## CVE feed
+
+`GET /api/cves` reads PostgreSQL. The FEED does not call NVD on page load.
+
+<ArchifyDiagram id="cve-feed" title="CVE feed request" />
+
+## CVE detail
+
+Drawer load joins CVE, KEV, EPSS, and related local tables.
+
+<ArchifyDiagram id="cve-detail" title="CVE detail drawer" />
+
+## IOC lookup
+
+Cache first, then optional provider APIs. Quota-billed sources are not retried
+automatically.
+
+<ArchifyDiagram id="ioc-lookup" title="IOC lookup" />
+
+## Backend startup
+
+Alembic and seed, then scheduler registration. An empty corpus triggers a
+one-shot ingest.
+
+<ArchifyDiagram id="startup" title="Backend startup" />

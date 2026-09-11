@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Detect workflow",
+    "subtitle": "Coverage gaps become Sigma starters and hunt packs",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      480
+    ],
+    "views": [
+      {
+        "id": "detect-workflow-path",
+        "label": "Path",
+        "focus": [
+          "map",
+          "gap",
+          "gen",
+          "pack"
+        ],
+        "note": "BRIEFR does not deploy rules to a production SIEM."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "Map"
+    },
+    {
+      "label": "Gap"
+    },
+    {
+      "label": "Generate"
+    },
+    {
+      "label": "Pack"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "map",
+      "type": "database",
+      "label": "ATT&CK map",
+      "sublabel": "local STIX",
+      "stage": 0,
+      "row": 1,
+      "tag": "weekly"
+    },
+    {
+      "id": "gap",
+      "type": "frontend",
+      "label": "Coverage gap",
+      "sublabel": "Forge",
+      "stage": 1,
+      "row": 1,
+      "tag": "KEV"
+    },
+    {
+      "id": "gen",
+      "type": "backend",
+      "label": "Generate",
+      "sublabel": "Sigma / query",
+      "stage": 2,
+      "row": 1,
+      "tag": "starter"
+    },
+    {
+      "id": "pack",
+      "type": "database",
+      "label": "Hunt pack",
+      "sublabel": "saved",
+      "stage": 3,
+      "row": 1,
+      "tag": "not SIEM"
+    }
+  ],
+  "flows": [
+    {
+      "id": "m-g",
+      "from": "map",
+      "to": "gap",
+      "label": "uncovered",
+      "classification": "read",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "g-n",
+      "from": "gap",
+      "to": "gen",
+      "label": "generate",
+      "classification": "request",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "n-p",
+      "from": "gen",
+      "to": "pack",
+      "label": "save",
+      "classification": "local",
+      "variant": "emphasis",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Data movement",
+      "items": [
+        "This work is scheduled or on-demand — not a FEED page render"
+      ]
+    }
+  ]
+}
