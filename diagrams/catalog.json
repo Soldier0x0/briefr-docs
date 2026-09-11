@@ -26,7 +26,8 @@
         "docs/how-briefr-works/system-design/18-design-review.mdx",
         "docs/how-briefr-works/system-design/16-tradeoffs.mdx",
         "docs/how-briefr-works/system-design/14-multi-tenancy.mdx",
-        "docs/how-briefr-works/system-design/00-how-to-use.mdx"
+        "docs/how-briefr-works/system-design/00-how-to-use.mdx",
+        "docs/product-status.md"
       ]
     },
     {
@@ -37,7 +38,8 @@
         "docs/user-guide/how-it-works.md",
         "docs/how-briefr-works/how-its-built/api-auth.mdx",
         "docs/how-briefr-works/system-design/08-apis.mdx",
-        "docs/how-briefr-works/system-design/13-security.mdx"
+        "docs/how-briefr-works/system-design/13-security.mdx",
+        "docs/security-guide.md"
       ]
     },
     {
@@ -49,7 +51,8 @@
         "docs/how-briefr-works/intel-lifecycle/collect.mdx",
         "docs/how-briefr-works/how-its-built/ingestion-scheduler.mdx",
         "docs/how-briefr-works/intel-lifecycle/sources/index.mdx",
-        "docs/how-briefr-works/system-design/05-scalability.mdx"
+        "docs/how-briefr-works/system-design/05-scalability.mdx",
+        "docs/integrations.md"
       ]
     },
     {
@@ -71,7 +74,8 @@
         "docs/how-briefr-works/intel-lifecycle/enrich.mdx",
         "docs/how-briefr-works/intel-lifecycle/prioritize.mdx",
         "docs/how-briefr-works/index.mdx",
-        "docs/pathways/index.mdx"
+        "docs/pathways/index.mdx",
+        "docs/how-briefr-works/glossary.mdx"
       ]
     },
     {
