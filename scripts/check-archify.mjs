@@ -25,6 +25,7 @@ for (const d of catalog.diagrams) {
   const jsonPath = path.join(root, 'diagrams/archify', `${d.id}.json`);
   const htmlPath = path.join(root, 'static/diagrams', `${d.id}.html`);
   const svgPath = path.join(root, 'static/diagrams', `${d.id}.svg`);
+  const pngPath = path.join(root, 'static/diagrams', `${d.id}.png`);
   if (!fs.existsSync(jsonPath)) fail(`missing IR ${jsonPath}`);
   if (!fs.existsSync(htmlPath)) fail(`missing HTML ${htmlPath}`);
   else {
@@ -35,6 +36,7 @@ for (const d of catalog.diagrams) {
     }
   }
   if (!fs.existsSync(svgPath)) fail(`missing SVG ${svgPath}`);
+  if (!fs.existsSync(pngPath)) fail(`missing PNG ${pngPath}`);
 }
 
 function walk(dir) {

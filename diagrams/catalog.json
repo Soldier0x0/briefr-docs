@@ -18,7 +18,15 @@
         "docs/developer-guide/system-design.md",
         "docs/developer-guide/flows.mdx",
         "docs/admin-guide/postgres.md",
-        "docs/admin-guide/operations.md"
+        "docs/admin-guide/operations.md",
+        "docs/admin-guide/network-requirements.md",
+        "docs/admin-guide/index.md",
+        "docs/getting-started.md",
+        "docs/user-guide/index.md",
+        "docs/how-briefr-works/system-design/18-design-review.mdx",
+        "docs/how-briefr-works/system-design/16-tradeoffs.mdx",
+        "docs/how-briefr-works/system-design/14-multi-tenancy.mdx",
+        "docs/how-briefr-works/system-design/00-how-to-use.mdx"
       ]
     },
     {
@@ -62,7 +70,8 @@
         "docs/how-briefr-works/intel-lifecycle/normalize.mdx",
         "docs/how-briefr-works/intel-lifecycle/enrich.mdx",
         "docs/how-briefr-works/intel-lifecycle/prioritize.mdx",
-        "docs/how-briefr-works/index.mdx"
+        "docs/how-briefr-works/index.mdx",
+        "docs/pathways/index.mdx"
       ]
     },
     {
@@ -79,7 +88,10 @@
       "id": "cve-detail",
       "type": "sequence",
       "title": "CVE detail drawer",
-      "pages": ["docs/developer-guide/system-design.md", "docs/developer-guide/flows.mdx"]
+      "pages": [
+        "docs/developer-guide/system-design.md",
+        "docs/developer-guide/flows.mdx"
+      ]
     },
     {
       "id": "ioc-lookup",
@@ -98,56 +110,73 @@
       "pages": [
         "docs/developer-guide/system-design.md",
         "docs/developer-guide/flows.mdx",
-        "docs/how-briefr-works/system-design/09-async.mdx"
+        "docs/how-briefr-works/system-design/09-async.mdx",
+        "docs/developer-guide/onboarding.md"
       ]
     },
     {
       "id": "nvd-source",
       "type": "dataflow",
       "title": "NVD collection",
-      "pages": ["docs/how-briefr-works/intel-lifecycle/sources/nvd.mdx"]
+      "pages": [
+        "docs/how-briefr-works/intel-lifecycle/sources/nvd.mdx"
+      ]
     },
     {
       "id": "cisa-kev-source",
       "type": "dataflow",
       "title": "CISA KEV collection",
-      "pages": ["docs/how-briefr-works/intel-lifecycle/sources/kev.mdx"]
+      "pages": [
+        "docs/how-briefr-works/intel-lifecycle/sources/kev.mdx"
+      ]
     },
     {
       "id": "epss-source",
       "type": "dataflow",
       "title": "FIRST EPSS collection",
-      "pages": ["docs/how-briefr-works/intel-lifecycle/sources/epss.mdx"]
+      "pages": [
+        "docs/how-briefr-works/intel-lifecycle/sources/epss.mdx"
+      ]
     },
     {
       "id": "otx-source",
       "type": "dataflow",
       "title": "AlienVault OTX collection",
-      "pages": ["docs/how-briefr-works/intel-lifecycle/sources/otx.mdx"]
+      "pages": [
+        "docs/how-briefr-works/intel-lifecycle/sources/otx.mdx"
+      ]
     },
     {
       "id": "greynoise-source",
       "type": "dataflow",
       "title": "GreyNoise on demand",
-      "pages": ["docs/how-briefr-works/intel-lifecycle/sources/greynoise.mdx"]
+      "pages": [
+        "docs/how-briefr-works/intel-lifecycle/sources/greynoise.mdx"
+      ]
     },
     {
       "id": "osv-source",
       "type": "dataflow",
       "title": "OSV.dev on demand",
-      "pages": ["docs/how-briefr-works/intel-lifecycle/sources/osv.mdx"]
+      "pages": [
+        "docs/how-briefr-works/intel-lifecycle/sources/osv.mdx"
+      ]
     },
     {
       "id": "attack-source",
       "type": "dataflow",
       "title": "MITRE ATT&CK collection",
-      "pages": ["docs/how-briefr-works/intel-lifecycle/sources/attack.mdx"]
+      "pages": [
+        "docs/how-briefr-works/intel-lifecycle/sources/attack.mdx"
+      ]
     },
     {
       "id": "vulncheck-source",
       "type": "dataflow",
       "title": "VulnCheck KEV collection",
-      "pages": ["docs/how-briefr-works/intel-lifecycle/sources/vulncheck-kev.mdx"]
+      "pages": [
+        "docs/how-briefr-works/intel-lifecycle/sources/vulncheck-kev.mdx"
+      ]
     },
     {
       "id": "search-pipeline",
@@ -181,13 +210,17 @@
       "id": "hunt-workflow",
       "type": "dataflow",
       "title": "Hunt workflow",
-      "pages": ["docs/how-briefr-works/intel-lifecycle/hunt.mdx"]
+      "pages": [
+        "docs/how-briefr-works/intel-lifecycle/hunt.mdx"
+      ]
     },
     {
       "id": "detect-workflow",
       "type": "dataflow",
       "title": "Detect workflow",
-      "pages": ["docs/how-briefr-works/intel-lifecycle/detect.mdx"]
+      "pages": [
+        "docs/how-briefr-works/intel-lifecycle/detect.mdx"
+      ]
     },
     {
       "id": "background-jobs",
@@ -196,7 +229,24 @@
       "pages": [
         "docs/how-briefr-works/how-its-built/background-jobs.mdx",
         "docs/how-briefr-works/system-design/09-async.mdx",
-        "docs/how-briefr-works/system-design/07-distributed.mdx"
+        "docs/how-briefr-works/system-design/07-distributed.mdx",
+        "docs/how-briefr-works/system-design/17-advanced.mdx"
+      ]
+    },
+    {
+      "id": "intel-snapshot",
+      "type": "dataflow",
+      "title": "Intel snapshot publish",
+      "pages": [
+        "docs/admin-guide/intel-snapshot.md"
+      ]
+    },
+    {
+      "id": "wallboard",
+      "type": "sequence",
+      "title": "Wallboard kiosk",
+      "pages": [
+        "docs/admin-guide/wallboard.md"
       ]
     }
   ]
