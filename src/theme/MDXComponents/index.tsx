@@ -1,5 +1,6 @@
 import type {ComponentProps} from 'react';
 import MDXComponents from '@theme-original/MDXComponents';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 import ZoomableImage from '@site/src/components/ZoomableImage';
 import LearnDisclaimer from '@site/src/components/learn/LearnDisclaimer';
 import {isSvgImageSrc} from '@site/src/utils/imageSrc';
@@ -16,4 +17,5 @@ export default {
   ...MDXComponents,
   img: Img,
   LearnDisclaimer,
+  ArchifyDiagram,
 };

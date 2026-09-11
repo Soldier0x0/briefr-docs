@@ -5,9 +5,9 @@ sidebar_position: 1
 
 # Using BRIEFR
 
-For analysts using the UI — not deploying it. Install guide: [SELF_HOST.md](../admin-guide/self-host.md).
+For analysts using the UI — not deploying it. Install guide: [SELF_HOST.md](../admin-guide/self-host.mdx).
 
-**Try it first:** https://briefrdemo.projectjupiter.in — the live demo is a 1:1 copy of the analyst shell with fixture data (no login, no database). Buttons that need a backend (hunt-pack generation, live IOC enrichment) are visual-only. For a full deployment with live feeds, follow [SELF_HOST.md](../admin-guide/self-host.md).
+**Try it first:** https://briefrdemo.projectjupiter.in — the live demo is a 1:1 copy of the analyst shell with fixture data (no login, no database). Buttons that need a backend (hunt-pack generation, live IOC enrichment) are visual-only. For a full deployment with live feeds, follow [SELF_HOST.md](../admin-guide/self-host.mdx).
 
 ---
 
@@ -111,4 +111,4 @@ Operators use `/admin`: Scheduler includes **Catch-up mode** and the durable out
 | `Esc` | Close the topmost drawer/modal |
 | `C` | Copy CVE markdown (drawer open) |
 
-Deploying? Read [SELF_HOST.md](../admin-guide/self-host.md).
+Deploying? Read [SELF_HOST.md](../admin-guide/self-host.mdx).

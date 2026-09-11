@@ -8,6 +8,7 @@ description: BRIEFR's monolithic architecture — sync/async boundaries, trust m
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
 import InTheCode from '@site/src/components/learn/InTheCode';
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Unit 3: High-level architecture
 
@@ -19,20 +20,9 @@ BRIEFR is a monolith. One backend process owns the API, the scheduler, and all b
 
 At the highest level, a running BRIEFR instance looks like this:
 
-```text
-  Browser / API client
-        │
-  nginx / cloudflared tunnel   (reverse proxy — not part of BRIEFR itself)
-        │
-  FastAPI backend              (one uvicorn process, or a small pool with shared Postgres)
-  ├── /api/* routes            HTTP API: CVE queries, intel feeds, admin, auth, search
-  ├── APScheduler              background job engine (scheduler owner — one instance only)
-  ├── feeds/*.py               outbound intelligence sync jobs
-  ├── background jobs          correlation, embeddings, maintenance crons
-  └── webhooks engine          outbound push notifications
-        │
-  SQLite (default) / Postgres  single relational database for all data
-```
+<ArchifyDiagram id="production-architecture" title="BRIEFR production architecture" />
+
+The backend process owns the HTTP API, APScheduler, feed sync jobs, and webhooks. Production data lives in PostgreSQL 16. SQLite exists only as a local `BRIEFR_REQUIRE_POSTGRES=0` opt-out.
 
 Everything inside the backend process communicates via in-process function calls, `asyncio` coroutines, and shared database access. There are no internal HTTP calls between subsystems, no message broker, and no service registry.
 

@@ -9,7 +9,7 @@ sidebar_position: 2
 **Last updated:** 2026-07-21
 **Status:** Current production ops contract — Postgres-first systemd/nginx deploy with opt-in durable queue, embeddings, and catch-up controls.
 
-**First-time install:** [`SELF_HOST.md`](./self-host.md) §3 (production checklist, `.env`, verify). **This document** covers ongoing operations after BRIEFR is installed.
+**First-time install:** [`SELF_HOST.md`](./self-host.mdx) §3 (production checklist, `.env`, verify). **This document** covers ongoing operations after BRIEFR is installed.
 
 ---
 
@@ -241,7 +241,7 @@ env_file:            secrets (DATABASE_URL)
 ports:               127.0.0.1:8000:8000
 ```
 
-Same env vars as systemd. Container packaging is future work — see [`SELF_HOST.md`](./self-host.md) and [`POSTGRES.md`](./postgres.md) for current deploy paths.
+Same env vars as systemd. Container packaging is future work — see [`SELF_HOST.md`](./self-host.mdx) and [`POSTGRES.md`](./postgres.md) for current deploy paths.
 
 ---
 

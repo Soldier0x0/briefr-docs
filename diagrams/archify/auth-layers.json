@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "BRIEFR auth layers",
+    "subtitle": "Edge optional — application sessions decide analyst vs admin",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "analyst-login",
+        "label": "Analyst session",
+        "focus": ["browser", "api", "session"],
+        "note": "Cookie JWT briefr_at; is_active re-checked on every request."
+      },
+      {
+        "id": "admin-gate",
+        "label": "Admin gate",
+        "focus": ["session", "admin", "api"],
+        "note": "Admin routes re-read is_admin from the database, not the JWT payload."
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [40, 96],
+    "cols": 4,
+    "gapX": 40,
+    "gapY": 64,
+    "cellW": 150,
+    "cellH": 64
+  },
+  "components": [
+    { "id": "browser", "type": "frontend", "label": "Browser", "sublabel": "SPA", "row": 1, "col": 0 },
+    { "id": "edge", "type": "cloud", "label": "Zero Trust", "sublabel": "optional edge", "row": 0, "col": 1 },
+    { "id": "api", "type": "backend", "label": "FastAPI", "sublabel": "auth middleware", "row": 1, "col": 1 },
+    { "id": "session", "type": "security", "label": "Session cookies", "sublabel": "briefr_at / rt", "row": 1, "col": 2 },
+    { "id": "admin", "type": "security", "label": "Admin role", "sublabel": "is_admin DB", "row": 2, "col": 2 },
+    { "id": "wallboard", "type": "security", "label": "Wallboard token", "sublabel": "header only", "row": 0, "col": 2 },
+    { "id": "postgres", "type": "database", "label": "users table", "sublabel": "active + role", "row": 1, "col": 3 }
+  ],
+  "connections": [
+    { "id": "opt-edge", "from": "browser", "to": "edge", "variant": "dashed" },
+    { "id": "browser-api", "from": "browser", "to": "api", "variant": "emphasis" },
+    { "id": "api-session", "from": "api", "to": "session", "variant": "security" },
+    { "id": "session-db", "from": "session", "to": "postgres", "label": "is_active", "variant": "emphasis" },
+    { "id": "admin-db", "from": "admin", "to": "postgres", "label": "is_admin", "variant": "security" },
+    { "id": "wall-api", "from": "wallboard", "to": "api", "variant": "dashed" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "Application auth",
+      "items": [
+        "Analyst routes require a valid session cookie",
+        "Admin is a live database flag, not a JWT claim"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Kiosk",
+      "items": [
+        "Wallboard uses a scoped token header, not a user session"
+      ]
+    }
+  ]
+}

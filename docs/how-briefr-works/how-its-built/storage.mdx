@@ -8,6 +8,7 @@ description: SQLite and PostgreSQL schema, caches, and feed tables in BRIEFR.
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
 import InTheCode from '@site/src/components/learn/InTheCode';
 import TryItYourself from '@site/src/components/learn/TryItYourself';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Storage
 
@@ -18,6 +19,8 @@ single-box deployments, and **PostgreSQL** for production. Every CVE record, KEV
 EPSS score, IOC cache entry, threat correlation, sync watermark, and user session lives in
 the same database. The UI reads that local database; it does not query external feeds on
 each page load.
+
+<ArchifyDiagram id="production-architecture" title="BRIEFR production architecture" />
 
 Both backends share a single schema surface. Application code talks to a thin connection
 abstraction whose `execute`, `execute_fetchall`, `executemany`, `commit`, and `rollback`

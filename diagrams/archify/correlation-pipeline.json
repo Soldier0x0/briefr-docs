@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "BRIEFR correlation pipeline",
+    "subtitle": "Four explainable lanes — no live OTX on drawer open",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 620],
+    "views": [
+      {
+        "id": "nightly",
+        "label": "Nightly correlate",
+        "focus": ["cves", "engine", "lanes"],
+        "note": "Correlation writes local links the drawer can explain."
+      },
+      {
+        "id": "drawer",
+        "label": "Drawer read",
+        "focus": ["lanes", "pulses", "drawer"],
+        "note": "Drawer open does not call OTX live."
+      }
+    ]
+  },
+  "stages": [
+    { "label": "Store" },
+    { "label": "Engine" },
+    { "label": "Lanes" },
+    { "label": "Cache" },
+    { "label": "Analyst" }
+  ],
+  "nodes": [
+    { "id": "cves", "type": "database", "label": "CVE rows", "sublabel": "local intel", "stage": 0, "row": 1, "tag": "Postgres" },
+    { "id": "engine", "type": "backend", "label": "Correlate job", "sublabel": "nightly", "stage": 1, "row": 1, "tag": "scheduler" },
+    { "id": "lanes", "type": "backend", "label": "Four lanes", "sublabel": "explainable links", "stage": 2, "row": 1, "tag": "lanes" },
+    { "id": "pulses", "type": "database", "label": "otx_cve_pulses", "sublabel": "cached pulses", "stage": 3, "row": 1, "tag": "mirror" },
+    { "id": "drawer", "type": "frontend", "label": "Detail drawer", "sublabel": "why grouped", "stage": 4, "row": 1, "tag": "no live OTX" }
+  ],
+  "flows": [
+    { "id": "cves-engine", "from": "cves", "to": "engine", "label": "CVE + IOC facts", "classification": "local", "variant": "emphasis", "route": "straight" },
+    { "id": "engine-lanes", "from": "engine", "to": "lanes", "label": "score + reasons", "classification": "deterministic", "variant": "emphasis", "route": "straight" },
+    { "id": "lanes-pulses", "from": "lanes", "to": "pulses", "label": "pulse clusters", "classification": "normalized titles", "variant": "default", "route": "straight" },
+    { "id": "pulses-drawer", "from": "pulses", "to": "drawer", "label": "cached evidence", "classification": "read path", "variant": "emphasis", "route": "straight" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Lanes",
+      "items": [
+        "Campaigns, Infrastructure, Actor/sector, Temporal",
+        "No black-box ML score"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "OTX down",
+      "items": [
+        "Cached otx_cve_pulses stay; the mirror is not wiped"
+      ]
+    }
+  ]
+}

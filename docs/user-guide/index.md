@@ -15,7 +15,7 @@ same analyst shell as production, with fixture data and no install.
 | Chapter | What it covers |
 | --- | --- |
 | [Using BRIEFR](./using-briefr.md) | Daily workflow: feed, triage, ⌘K palette, notifications, enrichment, and settings. |
-| [How it works](./how-it-works.md) | The "why" behind the product — optional background reading. |
+| [How it works](./how-it-works.mdx) | The "why" behind the product — optional background reading. |
 | [Troubleshooting](./troubleshooting.md) | Symptom → fix. No need to read anything else first. |
 
 **Learning depth:** [Pathways](/docs/pathways) and

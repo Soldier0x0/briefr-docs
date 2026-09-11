@@ -1,0 +1,28 @@
+.figure {
+  margin: 1.25rem 0 1.75rem;
+  border: 1px solid var(--brf-hairline);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--brf-ink);
+}
+
+.frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: var(--brf-ink);
+}
+
+.fallback {
+  display: none;
+  width: 100%;
+  height: auto;
+}
+
+.figure[data-failed='true'] .frame {
+  display: none;
+}
+
+.figure[data-failed='true'] .fallback {
+  display: block;
+}

@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "BRIEFR ingest pipeline",
+    "subtitle": "Schedulers fetch intel; the FEED reads PostgreSQL",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 480],
+    "views": [
+      {
+        "id": "cve-ingest",
+        "label": "CVE ingest",
+        "focus": ["feeds", "queue", "jobs", "cves"],
+        "note": "NVD, KEV, EPSS, OTX and RSS land via paced jobs."
+      },
+      {
+        "id": "ui-read",
+        "label": "UI read",
+        "focus": ["cves", "feed"],
+        "note": "Page load does not call NVD."
+      }
+    ]
+  },
+  "stages": [
+    { "label": "Sources" },
+    { "label": "Pace" },
+    { "label": "Jobs" },
+    { "label": "Store" },
+    { "label": "UI" }
+  ],
+  "nodes": [
+    { "id": "feeds", "type": "external", "label": "Intel feeds", "sublabel": "NVD KEV EPSS OTX", "stage": 0, "row": 1, "tag": "upstream" },
+    { "id": "queue", "type": "messagebus", "label": "API queue", "sublabel": "provider pacing", "stage": 1, "row": 1, "tag": "rate limit" },
+    { "id": "jobs", "type": "backend", "label": "APScheduler", "sublabel": "ingest jobs", "stage": 2, "row": 1, "tag": "locks" },
+    { "id": "cves", "type": "database", "label": "PostgreSQL", "sublabel": "cves + mirrors", "stage": 3, "row": 1, "tag": "source of truth" },
+    { "id": "feed", "type": "frontend", "label": "FEED via API", "sublabel": "FastAPI read", "stage": 4, "row": 1, "tag": "SPA" }
+  ],
+  "flows": [
+    { "id": "feeds-queue", "from": "feeds", "to": "queue", "label": "HTTP fetch", "classification": "upstream", "variant": "emphasis", "route": "straight" },
+    { "id": "queue-jobs", "from": "queue", "to": "jobs", "label": "paced", "classification": "quota", "variant": "emphasis", "route": "straight" },
+    { "id": "jobs-db", "from": "jobs", "to": "cves", "label": "upsert", "classification": "local copy", "variant": "emphasis", "route": "straight" },
+    { "id": "db-feed", "from": "cves", "to": "feed", "label": "SQL + JSON", "classification": "request path", "variant": "emphasis", "route": "straight" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Timing",
+      "items": [
+        "Collection runs on the scheduler, not during page render",
+        "The API queue paces NVD and other providers"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Failure",
+      "items": [
+        "A 503 from NVD cools that source; the FEED still reads local rows"
+      ]
+    }
+  ]
+}
