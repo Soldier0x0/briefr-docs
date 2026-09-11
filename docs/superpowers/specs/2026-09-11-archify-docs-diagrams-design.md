@@ -17,7 +17,8 @@ Replace architecture / process depiction diagrams on https://docs.projectjupiter
 
 ## Current state
 
-- Depiction SVGs live under `docs/user-guide/assets/` and `docs/admin-guide/assets/` (`production-architecture`, `auth-layers`, `ingest-pipeline`, `correlation-pipeline`). Markdown embeds them as `![...](assets/....svg)`.
+- Migrated CommonMark guides (`how-it-works.md`, `self-host.md`) stay `.md`. Archify is injected as same-origin iframe HTML via `PORTAL_PATCHES` in `scripts/migrate.cjs` after each sync. Do not convert those files to MDX (weekly migrate would recreate `.md` and drop React imports).
+- Learn MDX pages use `<ArchifyDiagram />`. Iframe success is `onLoad` + SVG probe + 8s timeout, not `onError`.
 - `docs/developer-guide/system-design.md` links to Mermaid files in `briefr` on GitHub; they do not render on the portal.
 - Learn MDX (`docs/how-briefr-works/**`) is mostly text + ASCII. “Try it yourself” boxes have no depiction diagrams.
 - Raster screenshots already go through `ZoomableImage`. SVGs stay as raw `<img>` (`src/theme/MDXComponents/index.tsx`).

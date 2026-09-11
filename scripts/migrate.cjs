@@ -159,48 +159,100 @@ for (const [src, dst, label, position] of FILES) {
   console.log(`${src} -> ${dst}`);
 }
 
+function archifyIframe(id, title, height = 560) {
+  return (
+    `<iframe class="archify-frame" src="/diagrams/${id}.html?theme=dark&present=1&embed=1" ` +
+    `title="${title}" height="${height}" loading="lazy" referrerpolicy="no-referrer" ` +
+    `sandbox="allow-scripts allow-same-origin"></iframe>\n` +
+    `<noscript><img src="/diagrams/${id}.svg" alt="${title}" /></noscript>`
+  );
+}
+
+function replaceDepictionSvg(body, alt, id, title) {
+  const img = new RegExp(
+    `!\\[${alt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\]\\(assets/[^)]+\\)`,
+  );
+  return body.replace(img, () => archifyIframe(id, title));
+}
+
+function patchHowItWorks(body) {
+  let out = body
+    .replace(
+      /\| \[`study-guide\/`\][^\n]+\n\| \[`STUDY_GUIDE\.html`\][^\n]+\n/,
+      '',
+    )
+    .replace(
+      /\| \[`ONBOARDING\.md`\]\(\.\.\/developer-guide\/onboarding\.md\)/,
+      '| [Contributor onboarding](/docs/developer-guide/onboarding)',
+    )
+    .replace(
+      /\| \[`API_REFERENCE\.md`\]\(\.\.\/api-reference\.md\)/,
+      '| [API Reference](/docs/api-reference)',
+    )
+    .replace(
+      /\| \[`SYSTEM_DESIGN\.md`\]\(\.\.\/developer-guide\/system-design\.md\)/,
+      '| [System design](/docs/developer-guide/system-design)',
+    )
+    .replace(
+      '## Deeper reference\n\n| Doc | When |\n|-----|------|\n',
+      `## Deeper reference\n\n| Doc | When |\n|-----|------|\n| [Pathways](/docs/pathways) | Pick Analyst, Architect, or System Design learning track |\n| [How BRIEFR Works](/docs/how-briefr-works) | Full learning section — intel lifecycle + how it's built |\n`,
+    );
+  out = replaceDepictionSvg(
+    out,
+    'Production architecture',
+    'production-architecture',
+    'BRIEFR production architecture',
+  );
+  out = replaceDepictionSvg(out, 'Auth layers', 'auth-layers', 'BRIEFR auth layers');
+  out = replaceDepictionSvg(
+    out,
+    'Ingest pipeline',
+    'ingest-pipeline',
+    'BRIEFR ingest pipeline',
+  );
+  out = replaceDepictionSvg(
+    out,
+    'Correlation pipeline',
+    'correlation-pipeline',
+    'BRIEFR correlation pipeline',
+  );
+  return out;
+}
+
+function patchSelfHost(body) {
+  let out = body.replace(
+    '`setup.sh` installs Python, clones to `/opt/briefr`, creates the venv, then runs `briefr-update.sh`.\n\n### Step 3',
+    '`setup.sh` installs Python, clones to `/opt/briefr`, creates the venv, then runs `briefr-update.sh`.\n\nAfter install, **systemd** runs BRIEFR continuously (`briefr-backend.service`). Run `briefr-update.sh` only when **upgrading** to a new release — not for day-to-day restarts.\n\n### Step 3',
+  );
+  if (!out.includes('briefr-backend.service')) {
+    out = out
+      .replace(
+        '## Production\n\n```bash',
+        `## Production\n\nFirst-time install on your server:\n\n\`\`\`bash`,
+      )
+      .replace(
+        'bash deploy/briefr-update.sh\n```\n\n| Checklist | Setting |',
+        `bash deploy/briefr-update.sh\n\`\`\`\n\nAfter install, **systemd** runs BRIEFR continuously (\`briefr-backend.service\`).\nYou only run \`briefr-update.sh\` again when **upgrading** to a new release — not\nfor day-to-day use.\n\n| Checklist | Setting |`,
+      );
+  }
+  return replaceDepictionSvg(
+    out,
+    'Production architecture',
+    'production-architecture',
+    'BRIEFR production architecture',
+  );
+}
+
 // Portal-only rewrites after migrate (briefr canonical files may link maintainer
 // study content that is not part of the public docs site).
 const PORTAL_PATCHES = {
-  'user-guide/how-it-works.md': (body) =>
-    body.replace(
-      /\| \[`study-guide\/`\][^\n]+\n\| \[`STUDY_GUIDE\.html`\][^\n]+\n/,
-      '',
-    ).replace(
-      /\| \[`ONBOARDING\.md`\]\(\.\.\/developer-guide\/onboarding\.md\)/,
-      '| [Contributor onboarding](/docs/developer-guide/onboarding)',
-    ).replace(
-      /\| \[`API_REFERENCE\.md`\]\(\.\.\/api-reference\.md\)/,
-      '| [API Reference](/docs/api-reference)',
-    ).replace(
-      /\| \[`SYSTEM_DESIGN\.md`\]\(\.\.\/developer-guide\/system-design\.md\)/,
-      '| [System design](/docs/developer-guide/system-design)',
-    ).replace(
-      '## Deeper reference\n\n| Doc | When |\n|-----|------|\n',
-      `## Deeper reference\n\n| Doc | When |\n|-----|------|\n| [Pathways](/docs/pathways) | Pick Analyst, Architect, or System Design learning track |\n| [How BRIEFR Works](/docs/how-briefr-works) | Full learning section — intel lifecycle + how it's built |\n`,
-    ),
-  'admin-guide/self-host.md': (body) =>
-    body.replace(
-      '`setup.sh` installs Python, clones to `/opt/briefr`, creates the venv, then runs `briefr-update.sh`.\n\n### Step 3',
-      '`setup.sh` installs Python, clones to `/opt/briefr`, creates the venv, then runs `briefr-update.sh`.\n\nAfter install, **systemd** runs BRIEFR continuously (`briefr-backend.service`). Run `briefr-update.sh` only when **upgrading** to a new release — not for day-to-day restarts.\n\n### Step 3',
-    ),
+  'user-guide/how-it-works.md': patchHowItWorks,
+  'admin-guide/self-host.md': patchSelfHost,
   'admin-guide/operations.md': (body) =>
     body.replace(
       '## Purpose\n\nDefines how BRIEFR runs in production',
       `## Purpose\n\n> **Day-to-day:** BRIEFR runs under **systemd** (\`briefr-backend.service\`). Routine operation does not require running any update script — systemd keeps the backend and nginx serving the built frontend.\n>\n> **Upgrades:** Run \`briefr-update.sh\` only when installing a new release (pull, Alembic, frontend build, health gate). This is not a development hot-reload workflow.\n\nDefines how BRIEFR runs in production`,
     ),
-  'admin-guide/self-host.md': (body) => {
-    if (body.includes('briefr-backend.service')) {
-      return body;
-    }
-    return body.replace(
-      '## Production\n\n```bash',
-      `## Production\n\nFirst-time install on your server:\n\n\`\`\`bash`,
-    ).replace(
-      'bash deploy/briefr-update.sh\n```\n\n| Checklist | Setting |',
-      `bash deploy/briefr-update.sh\n\`\`\`\n\nAfter install, **systemd** runs BRIEFR continuously (\`briefr-backend.service\`).\nYou only run \`briefr-update.sh\` again when **upgrading** to a new release — not\nfor day-to-day use.\n\n| Checklist | Setting |`,
-    );
-  },
 };
 
 for (const [rel, patch] of Object.entries(PORTAL_PATCHES)) {

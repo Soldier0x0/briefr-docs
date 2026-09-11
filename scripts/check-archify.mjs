@@ -49,6 +49,11 @@ function walk(dir) {
           fail(`${p} references unknown ArchifyDiagram id=${m[1]}`);
         }
       }
+      for (const m of text.matchAll(/src=["']\/diagrams\/([a-z0-9-]+)\.html/g)) {
+        if (!ids.has(m[1])) {
+          fail(`${p} references unknown diagram iframe id=${m[1]}`);
+        }
+      }
     }
   }
 }

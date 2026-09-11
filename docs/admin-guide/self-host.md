@@ -3,8 +3,6 @@ sidebar_label: Self-host BRIEFR
 sidebar_position: 1
 ---
 
-import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
-
 # Self-host BRIEFR
 
 **Authoritative install guide.** Pick one path below — you do not need to read every section.
@@ -22,7 +20,8 @@ import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 ## At a glance
 
-<ArchifyDiagram id="production-architecture" title="BRIEFR production architecture" />
+<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
 
 | Piece | What |
 |-------|------|

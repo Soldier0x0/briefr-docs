@@ -351,6 +351,20 @@ header h1 {
   background: var(--brf-surface);
 }
 
+.markdown iframe.archify-frame {
+  display: block;
+  width: 100%;
+  height: 560px;
+  margin: 1.25rem 0 1.75rem;
+  border: 1px solid var(--brf-hairline);
+  border-radius: 10px;
+  background: var(--brf-ink);
+}
+
+.markdown noscript img[src^='/diagrams/'] {
+  margin: 1.25rem 0;
+}
+
 /* ZoomableImage trigger owns border/hover — avoid double frame */
 .markdown button[class*='trigger'] img {
   margin: 0;

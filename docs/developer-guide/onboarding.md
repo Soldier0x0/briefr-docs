@@ -10,7 +10,7 @@ sidebar_position: 2
 
 | If you want to… | Start here |
 |-----------------|------------|
-| **Install** BRIEFR (any path) | [`SELF_HOST.md`](../admin-guide/self-host.mdx) — authoritative step-by-step |
+| **Install** BRIEFR (any path) | [`SELF_HOST.md`](../admin-guide/self-host.md) — authoritative step-by-step |
 | **Use** or **self-host** without changing code | [`index.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/index.md) → SELF_HOST or USE |
 | **Change the code** | Continue below |
 
@@ -20,7 +20,7 @@ sidebar_position: 2
 
 | Step | Document | Why |
 |------|----------|-----|
-| 1 | [`index.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/index.md) + [`HOW_IT_WORKS.md`](../user-guide/how-it-works.mdx) | Quick product context (5 min) |
+| 1 | [`index.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/index.md) + [`HOW_IT_WORKS.md`](../user-guide/how-it-works.md) | Quick product context (5 min) |
 | 2 | [`README.md`](https://github.com/Soldier0x0/briefr/blob/main/README.md) | Features and local quick start |
 | 3 | [`CONTRIBUTOR_RULES.md`](https://github.com/Soldier0x0/briefr/blob/main/docs/CONTRIBUTOR_RULES.md) | Danger zones, UI rules, merge gate |
 | 4 | [`SYSTEM_DESIGN.md`](./system-design.md) | Architecture and trade-offs |
@@ -35,7 +35,7 @@ sidebar_position: 2
 
 ## 2. Local development
 
-**Install paths (SQLite vs Postgres+pgvector vs production):** [`SELF_HOST.md`](../admin-guide/self-host.mdx). This section assumes you are developing against the repo.
+**Install paths (SQLite vs Postgres+pgvector vs production):** [`SELF_HOST.md`](../admin-guide/self-host.md). This section assumes you are developing against the repo.
 
 ### Prerequisites
 
@@ -56,7 +56,7 @@ cp .env.example .env    # add keys as needed
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-- PostgreSQL via `DATABASE_URL` in `backend/.env` — full steps: [`SELF_HOST.md` §2](../admin-guide/self-host.mdx#2-local-development-with-postgresql--pgvector) (`docker compose -f deploy/docker-compose.postgres.yml up -d` on **:5432**, or disposable `./scripts/postgres-dev.sh start` on **:5433** — see `docs/POSTGRES.md`)
+- PostgreSQL via `DATABASE_URL` in `backend/.env` — full steps: [`SELF_HOST.md` §2](../admin-guide/self-host.md#2-local-development-with-postgresql--pgvector) (`docker compose -f deploy/docker-compose.postgres.yml up -d` on **:5432**, or disposable `./scripts/postgres-dev.sh start` on **:5433** — see `docs/POSTGRES.md`)
 - Interactive API docs: http://localhost:8000/api/docs
 - Health check: http://localhost:8000/api/health
 
@@ -278,7 +278,7 @@ Configure **one or more** destinations. Alerts are scheduler-side (`kev_alert` a
 
 ## 5. Production deploy (overview)
 
-**Full production install checklist:** [`SELF_HOST.md` §3](../admin-guide/self-host.mdx#3-production-debian--systemd--nginx). This section is a developer-oriented summary; operators should use SELF_HOST + OPERATIONS.
+**Full production install checklist:** [`SELF_HOST.md` §3](../admin-guide/self-host.md#3-production-debian--systemd--nginx). This section is a developer-oriented summary; operators should use SELF_HOST + OPERATIONS.
 
 BRIEFR targets a single Debian server with **systemd + nginx**. Install path: `/opt/briefr`.
 

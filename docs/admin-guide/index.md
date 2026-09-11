@@ -10,7 +10,7 @@ PostgreSQL; SQLite exists only as a zero-config dev/test fallback.
 
 | Chapter | What it covers |
 | --- | --- |
-| [Self-host BRIEFR](./self-host.mdx) | One guide for installing and running BRIEFR on your server. |
+| [Self-host BRIEFR](./self-host.md) | One guide for installing and running BRIEFR on your server. |
 | [Operations](./operations.md) | Deploy compatibility, upgrades, backups, and day-2 care. |
 | [PostgreSQL](./postgres.md) | The production database: setup, connection, and maintenance. |
 | [Wallboard](./wallboard.md) | Read-only kiosk at `/wallboard` — token, API, and setup. |

@@ -3,8 +3,6 @@ sidebar_label: How it works
 sidebar_position: 2
 ---
 
-import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
-
 # How BRIEFR works
 
 **Optional** — read this if you want the "why" behind the product. Skip if you only want to use or deploy it.
@@ -13,19 +11,22 @@ import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 ## Architecture
 
-<ArchifyDiagram id="production-architecture" title="BRIEFR production architecture" />
+<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
 
 **Flow:** Browser → optional edge/nginx → FastAPI → PostgreSQL 16. Schedulers pull external intel into the DB; request handlers read cached/precomputed state.
 
 **Auth:** Optional edge access can sit in front of built-in app login.
 
-<ArchifyDiagram id="auth-layers" title="BRIEFR auth layers" />
+<iframe class="archify-frame" src="/diagrams/auth-layers.html?theme=dark&present=1&embed=1" title="BRIEFR auth layers" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/auth-layers.svg" alt="BRIEFR auth layers" /></noscript>
 
 ---
 
 ## Ingest and jobs
 
-<ArchifyDiagram id="ingest-pipeline" title="BRIEFR ingest pipeline" />
+<iframe class="archify-frame" src="/diagrams/ingest-pipeline.html?theme=dark&present=1&embed=1" title="BRIEFR ingest pipeline" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/ingest-pipeline.svg" alt="BRIEFR ingest pipeline" /></noscript>
 
 NVD, cvelistV5, CISA KEV, Vulnrichment, EPSS, OTX, MITRE ATT&CK/ATLAS, exploit sources, RSS × 5, and optional LLM/embedding jobs run on schedulers — not page load.
 
@@ -60,7 +61,8 @@ The drawer calls `POST /api/cves/{cve_id}/risk` with optional asset/profile cont
 
 ## Correlation
 
-<ArchifyDiagram id="correlation-pipeline" title="BRIEFR correlation pipeline" />
+<iframe class="archify-frame" src="/diagrams/correlation-pipeline.html?theme=dark&present=1&embed=1" title="BRIEFR correlation pipeline" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/correlation-pipeline.svg" alt="BRIEFR correlation pipeline" /></noscript>
 
 Four explainable lanes: **Campaigns**, **Infrastructure**, **Actor/sector**, **Temporal**. OTX pulse titles are normalized for display, and pulse clusters show why members were grouped. No black-box ML score; drawer open does not call OTX live. When OTX is temporarily down, cached `otx_cve_pulses` are served without wiping the mirror.
 

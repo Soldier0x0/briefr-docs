@@ -5,8 +5,8 @@
       "type": "architecture",
       "title": "Production architecture",
       "pages": [
-        "docs/user-guide/how-it-works.mdx",
-        "docs/admin-guide/self-host.mdx",
+        "docs/user-guide/how-it-works.md",
+        "docs/admin-guide/self-host.md",
         "docs/how-briefr-works/system-design/03-architecture.mdx"
       ]
     },
@@ -15,7 +15,7 @@
       "type": "architecture",
       "title": "Auth layers",
       "pages": [
-        "docs/user-guide/how-it-works.mdx",
+        "docs/user-guide/how-it-works.md",
         "docs/how-briefr-works/how-its-built/api-auth.mdx"
       ]
     },
@@ -24,7 +24,7 @@
       "type": "dataflow",
       "title": "Ingest pipeline",
       "pages": [
-        "docs/user-guide/how-it-works.mdx",
+        "docs/user-guide/how-it-works.md",
         "docs/how-briefr-works/intel-lifecycle/collect.mdx",
         "docs/how-briefr-works/how-its-built/ingestion-scheduler.mdx"
       ]
@@ -34,7 +34,7 @@
       "type": "dataflow",
       "title": "Correlation pipeline",
       "pages": [
-        "docs/user-guide/how-it-works.mdx",
+        "docs/user-guide/how-it-works.md",
         "docs/how-briefr-works/intel-lifecycle/correlate.mdx"
       ]
     },
