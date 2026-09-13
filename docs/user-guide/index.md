@@ -10,7 +10,7 @@ not deploying it. If you're standing up a server, you want the
 [Administrator Guide](/docs/admin-guide) instead.
 
 <div class="archify-embed" style="--archify-w:912;--archify-h:476">
-<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/production-architecture?theme=dark&present=1&embed=1" title="BRIEFR production architecture" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
 

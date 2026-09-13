@@ -29,7 +29,7 @@ This is a class of bug: **fixed viewport + content sized by another axis + clip*
 - **Source of truth for ratio:** `viewBox` on `static/diagrams/<id>.svg` (`0 0 W H`). Catalog copies it as `"viewBox": [W, H]`.
 - **`scripts/check-archify.mjs`** fails if catalog `viewBox` is missing, non-positive, or disagrees with the SVG; if any markdown Archify iframe still has `height="560"` or lacks `--archify-w` / `--archify-h` matching that id; if `custom.css` still sets `.archify-frame` to `560px`.
 - **MDX:** `<ArchifyDiagram id title />` looks up catalog; no `height` prop (remove default 560).
-- **CommonMark:** `scripts/lib/archify-embed.cjs` `wrapArchifyIframe(id, title, w, h)` emitted by `migrate.cjs` and used to rewrite existing iframes.
+- **URL:** `/diagrams/<id>?theme=dark&present=1&embed=1` without `.html`. A `.html?…` src 301s to the clean path and **drops search params**, so embed mode never turns on.
 - **CSS:** no global iframe height. `.archify-embed` owns the box.
 
 ## Sibling UX scan (same class)

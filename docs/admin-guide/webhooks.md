@@ -7,7 +7,7 @@ description: Discord, Telegram, and generic webhook destinations — SSRF rules 
 # Webhooks
 
 <div class="archify-embed" style="--archify-w:1080;--archify-h:480">
-<iframe class="archify-frame" src="/diagrams/webhooks-ops.html?theme=dark&present=1&embed=1" title="Webhooks and notifications" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/webhooks-ops?theme=dark&present=1&embed=1" title="Webhooks and notifications" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/webhooks-ops.svg" alt="Webhooks and notifications" /></noscript>
 

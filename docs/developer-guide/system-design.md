@@ -88,7 +88,7 @@ Feed Ingestion  →  PostgreSQL  →  FastAPI API  →  React UI
 Mermaid sources: master graph [`docs/diagrams/system-graph.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/system-graph.mermaid) · component view [`docs/diagrams/architecture.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/architecture.mermaid)
 
 <div class="archify-embed" style="--archify-w:912;--archify-h:476">
-<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/production-architecture?theme=dark&present=1&embed=1" title="BRIEFR production architecture" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
 
@@ -230,7 +230,7 @@ the CVE or asset profile changes and renders `threat` / `environment` /
 Sequence diagram: [`docs/diagrams/flow_cve_feed.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/flow_cve_feed.mermaid)
 
 <div class="archify-embed" style="--archify-w:1080;--archify-h:560">
-<iframe class="archify-frame" src="/diagrams/cve-feed.html?theme=dark&present=1&embed=1" title="CVE feed request" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/cve-feed?theme=dark&present=1&embed=1" title="CVE feed request" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/cve-feed.svg" alt="CVE feed request" /></noscript>
 
@@ -253,7 +253,7 @@ Sequence diagram: [`docs/diagrams/flow_cve_feed.mermaid`](https://github.com/Sol
 Sequence diagram: [`docs/diagrams/flow_cve_detail.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/flow_cve_detail.mermaid)
 
 <div class="archify-embed" style="--archify-w:1080;--archify-h:560">
-<iframe class="archify-frame" src="/diagrams/cve-detail.html?theme=dark&present=1&embed=1" title="CVE detail drawer" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/cve-detail?theme=dark&present=1&embed=1" title="CVE detail drawer" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/cve-detail.svg" alt="CVE detail drawer" /></noscript>
 
@@ -272,7 +272,7 @@ Sequence diagram: [`docs/diagrams/flow_cve_detail.mermaid`](https://github.com/S
 Sequence diagram: [`docs/diagrams/flow_ioc_lookup.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/flow_ioc_lookup.mermaid)
 
 <div class="archify-embed" style="--archify-w:1080;--archify-h:560">
-<iframe class="archify-frame" src="/diagrams/ioc-lookup.html?theme=dark&present=1&embed=1" title="IOC lookup" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/ioc-lookup?theme=dark&present=1&embed=1" title="IOC lookup" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/ioc-lookup.svg" alt="IOC lookup" /></noscript>
 
@@ -307,7 +307,7 @@ See **Risk score (ADR-002 + legacy v1.1b) — backend canonical** above. Impleme
 Flowchart: [`docs/diagrams/startup.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/startup.mermaid) (scheduler registration)
 
 <div class="archify-embed" style="--archify-w:1080;--archify-h:560">
-<iframe class="archify-frame" src="/diagrams/startup.html?theme=dark&present=1&embed=1" title="Backend startup" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/startup?theme=dark&present=1&embed=1" title="Backend startup" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/startup.svg" alt="Backend startup" /></noscript>
 

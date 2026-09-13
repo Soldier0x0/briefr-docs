@@ -11,7 +11,7 @@ description: Digest of what is true in production today — canonical source liv
 disagree, the canonical file wins.
 
 <div class="archify-embed" style="--archify-w:912;--archify-h:476">
-<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/production-architecture?theme=dark&present=1&embed=1" title="BRIEFR production architecture" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
 

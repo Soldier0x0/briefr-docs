@@ -13,7 +13,7 @@
 - Repo: `briefr-docs` only. Do not edit `briefr`.
 - Do not regenerate `static/diagrams/*.html` with the Archify CLI.
 - Migrated guides stay `.md`; wrappers come from `migrate.cjs`.
-- Embed URL stays `?theme=dark&present=1&embed=1`.
+- Embed URL is `/diagrams/<id>?theme=dark&present=1&embed=1` (**no** `.html`). Docusaurus `serve` 301s `*.html?query` to the extensionless path **and drops the query**, so `embed=1` never applied and full Archify chrome filled the box.
 - Extra shell height is exactly `16px` (`EMBED_PAD_PX`) for Archify embed padding `0.5rem` × 2.
 - Dark admin tokens do not apply; keep `--brf-ink` embed chrome.
 

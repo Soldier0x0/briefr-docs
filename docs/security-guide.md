@@ -7,7 +7,7 @@ description: The auth model, secret handling, network exposure, a hardening chec
 # Security Guide
 
 <div class="archify-embed" style="--archify-w:770;--archify-h:480">
-<iframe class="archify-frame" src="/diagrams/auth-layers.html?theme=dark&present=1&embed=1" title="BRIEFR auth layers" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/auth-layers?theme=dark&present=1&embed=1" title="BRIEFR auth layers" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/auth-layers.svg" alt="BRIEFR auth layers" /></noscript>
 

@@ -77,7 +77,7 @@ function walk(dir) {
           fail(`${p} references unknown ArchifyDiagram id=${m[1]}`);
         }
       }
-      for (const m of text.matchAll(/src=["']\/diagrams\/([a-z0-9-]+)\.html/g)) {
+      for (const m of text.matchAll(/src=["']\/diagrams\/([a-z0-9-]+)(?:\.html)?\?/g)) {
         if (!ids.has(m[1])) {
           fail(`${p} references unknown diagram iframe id=${m[1]}`);
         }
@@ -85,8 +85,11 @@ function walk(dir) {
       if (/class="archify-frame"[^>]*height="560"/.test(text)) {
         fail(`${p} still uses height="560" on Archify iframe`);
       }
+      if (/\/diagrams\/[a-z0-9-]+\.html\?/.test(text)) {
+        fail(`${p} uses .html? query; Docusaurus 301-strips search — use /diagrams/<id>?…`);
+      }
       for (const m of text.matchAll(
-        /src=["']\/diagrams\/([a-z0-9-]+)\.html[^"']*["']/g,
+        /src=["']\/diagrams\/([a-z0-9-]+)(?:\.html)?\?[^"']*["']/g,
       )) {
         const id = m[1];
         const entry = catalog.diagrams.find((d) => d.id === id);

@@ -16,7 +16,7 @@ revision `036_intel_app_schema_split`, intel tables live in schema **`intel`** a
 operator tables in **`app`** (single Postgres database).
 
 <div class="archify-embed" style="--archify-w:1080;--archify-h:480">
-<iframe class="archify-frame" src="/diagrams/intel-snapshot.html?theme=dark&present=1&embed=1" title="Intel snapshot publish" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/intel-snapshot?theme=dark&present=1&embed=1" title="Intel snapshot publish" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/intel-snapshot.svg" alt="Intel snapshot publish" /></noscript>
 

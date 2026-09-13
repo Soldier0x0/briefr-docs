@@ -29,7 +29,7 @@ function viewBoxFor(id: string): [number, number] {
 export default function ArchifyDiagram({id, title}: Props): ReactNode {
   const [failed, setFailed] = useState(false);
   const okRef = useRef(false);
-  const htmlSrc = `/diagrams/${id}.html?theme=dark&present=1&embed=1`;
+  const htmlSrc = `/diagrams/${id}?theme=dark&present=1&embed=1`;
   const svgSrc = `/diagrams/${id}.svg`;
   const [w, h] = viewBoxFor(id);
 

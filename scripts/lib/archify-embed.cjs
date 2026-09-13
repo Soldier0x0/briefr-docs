@@ -17,7 +17,7 @@ function wrapArchifyIframe(id, title, w, h) {
   if (!id || !title || !(width > 0) || !(height > 0)) {
     throw new Error(`invalid archify wrap args id=${id} w=${w} h=${h}`);
   }
-  const src = `/diagrams/${id}.html?theme=dark&present=1&embed=1`;
+  const src = `/diagrams/${id}?theme=dark&present=1&embed=1`;
   return [
     `<div class="archify-embed" style="--archify-w:${width};--archify-h:${height}">`,
     `<iframe class="archify-frame" src="${src}" title="${title}" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>`,

@@ -12,7 +12,7 @@ sidebar_position: 2
 ## Architecture
 
 <div class="archify-embed" style="--archify-w:912;--archify-h:476">
-<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/production-architecture?theme=dark&present=1&embed=1" title="BRIEFR production architecture" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
 
@@ -21,7 +21,7 @@ sidebar_position: 2
 **Auth:** Optional edge access can sit in front of built-in app login.
 
 <div class="archify-embed" style="--archify-w:770;--archify-h:480">
-<iframe class="archify-frame" src="/diagrams/auth-layers.html?theme=dark&present=1&embed=1" title="BRIEFR auth layers" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/auth-layers?theme=dark&present=1&embed=1" title="BRIEFR auth layers" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/auth-layers.svg" alt="BRIEFR auth layers" /></noscript>
 
@@ -30,7 +30,7 @@ sidebar_position: 2
 ## Ingest and jobs
 
 <div class="archify-embed" style="--archify-w:1080;--archify-h:520">
-<iframe class="archify-frame" src="/diagrams/ingest-pipeline.html?theme=dark&present=1&embed=1" title="BRIEFR ingest pipeline" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/ingest-pipeline?theme=dark&present=1&embed=1" title="BRIEFR ingest pipeline" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/ingest-pipeline.svg" alt="BRIEFR ingest pipeline" /></noscript>
 
@@ -68,7 +68,7 @@ The drawer calls `POST /api/cves/{cve_id}/risk` with optional asset/profile cont
 ## Correlation
 
 <div class="archify-embed" style="--archify-w:1080;--archify-h:620">
-<iframe class="archify-frame" src="/diagrams/correlation-pipeline.html?theme=dark&present=1&embed=1" title="BRIEFR correlation pipeline" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<iframe class="archify-frame" src="/diagrams/correlation-pipeline?theme=dark&present=1&embed=1" title="BRIEFR correlation pipeline" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
 </div>
 <noscript><img src="/diagrams/correlation-pipeline.svg" alt="BRIEFR correlation pipeline" /></noscript>
 

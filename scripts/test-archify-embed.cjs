@@ -20,3 +20,12 @@ test('wrap uses CSS variables not 560px height', () => {
   assert.equal(html.includes('class="archify-embed"'), true);
   assert.equal(EMBED_PAD_PX, 16);
 });
+
+test('wrap omits .html so query survives Docusaurus redirect', () => {
+  const html = wrapArchifyIframe('auth-layers', 'BRIEFR auth layers', 770, 480);
+  assert.equal(html.includes('/diagrams/auth-layers.html'), false);
+  assert.equal(
+    html.includes('/diagrams/auth-layers?theme=dark&present=1&embed=1'),
+    true,
+  );
+});
