@@ -9,7 +9,9 @@ description: Read-only kiosk at /wallboard — token auth, polling, and nginx se
 Read-only TV / SOC display at `/wallboard`. Aggregated intel posture for kiosk
 viewers — no admin data or secrets in the response.
 
-<iframe class="archify-frame" src="/diagrams/wallboard.html?theme=dark&present=1&embed=1" title="Wallboard kiosk" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<div class="archify-embed" style="--archify-w:1080;--archify-h:560">
+<iframe class="archify-frame" src="/diagrams/wallboard?theme=dark&present=1&embed=1" title="Wallboard kiosk" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+</div>
 <noscript><img src="/diagrams/wallboard.svg" alt="Wallboard kiosk" /></noscript>
 
 

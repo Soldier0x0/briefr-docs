@@ -8,7 +8,9 @@ sidebar_position: 2
 
 **Purpose:** Entry point for developers changing the code.
 
-<iframe class="archify-frame" src="/diagrams/startup.html?theme=dark&present=1&embed=1" title="Backend startup" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<div class="archify-embed" style="--archify-w:1080;--archify-h:560">
+<iframe class="archify-frame" src="/diagrams/startup?theme=dark&present=1&embed=1" title="Backend startup" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+</div>
 <noscript><img src="/diagrams/startup.svg" alt="Backend startup" /></noscript>
 
 

@@ -351,13 +351,27 @@ header h1 {
   background: var(--brf-surface);
 }
 
-.markdown iframe.archify-frame {
-  display: block;
+.archify-embed {
+  position: relative;
   width: 100%;
-  height: 560px;
+  height: 0;
   margin: 1.25rem 0 1.75rem;
+  padding-bottom: calc(var(--archify-h) / var(--archify-w) * 100% + 16px);
   border: 1px solid var(--brf-hairline);
   border-radius: 10px;
+  overflow: hidden;
+  background: var(--brf-ink);
+}
+
+.archify-embed .archify-frame,
+.markdown .archify-embed iframe.archify-frame {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
   background: var(--brf-ink);
 }
 

@@ -15,7 +15,9 @@ sidebar_position: 2
 
 ## Purpose
 
-<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<div class="archify-embed" style="--archify-w:912;--archify-h:476">
+<iframe class="archify-frame" src="/diagrams/production-architecture?theme=dark&present=1&embed=1" title="BRIEFR production architecture" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+</div>
 <noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
 
 > **Day-to-day:** BRIEFR runs under **systemd** (`briefr-backend.service`). Routine operation does not require running any update script — systemd keeps the backend and nginx serving the built frontend.

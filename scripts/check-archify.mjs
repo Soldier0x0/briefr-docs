@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
+
+const require = createRequire(import.meta.url);
+const {parseViewBox} = require('./lib/archify-embed.cjs');
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const catalog = JSON.parse(
@@ -26,6 +30,12 @@ for (const d of catalog.diagrams) {
   const htmlPath = path.join(root, 'static/diagrams', `${d.id}.html`);
   const svgPath = path.join(root, 'static/diagrams', `${d.id}.svg`);
   const pngPath = path.join(root, 'static/diagrams', `${d.id}.png`);
+  if (!Array.isArray(d.viewBox) || d.viewBox.length !== 2) {
+    fail(`catalog ${d.id} missing viewBox [w, h]`);
+  } else {
+    const [cw, ch] = d.viewBox.map(Number);
+    if (!(cw > 0) || !(ch > 0)) fail(`catalog ${d.id} invalid viewBox`);
+  }
   if (!fs.existsSync(jsonPath)) fail(`missing IR ${jsonPath}`);
   if (!fs.existsSync(htmlPath)) fail(`missing HTML ${htmlPath}`);
   else {
@@ -36,7 +46,23 @@ for (const d of catalog.diagrams) {
     }
   }
   if (!fs.existsSync(svgPath)) fail(`missing SVG ${svgPath}`);
+  else if (Array.isArray(d.viewBox) && d.viewBox.length === 2) {
+    try {
+      const [sw, sh] = parseViewBox(fs.readFileSync(svgPath, 'utf8'));
+      const [cw, ch] = d.viewBox.map(Number);
+      if (sw !== cw || sh !== ch) {
+        fail(`catalog ${d.id} viewBox [${cw}, ${ch}] != SVG [${sw}, ${sh}]`);
+      }
+    } catch (err) {
+      fail(`${svgPath}: ${err.message}`);
+    }
+  }
   if (!fs.existsSync(pngPath)) fail(`missing PNG ${pngPath}`);
+}
+
+const css = fs.readFileSync(path.join(root, 'src/css/custom.css'), 'utf8');
+if (/iframe\.archify-frame[\s\S]{0,200}height:\s*560px/.test(css)) {
+  fail('custom.css still forces archify-frame height 560px');
 }
 
 function walk(dir) {
@@ -51,9 +77,31 @@ function walk(dir) {
           fail(`${p} references unknown ArchifyDiagram id=${m[1]}`);
         }
       }
-      for (const m of text.matchAll(/src=["']\/diagrams\/([a-z0-9-]+)\.html/g)) {
+      for (const m of text.matchAll(/src=["']\/diagrams\/([a-z0-9-]+)(?:\.html)?\?/g)) {
         if (!ids.has(m[1])) {
           fail(`${p} references unknown diagram iframe id=${m[1]}`);
+        }
+      }
+      if (/class="archify-frame"[^>]*height="560"/.test(text)) {
+        fail(`${p} still uses height="560" on Archify iframe`);
+      }
+      if (/\/diagrams\/[a-z0-9-]+\.html\?/.test(text)) {
+        fail(`${p} uses .html? query; Docusaurus 301-strips search — use /diagrams/<id>?…`);
+      }
+      for (const m of text.matchAll(
+        /src=["']\/diagrams\/([a-z0-9-]+)(?:\.html)?\?[^"']*["']/g,
+      )) {
+        const id = m[1];
+        const entry = catalog.diagrams.find((d) => d.id === id);
+        const start = Math.max(0, m.index - 180);
+        const window = text.slice(start, m.index + m[0].length);
+        if (!entry || !Array.isArray(entry.viewBox)) continue;
+        const [w, h] = entry.viewBox;
+        if (
+          !window.includes(`--archify-w:${w}`) ||
+          !window.includes(`--archify-h:${h}`)
+        ) {
+          fail(`${p} iframe ${id} missing matching --archify-w/--archify-h`);
         }
       }
     }
