@@ -19,7 +19,7 @@ node scripts/extract-archify-png.mjs "$id"
 node scripts/check-archify.mjs
 ```
 
-Do not paste Archify HTML into Markdown. Use `<ArchifyDiagram id="..." title="..." />` on MDX pages. Migrated CommonMark (`.md`) uses a same-origin iframe plus noscript SVG via `scripts/migrate.cjs`.
+Do not paste Archify HTML into Markdown. Use `<ArchifyDiagram id="..." title="..." />` on MDX pages. Migrated CommonMark (`.md`) uses a same-origin iframe in an `.archify-embed` shell sized from the SVG `viewBox` (catalog `viewBox: [w, h]`). Never use a shared pixel height.
 
 ## GitHub Markdown (this repo)
 

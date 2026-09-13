@@ -6,7 +6,9 @@ description: Every source BRIEFR pulls from â€” keys, quotas, failure behavior â
 
 # Integrations
 
-<iframe class="archify-frame" src="/diagrams/ingest-pipeline.html?theme=dark&present=1&embed=1" title="BRIEFR ingest pipeline" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<div class="archify-embed" style="--archify-w:1080;--archify-h:520">
+<iframe class="archify-frame" src="/diagrams/ingest-pipeline.html?theme=dark&present=1&embed=1" title="BRIEFR ingest pipeline" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+</div>
 <noscript><img src="/diagrams/ingest-pipeline.svg" alt="BRIEFR ingest pipeline" /></noscript>
 
 BRIEFR sits between upstream intelligence sources and your downstream

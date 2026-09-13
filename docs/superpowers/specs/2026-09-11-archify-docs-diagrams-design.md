@@ -60,7 +60,7 @@ Props:
 
 - `id: string` — catalog id; resolves to `/diagrams/${id}.html` and `/diagrams/${id}.svg`
 - `title: string` — iframe `title` (required for a11y)
-- `height?: number` — default `560`
+- No `height` prop — iframe box follows catalog `viewBox` `[w, h]` (see `2026-09-13-archify-relative-embed-design.md`).
 
 Behavior:
 

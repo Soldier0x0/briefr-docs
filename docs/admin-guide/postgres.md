@@ -7,7 +7,9 @@ sidebar_position: 3
 
 **Install steps (Postgres + pgvector + linking `DATABASE_URL`):** start at [`SELF_HOST.md`](./self-host.md) §2 (dev) or §3 (production). This document is the **deep reference** for DSN shape, backups, restore, dual-dialect tests, external Postgres, and pgvector cutover.
 
-<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<div class="archify-embed" style="--archify-w:912;--archify-h:476">
+<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+</div>
 <noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
 
 BRIEFR stores all intel data in **PostgreSQL**. Production runs Postgres **16** in Docker at `/opt/infra/postgres`; the BRIEFR app on the host connects via `DATABASE_URL` (published port `127.0.0.1:5432`).

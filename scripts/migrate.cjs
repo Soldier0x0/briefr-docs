@@ -5,6 +5,11 @@
 // lives once in the site footer instead of atop every page.
 const fs = require('fs');
 const path = require('path');
+const {viewBoxFromCatalog, wrapArchifyIframe} = require('./lib/archify-embed.cjs');
+
+const CATALOG = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, '../diagrams/catalog.json'), 'utf8'),
+);
 
 const SRC =
   process.env.BRIEFR_MAIN_DOCS || path.resolve(__dirname, '../../briefr/docs');
@@ -159,13 +164,9 @@ for (const [src, dst, label, position] of FILES) {
   console.log(`${src} -> ${dst}`);
 }
 
-function archifyIframe(id, title, height = 560) {
-  return (
-    `<iframe class="archify-frame" src="/diagrams/${id}.html?theme=dark&present=1&embed=1" ` +
-    `title="${title}" height="${height}" loading="lazy" referrerpolicy="no-referrer" ` +
-    `sandbox="allow-scripts allow-same-origin"></iframe>\n` +
-    `<noscript><img src="/diagrams/${id}.svg" alt="${title}" /></noscript>`
-  );
+function archifyIframe(id, title) {
+  const [w, h] = viewBoxFromCatalog(CATALOG, id);
+  return wrapArchifyIframe(id, title, w, h);
 }
 
 function replaceDepictionSvg(body, alt, id, title) {

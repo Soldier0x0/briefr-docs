@@ -28,6 +28,10 @@
         "docs/how-briefr-works/system-design/14-multi-tenancy.mdx",
         "docs/how-briefr-works/system-design/00-how-to-use.mdx",
         "docs/product-status.md"
+      ],
+      "viewBox": [
+        912,
+        476
       ]
     },
     {
@@ -40,6 +44,10 @@
         "docs/how-briefr-works/system-design/08-apis.mdx",
         "docs/how-briefr-works/system-design/13-security.mdx",
         "docs/security-guide.md"
+      ],
+      "viewBox": [
+        770,
+        480
       ]
     },
     {
@@ -53,6 +61,10 @@
         "docs/how-briefr-works/intel-lifecycle/sources/index.mdx",
         "docs/how-briefr-works/system-design/05-scalability.mdx",
         "docs/integrations.md"
+      ],
+      "viewBox": [
+        1080,
+        520
       ]
     },
     {
@@ -62,6 +74,10 @@
       "pages": [
         "docs/user-guide/how-it-works.md",
         "docs/how-briefr-works/intel-lifecycle/correlate.mdx"
+      ],
+      "viewBox": [
+        1080,
+        620
       ]
     },
     {
@@ -76,6 +92,10 @@
         "docs/how-briefr-works/index.mdx",
         "docs/pathways/index.mdx",
         "docs/how-briefr-works/glossary.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -86,6 +106,10 @@
         "docs/developer-guide/system-design.md",
         "docs/developer-guide/flows.mdx",
         "docs/how-briefr-works/system-design/08-apis.mdx"
+      ],
+      "viewBox": [
+        1080,
+        560
       ]
     },
     {
@@ -95,6 +119,10 @@
       "pages": [
         "docs/developer-guide/system-design.md",
         "docs/developer-guide/flows.mdx"
+      ],
+      "viewBox": [
+        1080,
+        560
       ]
     },
     {
@@ -105,6 +133,10 @@
         "docs/developer-guide/system-design.md",
         "docs/developer-guide/flows.mdx",
         "docs/how-briefr-works/system-design/10-caching.mdx"
+      ],
+      "viewBox": [
+        1080,
+        560
       ]
     },
     {
@@ -116,6 +148,10 @@
         "docs/developer-guide/flows.mdx",
         "docs/how-briefr-works/system-design/09-async.mdx",
         "docs/developer-guide/onboarding.md"
+      ],
+      "viewBox": [
+        1080,
+        560
       ]
     },
     {
@@ -124,6 +160,10 @@
       "title": "NVD collection",
       "pages": [
         "docs/how-briefr-works/intel-lifecycle/sources/nvd.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -132,6 +172,10 @@
       "title": "CISA KEV collection",
       "pages": [
         "docs/how-briefr-works/intel-lifecycle/sources/kev.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -140,6 +184,10 @@
       "title": "FIRST EPSS collection",
       "pages": [
         "docs/how-briefr-works/intel-lifecycle/sources/epss.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -148,6 +196,10 @@
       "title": "AlienVault OTX collection",
       "pages": [
         "docs/how-briefr-works/intel-lifecycle/sources/otx.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -156,6 +208,10 @@
       "title": "GreyNoise on demand",
       "pages": [
         "docs/how-briefr-works/intel-lifecycle/sources/greynoise.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -164,6 +220,10 @@
       "title": "OSV.dev on demand",
       "pages": [
         "docs/how-briefr-works/intel-lifecycle/sources/osv.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -172,6 +232,10 @@
       "title": "MITRE ATT&CK collection",
       "pages": [
         "docs/how-briefr-works/intel-lifecycle/sources/attack.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -180,6 +244,10 @@
       "title": "VulnCheck KEV collection",
       "pages": [
         "docs/how-briefr-works/intel-lifecycle/sources/vulncheck-kev.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -189,6 +257,10 @@
       "pages": [
         "docs/how-briefr-works/how-its-built/search-embeddings.mdx",
         "docs/how-briefr-works/system-design/11-search.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -198,6 +270,10 @@
       "pages": [
         "docs/how-briefr-works/how-its-built/webhooks-ops.mdx",
         "docs/admin-guide/webhooks.md"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -208,6 +284,10 @@
         "docs/how-briefr-works/how-its-built/resilience.mdx",
         "docs/how-briefr-works/system-design/06-reliability.mdx",
         "docs/how-briefr-works/system-design/12-observability.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -216,6 +296,10 @@
       "title": "Hunt workflow",
       "pages": [
         "docs/how-briefr-works/intel-lifecycle/hunt.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -224,6 +308,10 @@
       "title": "Detect workflow",
       "pages": [
         "docs/how-briefr-works/intel-lifecycle/detect.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -235,6 +323,10 @@
         "docs/how-briefr-works/system-design/09-async.mdx",
         "docs/how-briefr-works/system-design/07-distributed.mdx",
         "docs/how-briefr-works/system-design/17-advanced.mdx"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -243,6 +335,10 @@
       "title": "Intel snapshot publish",
       "pages": [
         "docs/admin-guide/intel-snapshot.md"
+      ],
+      "viewBox": [
+        1080,
+        480
       ]
     },
     {
@@ -251,6 +347,10 @@
       "title": "Wallboard kiosk",
       "pages": [
         "docs/admin-guide/wallboard.md"
+      ],
+      "viewBox": [
+        1080,
+        560
       ]
     }
   ]
