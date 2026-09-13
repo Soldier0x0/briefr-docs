@@ -6,6 +6,9 @@ description: Every source BRIEFR pulls from — keys, quotas, failure behavior �
 
 # Integrations
 
+<iframe class="archify-frame" src="/diagrams/ingest-pipeline.html?theme=dark&present=1&embed=1" title="BRIEFR ingest pipeline" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/ingest-pipeline.svg" alt="BRIEFR ingest pipeline" /></noscript>
+
 BRIEFR sits between upstream intelligence sources and your downstream
 tooling. Everything below runs on the **scheduler**, never on the request
 path — a rate-limited or dead upstream degrades a sync job, not the UI.

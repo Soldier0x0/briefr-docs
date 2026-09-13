@@ -20,7 +20,8 @@ sidebar_position: 1
 
 ## At a glance
 
-![Production architecture](assets/production-architecture.svg)
+<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
 
 | Piece | What |
 |-------|------|

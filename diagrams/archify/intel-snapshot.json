@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Intel snapshot publish",
+    "subtitle": "Export intel schema only — operator tables stay on the box",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 480],
+    "views": [
+      {
+        "id": "intel-snapshot-path",
+        "label": "Path",
+        "focus": ["intel", "export", "bundle"],
+        "note": "App credentials never enter the public monthly bundle."
+      }
+    ]
+  },
+  "stages": [
+    { "label": "Intel" },
+    { "label": "Export" },
+    { "label": "Bundle" }
+  ],
+  "nodes": [
+    { "id": "intel", "type": "database", "label": "intel schema", "sublabel": "CVE + maps", "stage": 0, "row": 1, "tag": "publishable" },
+    { "id": "export", "type": "backend", "label": "Export script", "sublabel": "row guards", "stage": 1, "row": 1, "tag": "zero app" },
+    { "id": "bundle", "type": "external", "label": "Public bundle", "sublabel": "pgdump.gz", "stage": 2, "row": 1, "tag": "monthly" }
+  ],
+  "flows": [
+    { "id": "i-e", "from": "intel", "to": "export", "label": "dump intel", "classification": "local", "variant": "emphasis", "route": "straight" },
+    { "id": "e-b", "from": "export", "to": "bundle", "label": "gzip + manifest", "classification": "publish", "variant": "emphasis", "route": "straight" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Boundary",
+      "items": [
+        "Operator tables in schema app are not in the bundle",
+        "Import merge never overwrites credentials"
+      ]
+    }
+  ]
+}

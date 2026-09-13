@@ -9,6 +9,10 @@ For analysts, security enthusiasts, and anyone using BRIEFR through the UI —
 not deploying it. If you're standing up a server, you want the
 [Administrator Guide](/docs/admin-guide) instead.
 
+<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
+
+
 **New here?** Try the [live demo](https://briefrdemo.projectjupiter.in) first —
 same analyst shell as production, with fixture data and no install.
 

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "BRIEFR production architecture",
+    "subtitle": "Browser to FastAPI to PostgreSQL 16 — schedulers write, UI reads",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Analyst request",
+        "focus": ["browser", "edge", "api", "postgres"],
+        "note": "The UI never waits on live NVD; FastAPI reads PostgreSQL."
+      },
+      {
+        "id": "ingest-path",
+        "label": "Scheduler ingest",
+        "focus": ["scheduler", "intel", "postgres"],
+        "note": "APScheduler pulls intel and writes the database in the background."
+      }
+    ]
+  },
+  "layout": {
+    "mode": "grid",
+    "origin": [48, 88],
+    "cols": 5,
+    "gapX": 36,
+    "gapY": 56,
+    "cellW": 140,
+    "cellH": 64
+  },
+  "components": [
+    { "id": "browser", "type": "frontend", "label": "Analyst browser", "sublabel": "React SPA", "row": 1, "col": 0 },
+    { "id": "edge", "type": "cloud", "label": "Edge / nginx", "sublabel": "optional tunnel", "row": 1, "col": 1 },
+    { "id": "api", "type": "backend", "label": "FastAPI", "sublabel": ":8000 uvicorn", "row": 1, "col": 2 },
+    { "id": "postgres", "type": "database", "label": "PostgreSQL 16", "sublabel": "pgvector optional", "row": 1, "col": 3 },
+    { "id": "scheduler", "type": "backend", "label": "APScheduler", "sublabel": "job owner", "row": 2, "col": 2 },
+    { "id": "intel", "type": "external", "label": "Intel feeds", "sublabel": "NVD KEV EPSS OTX", "row": 2, "col": 4 }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "BRIEFR host",
+      "wraps": ["api", "scheduler", "postgres"]
+    }
+  ],
+  "connections": [
+    { "id": "browser-edge", "from": "browser", "to": "edge", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "edge-api", "from": "edge", "to": "api", "label": "proxy", "variant": "emphasis" },
+    { "id": "api-db", "from": "api", "to": "postgres", "label": "read/write", "variant": "emphasis" },
+    { "id": "sched-intel", "from": "intel", "to": "scheduler", "label": "fetch", "variant": "dashed" },
+    { "id": "sched-db", "from": "scheduler", "to": "postgres", "label": "upsert", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Request path",
+      "items": [
+        "Browser hits optional Cloudflare Tunnel or nginx, then FastAPI",
+        "Analyst routes read precomputed rows from PostgreSQL"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Background path",
+      "items": [
+        "APScheduler owns ingest jobs; the UI does not pull NVD on page load",
+        "Production requires PostgreSQL; SQLite is a local dev opt-out only"
+      ]
+    }
+  ]
+}

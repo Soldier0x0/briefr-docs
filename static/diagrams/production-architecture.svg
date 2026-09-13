@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 912 476" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="signal-flow" data-quality-profile="showcase">
+        <title id="archify-diagram-title">BRIEFR production architecture</title>
+        <desc id="archify-diagram-description">Browser to FastAPI to PostgreSQL 16 — schedulers write, UI reads</desc>
+        <!-- Definitions -->
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-default" />
+          </marker>
+          <marker id="arrowhead-emphasis" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis" />
+          </marker>
+          <marker id="arrowhead-security" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-security" />
+          </marker>
+          <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <!-- Background Grid -->
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- Boundaries (behind everything) -->
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="BRIEFR host" x="370" y="178" width="356" height="230" rx="12" class="c-region" stroke-width="1"/>
+
+        <!-- Connection paths (before components for correct z-order) -->
+        <path data-edge-from="browser" data-edge-to="edge" data-edge-label="HTTPS" data-edge-key="0" data-edge-id="browser-edge" data-composition-points="168,238;224,238" d="M 168 238 L 224 238" class="a-emphasis" data-animate="edge" style="--step:0" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="edge" data-edge-to="api" data-edge-label="proxy" data-edge-key="1" data-edge-id="edge-api" data-composition-points="344,238;400,238" d="M 344 238 L 400 238" class="a-emphasis" data-animate="edge" style="--step:1" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="api" data-edge-to="postgres" data-edge-label="read/write" data-edge-key="2" data-edge-id="api-db" data-composition-points="520,231;576,231" d="M 520 231 L 576 231" class="a-emphasis" data-animate="edge" style="--step:2" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="intel" data-edge-to="scheduler" data-edge-label="fetch" data-edge-key="3" data-edge-id="sched-intel" data-composition-points="752,365;520,365" d="M 752 365 L 520 365" class="a-dashed" data-animate="edge" style="--step:3" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="scheduler" data-edge-to="postgres" data-edge-label="upsert" data-edge-key="4" data-edge-id="sched-db" data-composition-points="520,351;548,351;548,245;576,245" d="M 520 351 L 540 351 Q 548 351 548 343 L 548 253 Q 548 245 556 245 L 576 245" class="a-emphasis" data-animate="edge" style="--step:4" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+
+        <!-- Components -->
+        <g id="node-browser" data-node-id="browser" data-node-label="Analyst browser" tabindex="0" role="button" aria-label="Focus Analyst browser, React SPA, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="React SPA" data-node-context="Architecture component">
+          <title>Analyst browser · React SPA · Architecture component</title>
+          <rect x="48" y="208" width="120" height="60" rx="6" class="c-mask"/>
+          <rect x="48" y="208" width="120" height="60" rx="6" class="c-frontend" data-animate="node" style="--step:0" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(54 214) scale(0.6875)">
+            <rect x="2" y="3" width="12" height="10" rx="2"/>
+            <path d="M2 6.5h12"/>
+            <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
+            <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="108" y="236" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Analyst browser</text>
+        <text data-detail="context" x="108" y="252" class="t-muted" font-size="9" text-anchor="middle">React SPA</text>
+        </g>
+
+        <g id="node-edge" data-node-id="edge" data-node-label="Edge / nginx" tabindex="0" role="button" aria-label="Focus Edge / nginx, optional tunnel, Architecture component" aria-pressed="false" data-node-kind="cloud" data-node-sublabel="optional tunnel" data-node-context="Architecture component">
+          <title>Edge / nginx · optional tunnel · Architecture component</title>
+          <rect x="224" y="208" width="120" height="60" rx="6" class="c-mask"/>
+          <rect x="224" y="208" width="120" height="60" rx="6" class="c-cloud" data-animate="node" style="--step:1" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="cloud" class="semantic-sigil s-cloud" transform="translate(230 214) scale(0.6875)">
+            <path d="M4.3 12.5h7.3a2.4 2.4 0 0 0 .2-4.8 4 4 0 0 0-7.5-1.3A3.1 3.1 0 0 0 4.3 12.5Z"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="284" y="236" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Edge / nginx</text>
+        <text data-detail="context" x="284" y="252" class="t-muted" font-size="9" text-anchor="middle">optional tunnel</text>
+        </g>
+
+        <g id="node-api" data-node-id="api" data-node-label="FastAPI" tabindex="0" role="button" aria-label="Focus FastAPI, :8000 uvicorn, BRIEFR host" aria-pressed="false" data-node-kind="backend" data-node-sublabel=":8000 uvicorn" data-node-context="BRIEFR host">
+          <title>FastAPI · :8000 uvicorn · BRIEFR host</title>
+          <rect x="400" y="208" width="120" height="60" rx="6" class="c-mask"/>
+          <rect x="400" y="208" width="120" height="60" rx="6" class="c-backend" data-animate="node" style="--step:2" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(406 214) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="460" y="236" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">FastAPI</text>
+        <text data-detail="context" x="460" y="252" class="t-muted" font-size="9" text-anchor="middle">:8000 uvicorn</text>
+        </g>
+
+        <g id="node-postgres" data-node-id="postgres" data-node-label="PostgreSQL 16" tabindex="0" role="button" aria-label="Focus PostgreSQL 16, pgvector optional, BRIEFR host" aria-pressed="false" data-node-kind="database" data-node-sublabel="pgvector optional" data-node-context="BRIEFR host">
+          <title>PostgreSQL 16 · pgvector optional · BRIEFR host</title>
+          <rect x="576" y="208" width="120" height="60" rx="6" class="c-mask"/>
+          <rect x="576" y="208" width="120" height="60" rx="6" class="c-database" data-animate="node" style="--step:3" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(582 214) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="636" y="236" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">PostgreSQL 16</text>
+        <text data-detail="context" x="636" y="252" class="t-muted" font-size="9" text-anchor="middle">pgvector optional</text>
+        </g>
+
+        <g id="node-scheduler" data-node-id="scheduler" data-node-label="APScheduler" tabindex="0" role="button" aria-label="Focus APScheduler, job owner, BRIEFR host" aria-pressed="false" data-node-kind="backend" data-node-sublabel="job owner" data-node-context="BRIEFR host">
+          <title>APScheduler · job owner · BRIEFR host</title>
+          <rect x="400" y="328" width="120" height="60" rx="6" class="c-mask"/>
+          <rect x="400" y="328" width="120" height="60" rx="6" class="c-backend" data-animate="node" style="--step:4" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(406 334) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="460" y="356" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">APScheduler</text>
+        <text data-detail="context" x="460" y="372" class="t-muted" font-size="9" text-anchor="middle">job owner</text>
+        </g>
+
+        <g id="node-intel" data-node-id="intel" data-node-label="Intel feeds" tabindex="0" role="button" aria-label="Focus Intel feeds, NVD KEV EPSS OTX, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="NVD KEV EPSS OTX" data-node-context="Architecture component">
+          <title>Intel feeds · NVD KEV EPSS OTX · Architecture component</title>
+          <rect x="752" y="328" width="120" height="60" rx="6" class="c-mask"/>
+          <rect x="752" y="328" width="120" height="60" rx="6" class="c-external" data-animate="node" style="--step:3" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(758 334) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="812" y="356" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Intel feeds</text>
+        <text data-detail="context" x="812" y="372" class="t-muted" font-size="9" text-anchor="middle">NVD KEV EPSS OTX</text>
+        </g>
+
+        <!-- Connection labels -->
+        <g data-detail="context" data-edge-from="browser" data-edge-to="edge" data-edge-label="HTTPS" data-edge-key="0" data-edge-id="browser-edge">
+          <rect x="179" y="218" width="34" height="14" rx="3" class="c-mask"/>
+          <text x="196" y="228" class="t-backend" font-size="8" text-anchor="middle">HTTPS</text>
+        </g>
+        <g data-detail="context" data-edge-from="edge" data-edge-to="api" data-edge-label="proxy" data-edge-key="1" data-edge-id="edge-api">
+          <rect x="355" y="218" width="34" height="14" rx="3" class="c-mask"/>
+          <text x="372" y="228" class="t-backend" font-size="8" text-anchor="middle">proxy</text>
+        </g>
+        <g data-detail="context" data-edge-from="api" data-edge-to="postgres" data-edge-label="read/write" data-edge-key="2" data-edge-id="api-db">
+          <rect x="519" y="211" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="548" y="221" class="t-backend" font-size="8" text-anchor="middle">read/write</text>
+        </g>
+        <g data-detail="context" data-edge-from="intel" data-edge-to="scheduler" data-edge-label="fetch" data-edge-key="3" data-edge-id="sched-intel">
+          <rect x="619" y="345" width="34" height="14" rx="3" class="c-mask"/>
+          <text x="636" y="355" class="t-messagebus" font-size="8" text-anchor="middle">fetch</text>
+        </g>
+        <g data-detail="context" data-edge-from="scheduler" data-edge-to="postgres" data-edge-label="upsert" data-edge-key="4" data-edge-id="sched-db">
+          <rect x="528.6" y="278" width="38.8" height="14" rx="3" class="c-mask"/>
+          <text x="548" y="288" class="t-backend" font-size="8" text-anchor="middle">upsert</text>
+        </g>
+
+        <!-- Boundary labels (foreground masks keep routes out of titles) -->
+        <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="BRIEFR host">
+          <rect data-graph-role="structural-frame-label-mask" x="374" y="188" width="69.4" height="16" rx="3" class="c-mask"/>
+          <text data-boundary-label="" x="378" y="201" class="t-cloud" font-size="9" font-weight="600">BRIEFR host</text>
+        </g>
+
+        <!-- Legend -->
+        <g data-legend="" data-legend-bridge="">
+          <text x="40" y="440" class="t-primary" font-size="12" font-weight="650">Legend</text>
+          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="Frontend" data-legend-x="40" data-legend-baseline="460" data-legend-width="83">
+            <rect x="40" y="451" width="16" height="10" rx="2.5" class="c-frontend" stroke-width="1"/>
+            <text x="62" y="460" class="t-muted" font-size="10" font-weight="500">Frontend</text>
+          </g>
+          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Backend" data-legend-x="145" data-legend-baseline="460" data-legend-width="78">
+            <rect x="145" y="451" width="16" height="10" rx="2.5" class="c-backend" stroke-width="1"/>
+            <text x="167" y="460" class="t-muted" font-size="10" font-weight="500">Backend</text>
+          </g>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Database" data-legend-x="245" data-legend-baseline="460" data-legend-width="83">
+            <rect x="245" y="451" width="16" height="10" rx="2.5" class="c-database" stroke-width="1"/>
+            <text x="267" y="460" class="t-muted" font-size="10" font-weight="500">Database</text>
+          </g>
+          <g data-legend-semantic-kind="cloud" data-legend-kind="cloud" data-legend-label="Cloud" data-legend-x="350" data-legend-baseline="460" data-legend-width="68">
+            <rect x="350" y="451" width="16" height="10" rx="2.5" class="c-cloud" stroke-width="1"/>
+            <text x="372" y="460" class="t-muted" font-size="10" font-weight="500">Cloud</text>
+          </g>
+          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="External" data-legend-x="440" data-legend-baseline="460" data-legend-width="83">
+            <rect x="440" y="451" width="16" height="10" rx="2.5" class="c-external" stroke-width="1"/>
+            <text x="462" y="460" class="t-muted" font-size="10" font-weight="500">External</text>
+          </g>
+        </g>
+      </svg>

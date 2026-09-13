@@ -7,6 +7,7 @@ description: How BRIEFR ingests intel from open feeds on scheduler-driven interv
 
 import InTheCode from '@site/src/components/learn/InTheCode';
 import TryItYourself from '@site/src/components/learn/TryItYourself';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Collect
 
@@ -15,6 +16,8 @@ import TryItYourself from '@site/src/components/learn/TryItYourself';
 Collection is the first step in BRIEFR's intel lifecycle. It is the work of
 pulling external vulnerability and threat data into BRIEFR before an analyst
 opens the feed.
+
+<ArchifyDiagram id="ingest-pipeline" title="BRIEFR ingest pipeline" />
 
 The key design choice is timing: BRIEFR collects on scheduled jobs, not during
 normal page rendering. The browser talks to FastAPI, FastAPI reads the local

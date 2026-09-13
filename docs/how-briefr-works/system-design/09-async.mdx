@@ -9,10 +9,13 @@ import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
 import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
 import InTheCode from '@site/src/components/learn/InTheCode';
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Unit 9: Messaging, eventing, async
 
 <CoverageBadge coverage="partial" />
+
+<ArchifyDiagram id="startup" title="Backend startup" />
 
 Asynchronous processing moves work off the request path. Instead of the analyst waiting while BRIEFR calls NVD, the scheduler fetches NVD in the background on its own cadence, stores the results, and the analyst reads from stored data. This is BRIEFR's core async pattern — and it is simpler than a message broker, more durable than a fire-and-forget background thread, and appropriate for the workload it serves.
 
@@ -25,6 +28,8 @@ BRIEFR's async layer has two parts, covered in depth in [Ingestion and scheduler
 **Background jobs** in `scheduler.py` handle work that is too expensive, too slow, or too bursty for the request path: nightly correlation analysis linking CVEs to threat campaigns, embeddings backfill running sentence-transformer inference over the corpus, IOC retro-matching scanning the watchlist against local threat mirrors, and maintenance sweeps for cache retention, session pruning, and resource metrics. These jobs share the same APScheduler instance and the same per-job lock model.
 
 **Procrastinate durable queue** (`jobs/`) is an optional layer for tasks that need durability across restarts and bounded retry behavior. When `PROCRASTINATE_ENABLED=1` and Postgres is configured, Procrastinate stores task records in the database and runs them via an in-process worker. Three attempts per task; retry delays are bounded in `jobs/retry_policy.py`. This layer is used for LLM product extraction calls where a failed call should retry durably, not silently drop. The scheduler jobs run with or without Procrastinate; the durable queue is additive, not required.
+
+<ArchifyDiagram id="background-jobs" title="Background jobs" />
 
 ## Retry and backoff in async pipelines
 

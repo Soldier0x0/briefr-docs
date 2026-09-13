@@ -8,6 +8,7 @@ description: FastAPI routes, session auth, and admin boundaries in BRIEFR.
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
 import InTheCode from '@site/src/components/learn/InTheCode';
 import TryItYourself from '@site/src/components/learn/TryItYourself';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # API and auth
 
@@ -16,6 +17,8 @@ import TryItYourself from '@site/src/components/learn/TryItYourself';
 BRIEFR exposes a FastAPI HTTP API under the `/api/` prefix. Every route served
 by that API — CVE queries, intel feeds, admin operations, and session management
 — is protected by a layered set of middleware, session gates, and role checks.
+
+<ArchifyDiagram id="auth-layers" title="BRIEFR auth layers" />
 
 Authentication uses a single built-in login system added in June 2026. There is
 no external identity provider, no OAuth flow, and no shared API key. When an

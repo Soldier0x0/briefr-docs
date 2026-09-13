@@ -6,6 +6,9 @@ description: Discord, Telegram, and generic webhook destinations — SSRF rules 
 
 # Webhooks
 
+<iframe class="archify-frame" src="/diagrams/webhooks-ops.html?theme=dark&present=1&embed=1" title="Webhooks and notifications" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/webhooks-ops.svg" alt="Webhooks and notifications" /></noscript>
+
 Push notifications for operator alerts. The engine dispatches events to one or
 more **destinations** loaded from env vars and the `webhook_destinations` table.
 Env seeds are upserted on startup (`sync_env_destinations_to_db`); per-destination

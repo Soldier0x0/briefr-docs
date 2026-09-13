@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Background jobs",
+    "subtitle": "Correlation, backfill, and maintenance off the request path",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      480
+    ],
+    "views": [
+      {
+        "id": "background-jobs-path",
+        "label": "Path",
+        "focus": [
+          "clock",
+          "jobs",
+          "pg",
+          "ui"
+        ],
+        "note": "Ingest jobs import; these jobs act on already-local intel."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "Clock"
+    },
+    {
+      "label": "Jobs"
+    },
+    {
+      "label": "Store"
+    },
+    {
+      "label": "UI"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "clock",
+      "type": "backend",
+      "label": "APScheduler",
+      "sublabel": "cron/interval",
+      "stage": 0,
+      "row": 1,
+      "tag": "locks"
+    },
+    {
+      "id": "jobs",
+      "type": "backend",
+      "label": "Nightly work",
+      "sublabel": "correlate",
+      "stage": 1,
+      "row": 1,
+      "tag": "off-request"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "mirrors",
+      "stage": 2,
+      "row": 1,
+      "tag": "upsert"
+    },
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Analyst UI",
+      "sublabel": "read",
+      "stage": 3,
+      "row": 1,
+      "tag": "SPA"
+    }
+  ],
+  "flows": [
+    {
+      "id": "c-j",
+      "from": "clock",
+      "to": "jobs",
+      "label": "fire",
+      "classification": "async",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "j-p",
+      "from": "jobs",
+      "to": "pg",
+      "label": "write",
+      "classification": "local",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "p-u",
+      "from": "pg",
+      "to": "ui",
+      "label": "JSON",
+      "classification": "request",
+      "variant": "emphasis",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Data movement",
+      "items": [
+        "This work is scheduled or on-demand — not a FEED page render"
+      ]
+    }
+  ]
+}

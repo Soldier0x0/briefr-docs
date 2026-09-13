@@ -11,6 +11,7 @@ frontend, PostgreSQL-native in production, licensed Apache-2.0.
 | Chapter | What it covers |
 | --- | --- |
 | [System design](./system-design.md) | Architecture, data flow, and the decisions behind them. |
+| [Request and startup flows](./flows.mdx) | Interactive Archify maps for feed, drawer, IOC, and boot. |
 | [Contributor onboarding](./onboarding.md) | Getting a dev environment running and landing your first change. |
 | [Contributing](./contributing.md) | PR guidelines — summary with link to canonical `CONTRIBUTING.md`. |
 | [Architecture decisions](./decisions.md) | ADR-001 through ADR-006 titles and one-line summaries. |

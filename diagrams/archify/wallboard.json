@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Wallboard kiosk",
+    "subtitle": "Read-only snapshot — no live NVD on the TV path",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 560],
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "wallboard-trace",
+        "label": "Trace",
+        "focus": ["kiosk", "api", "pg"],
+        "note": "Optional WALLBOARD_TOKEN header; payload is cached intel only."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "kiosk", "type": "frontend", "label": "Kiosk", "sublabel": "/wallboard" },
+    { "id": "api", "type": "backend", "label": "FastAPI", "sublabel": "GET /api/wallboard" },
+    { "id": "pg", "type": "database", "label": "PostgreSQL", "sublabel": "snapshot cache" }
+  ],
+  "messages": [
+    { "id": "wb-1", "from": "kiosk", "to": "api", "y": 170, "label": "GET /api/wallboard", "variant": "emphasis" },
+    { "id": "wb-2", "from": "api", "to": "pg", "y": 206, "label": "read snapshot", "variant": "emphasis" },
+    { "id": "wb-3", "from": "pg", "to": "api", "y": 242, "label": "tiles JSON", "variant": "return" },
+    { "id": "wb-4", "from": "api", "to": "kiosk", "y": 278, "label": "read-only payload", "variant": "return" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Kiosk path",
+      "items": [
+        "No admin data in the response",
+        "Request path does not call intel providers"
+      ]
+    }
+  ]
+}

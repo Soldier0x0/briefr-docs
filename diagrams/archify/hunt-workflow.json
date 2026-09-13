@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Hunt workflow",
+    "subtitle": "Pivot from a local CVE into IOC and Forge packs",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      480
+    ],
+    "views": [
+      {
+        "id": "hunt-workflow-path",
+        "label": "Path",
+        "focus": [
+          "cve",
+          "draw",
+          "ioc",
+          "forge"
+        ],
+        "note": "Hunt reads stored intel; it is not live telemetry search."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "Signal"
+    },
+    {
+      "label": "Drawer"
+    },
+    {
+      "label": "IOC"
+    },
+    {
+      "label": "Forge"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "cve",
+      "type": "frontend",
+      "label": "CVE signal",
+      "sublabel": "FEED card",
+      "stage": 0,
+      "row": 1,
+      "tag": "local"
+    },
+    {
+      "id": "draw",
+      "type": "frontend",
+      "label": "Investigation",
+      "sublabel": "session only",
+      "stage": 1,
+      "row": 1,
+      "tag": "pivot"
+    },
+    {
+      "id": "ioc",
+      "type": "backend",
+      "label": "IOC lookup",
+      "sublabel": "cached",
+      "stage": 2,
+      "row": 1,
+      "tag": "optional"
+    },
+    {
+      "id": "forge",
+      "type": "frontend",
+      "label": "Forge pack",
+      "sublabel": "ATT&CK gap",
+      "stage": 3,
+      "row": 1,
+      "tag": "queue"
+    }
+  ],
+  "flows": [
+    {
+      "id": "c-d",
+      "from": "cve",
+      "to": "draw",
+      "label": "open",
+      "classification": "ui",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "d-i",
+      "from": "draw",
+      "to": "ioc",
+      "label": "related IOC",
+      "classification": "pivot",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "i-f",
+      "from": "ioc",
+      "to": "forge",
+      "label": "technique pack",
+      "classification": "pivot",
+      "variant": "dashed",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Data movement",
+      "items": [
+        "This work is scheduled or on-demand — not a FEED page render"
+      ]
+    }
+  ]
+}

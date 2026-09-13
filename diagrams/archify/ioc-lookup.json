@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "IOC lookup",
+    "subtitle": "Cache first, then optional provider APIs",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      560
+    ],
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "ioc-lookup-trace",
+        "label": "Trace",
+        "focus": [
+          "browser",
+          "api",
+          "pg",
+          "prov"
+        ],
+        "note": "Quota-billed providers are not retried automatically."
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "Browser",
+      "sublabel": "IOCLookup"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sublabel": "POST /api/ioc/lookup"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "ioc_cache"
+    },
+    {
+      "id": "prov",
+      "type": "external",
+      "label": "Providers",
+      "sublabel": "VT AbuseIPDB"
+    }
+  ],
+  "messages": [
+    {
+      "id": "ioc-lookup-0",
+      "from": "browser",
+      "to": "api",
+      "y": 170,
+      "label": "POST lookup",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ioc-lookup-1",
+      "from": "api",
+      "to": "pg",
+      "y": 206,
+      "label": "cache read",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ioc-lookup-2",
+      "from": "api",
+      "to": "prov",
+      "y": 242,
+      "label": "miss → HTTP",
+      "variant": "dashed"
+    },
+    {
+      "id": "ioc-lookup-3",
+      "from": "api",
+      "to": "browser",
+      "y": 278,
+      "label": "IOC JSON",
+      "variant": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Request path",
+      "items": [
+        "The UI reads PostgreSQL via FastAPI"
+      ]
+    }
+  ]
+}

@@ -4,7 +4,18 @@ Documentation portal for [BRIEFR](https://github.com/Soldier0x0/briefr) — a
 self-hosted CVE intelligence and detection-engineering platform. Built with
 Docusaurus.
 
+Live site: [docs.projectjupiter.in](https://docs.projectjupiter.in).
 **Live demo:** https://briefrdemo.projectjupiter.in (static 1:1 UI, fixture data)
+
+## Architecture (GitHub preview)
+
+Interactive Archify maps (with data-flow motion) render on the docs site.
+GitHub Markdown uses the PNG export:
+
+![BRIEFR production architecture](static/diagrams/production-architecture.png)
+
+See [`diagrams/README.md`](diagrams/README.md) for IR, HTML, SVG, and PNG.
+Product UI screenshots stay on the [Using BRIEFR](docs/user-guide/using-briefr.md) guide.
 
 ## Editing docs
 

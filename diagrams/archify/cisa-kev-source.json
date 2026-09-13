@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "CISA KEV collection",
+    "subtitle": "Known Exploited Vulnerabilities join onto CVE rows",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      480
+    ],
+    "views": [
+      {
+        "id": "cisa-kev-source-path",
+        "label": "Path",
+        "focus": [
+          "src",
+          "job",
+          "pg"
+        ],
+        "note": "KEV flags attach to existing CVE records."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "Source"
+    },
+    {
+      "label": "Job"
+    },
+    {
+      "label": "Store"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "src",
+      "type": "external",
+      "label": "CISA KEV",
+      "sublabel": "catalog JSON",
+      "stage": 0,
+      "row": 1,
+      "tag": "upstream"
+    },
+    {
+      "id": "job",
+      "type": "backend",
+      "label": "kev_sync",
+      "sublabel": "scheduler",
+      "stage": 1,
+      "row": 1,
+      "tag": "paced"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "kev_deadlines",
+      "stage": 2,
+      "row": 1,
+      "tag": "local"
+    }
+  ],
+  "flows": [
+    {
+      "id": "s-j",
+      "from": "src",
+      "to": "job",
+      "label": "catalog",
+      "classification": "upstream",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "j-p",
+      "from": "job",
+      "to": "pg",
+      "label": "UPSERT + join",
+      "classification": "local copy",
+      "variant": "emphasis",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Scheduler owned",
+      "items": [
+        "The FEED never calls this source during page render"
+      ]
+    }
+  ]
+}

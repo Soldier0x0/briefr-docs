@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1080 620" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="signal-flow" data-quality-profile="showcase">
+        <title id="archify-diagram-title">BRIEFR correlation pipeline</title>
+        <desc id="archify-diagram-description">Four explainable lanes — no live OTX on drawer open</desc>
+        <!-- Definitions -->
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-default" />
+          </marker>
+          <marker id="arrowhead-emphasis" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis" />
+          </marker>
+          <marker id="arrowhead-security" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-security" />
+          </marker>
+          <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <!-- Background Grid -->
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- Data Stages -->
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="0" x="16" y="46" width="168" height="500" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="100" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">01 / Store</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="1" x="231" y="46" width="168" height="500" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="315" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">02 / Engine</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="2" x="446" y="46" width="168" height="500" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="530" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">03 / Lanes</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="3" x="661" y="46" width="168" height="500" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="745" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">04 / Cache</text>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="stage" data-composition-frame-id="4" x="876" y="46" width="168" height="500" rx="10" class="c-lane" stroke-width="1"/>
+        <text x="960" y="68" class="t-dim" font-size="9" font-weight="600" text-anchor="middle">05 / Analyst</text>
+
+        <!-- Flow paths -->
+        <path data-edge-from="cves" data-edge-to="engine" data-edge-label="CVE + IOC facts" data-edge-key="0" data-edge-id="cves-engine" data-composition-points="156,271;259,271" d="M 156 271 L 259 271" class="a-emphasis" data-animate="edge" style="--step:0" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="engine" data-edge-to="lanes" data-edge-label="score + reasons" data-edge-key="1" data-edge-id="engine-lanes" data-composition-points="371,271;474,271" d="M 371 271 L 474 271" class="a-emphasis" data-animate="edge" style="--step:1" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <path data-edge-from="lanes" data-edge-to="pulses" data-edge-label="pulse clusters" data-edge-key="2" data-edge-id="lanes-pulses" data-composition-points="586,271;689,271" d="M 586 271 L 689 271" class="a-default" data-animate="edge" style="--step:2" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <path data-edge-from="pulses" data-edge-to="drawer" data-edge-label="cached evidence" data-edge-key="3" data-edge-id="pulses-drawer" data-composition-points="801,271;904,271" d="M 801 271 L 904 271" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+
+        <!-- Nodes -->
+        <g id="node-cves" data-node-id="cves" data-node-label="CVE rows" tabindex="0" role="button" aria-label="Focus CVE rows, local intel, 01 / Store" aria-pressed="false" data-node-kind="database" data-node-sublabel="local intel" data-node-tag="Postgres" data-node-context="01 / Store">
+          <title>CVE rows · local intel · 01 / Store · Postgres</title>
+          <rect x="44" y="242" width="112" height="58" rx="6" class="c-mask"/>
+          <rect x="44" y="242" width="112" height="58" rx="6" class="c-database" data-animate="node" style="--step:0" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(50 248) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="100" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">CVE rows</text>
+          <text data-detail="context" x="100" y="279" class="t-muted" font-size="7" text-anchor="middle">local intel</text>
+        <text data-detail="fine" x="100" y="289" class="t-database" font-size="7" text-anchor="middle">Postgres</text>
+        </g>
+
+        <g id="node-engine" data-node-id="engine" data-node-label="Correlate job" tabindex="0" role="button" aria-label="Focus Correlate job, nightly, 02 / Engine" aria-pressed="false" data-node-kind="backend" data-node-sublabel="nightly" data-node-tag="scheduler" data-node-context="02 / Engine">
+          <title>Correlate job · nightly · 02 / Engine · scheduler</title>
+          <rect x="259" y="242" width="112" height="58" rx="6" class="c-mask"/>
+          <rect x="259" y="242" width="112" height="58" rx="6" class="c-backend" data-animate="node" style="--step:1" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(265 248) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="315" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Correlate job</text>
+          <text data-detail="context" x="315" y="279" class="t-muted" font-size="7" text-anchor="middle">nightly</text>
+        <text data-detail="fine" x="315" y="289" class="t-backend" font-size="7" text-anchor="middle">scheduler</text>
+        </g>
+
+        <g id="node-lanes" data-node-id="lanes" data-node-label="Four lanes" tabindex="0" role="button" aria-label="Focus Four lanes, explainable links, 03 / Lanes" aria-pressed="false" data-node-kind="backend" data-node-sublabel="explainable links" data-node-tag="lanes" data-node-context="03 / Lanes">
+          <title>Four lanes · explainable links · 03 / Lanes · lanes</title>
+          <rect x="474" y="242" width="112" height="58" rx="6" class="c-mask"/>
+          <rect x="474" y="242" width="112" height="58" rx="6" class="c-backend" data-animate="node" style="--step:2" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(480 248) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="530" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Four lanes</text>
+          <text data-detail="context" x="530" y="279" class="t-muted" font-size="7" text-anchor="middle">explainable links</text>
+        <text data-detail="fine" x="530" y="289" class="t-backend" font-size="7" text-anchor="middle">lanes</text>
+        </g>
+
+        <g id="node-pulses" data-node-id="pulses" data-node-label="otx_cve_pulses" tabindex="0" role="button" aria-label="Focus otx_cve_pulses, cached pulses, 04 / Cache" aria-pressed="false" data-node-kind="database" data-node-sublabel="cached pulses" data-node-tag="mirror" data-node-context="04 / Cache">
+          <title>otx_cve_pulses · cached pulses · 04 / Cache · mirror</title>
+          <rect x="689" y="242" width="112" height="58" rx="6" class="c-mask"/>
+          <rect x="689" y="242" width="112" height="58" rx="6" class="c-database" data-animate="node" style="--step:3" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(695 248) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="745" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">otx_cve_pulses</text>
+          <text data-detail="context" x="745" y="279" class="t-muted" font-size="7" text-anchor="middle">cached pulses</text>
+        <text data-detail="fine" x="745" y="289" class="t-database" font-size="7" text-anchor="middle">mirror</text>
+        </g>
+
+        <g id="node-drawer" data-node-id="drawer" data-node-label="Detail drawer" tabindex="0" role="button" aria-label="Focus Detail drawer, why grouped, 05 / Analyst" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="why grouped" data-node-tag="no live OTX" data-node-context="05 / Analyst">
+          <title>Detail drawer · why grouped · 05 / Analyst · no live OTX</title>
+          <rect x="904" y="242" width="112" height="58" rx="6" class="c-mask"/>
+          <rect x="904" y="242" width="112" height="58" rx="6" class="c-frontend" data-animate="node" style="--step:4" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(910 248) scale(0.6875)">
+            <rect x="2" y="3" width="12" height="10" rx="2"/>
+            <path d="M2 6.5h12"/>
+            <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
+            <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="960" y="263" class="t-primary" font-size="10" font-weight="600" text-anchor="middle">Detail drawer</text>
+          <text data-detail="context" x="960" y="279" class="t-muted" font-size="7" text-anchor="middle">why grouped</text>
+        <text data-detail="fine" x="960" y="289" class="t-frontend" font-size="7" text-anchor="middle">no live OTX</text>
+        </g>
+
+        <!-- Flow labels -->
+        <g data-detail="context" data-edge-from="cves" data-edge-to="engine" data-edge-label="CVE + IOC facts" data-edge-key="0" data-edge-id="cves-engine">
+          <rect x="164.75" y="250" width="85.5" height="27" rx="4" class="c-mask"/>
+          <text x="207.5" y="261" class="t-backend" font-size="8" text-anchor="middle">CVE + IOC facts</text>
+        <text data-detail="fine" x="207.5" y="272" class="t-dim" font-size="7" text-anchor="middle">local</text>
+        </g>
+        <g data-detail="context" data-edge-from="engine" data-edge-to="lanes" data-edge-label="score + reasons" data-edge-key="1" data-edge-id="engine-lanes">
+          <rect x="379.75" y="250" width="85.5" height="27" rx="4" class="c-mask"/>
+          <text x="422.5" y="261" class="t-backend" font-size="8" text-anchor="middle">score + reasons</text>
+        <text data-detail="fine" x="422.5" y="272" class="t-dim" font-size="7" text-anchor="middle">deterministic</text>
+        </g>
+        <g data-detail="context" data-edge-from="lanes" data-edge-to="pulses" data-edge-label="pulse clusters" data-edge-key="2" data-edge-id="lanes-pulses">
+          <rect x="589.85" y="250" width="95.3" height="27" rx="4" class="c-mask"/>
+          <text x="637.5" y="261" class="t-muted" font-size="8" text-anchor="middle">pulse clusters</text>
+        <text data-detail="fine" x="637.5" y="272" class="t-dim" font-size="7" text-anchor="middle">normalized titles</text>
+        </g>
+        <g data-detail="context" data-edge-from="pulses" data-edge-to="drawer" data-edge-label="cached evidence" data-edge-key="3" data-edge-id="pulses-drawer">
+          <rect x="809.75" y="250" width="85.5" height="27" rx="4" class="c-mask"/>
+          <text x="852.5" y="261" class="t-backend" font-size="8" text-anchor="middle">cached evidence</text>
+        <text data-detail="fine" x="852.5" y="272" class="t-dim" font-size="7" text-anchor="middle">read path</text>
+        </g>
+
+        <!-- Legend -->
+        <g data-legend="" data-legend-bridge="">
+          <text x="40" y="564" class="t-primary" font-size="12" font-weight="650">Legend</text>
+          <g data-legend-semantic-kind="emphasis" data-legend-x="40" data-legend-baseline="584" data-legend-width="103">
+            <path d="M 40 581 L 74 581" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+            <text x="83" y="584" class="t-muted" font-size="10" font-weight="500">primary data</text>
+          </g>
+          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="data store" data-legend-x="165" data-legend-baseline="584" data-legend-width="93">
+            <rect x="165" y="576" width="14" height="9" rx="2" class="c-database" stroke-width="1"/>
+            <text x="187" y="584" class="t-muted" font-size="10" font-weight="500">data store</text>
+          </g>
+          <g data-legend-semantic-kind="default" data-legend-x="280" data-legend-baseline="584" data-legend-width="88">
+            <path d="M 280 581 L 314 581" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+            <text x="323" y="584" class="t-muted" font-size="10" font-weight="500">data flow</text>
+          </g>
+        </g>
+      </svg>

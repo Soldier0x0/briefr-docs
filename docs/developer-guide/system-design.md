@@ -87,6 +87,10 @@ Feed Ingestion  →  PostgreSQL  →  FastAPI API  →  React UI
 
 Mermaid sources: master graph [`docs/diagrams/system-graph.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/system-graph.mermaid) · component view [`docs/diagrams/architecture.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/architecture.mermaid)
 
+<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
+
+
 ### DB tables → primary API readers
 
 | Table(s) | Primary endpoints | Frontend consumers |
@@ -223,6 +227,10 @@ the CVE or asset profile changes and renders `threat` / `environment` /
 
 Sequence diagram: [`docs/diagrams/flow_cve_feed.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/flow_cve_feed.mermaid)
 
+<iframe class="archify-frame" src="/diagrams/cve-feed.html?theme=dark&present=1&embed=1" title="CVE feed request" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/cve-feed.svg" alt="CVE feed request" /></noscript>
+
+
 ### B. CVE detail drill-down
 
 1. **Card click:** `App.jsx:handleSelectCVE` sets list CVE, then `fetchCVE(cve_id)` → `GET /api/cves/{id}`.
@@ -240,6 +248,10 @@ Sequence diagram: [`docs/diagrams/flow_cve_feed.mermaid`](https://github.com/Sol
 
 Sequence diagram: [`docs/diagrams/flow_cve_detail.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/flow_cve_detail.mermaid)
 
+<iframe class="archify-frame" src="/diagrams/cve-detail.html?theme=dark&present=1&embed=1" title="CVE detail drawer" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/cve-detail.svg" alt="CVE detail drawer" /></noscript>
+
+
 ### C. IOC lookup
 
 1. **Input:** `IOCLookup.jsx` validates type (`ip` | `hash` | `domain`), optional GreyNoise opt-in.
@@ -252,6 +264,10 @@ Sequence diagram: [`docs/diagrams/flow_cve_detail.mermaid`](https://github.com/S
 5. **UI:** per-source result cards and template sentences from `templates/intelligence.py`.
 
 Sequence diagram: [`docs/diagrams/flow_ioc_lookup.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/flow_ioc_lookup.mermaid)
+
+<iframe class="archify-frame" src="/diagrams/ioc-lookup.html?theme=dark&present=1&embed=1" title="IOC lookup" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/ioc-lookup.svg" alt="IOC lookup" /></noscript>
+
 
 ### C2. IOC watchlist + retro-match (V1.5 Phase 5)
 
@@ -281,6 +297,10 @@ See **Risk score (ADR-002 + legacy v1.1b) — backend canonical** above. Impleme
 7. **Editorial filter:** `incident_news.py` excludes non-security RSS items by title pattern (e.g. Dark Reading **"Name That Toon"** contest). Filter applies on parse and when serving cached rows; malformed cache entries are skipped defensively.
 
 Flowchart: [`docs/diagrams/startup.mermaid`](https://github.com/Soldier0x0/briefr/blob/main/docs/diagrams/startup.mermaid) (scheduler registration)
+
+<iframe class="archify-frame" src="/diagrams/startup.html?theme=dark&present=1&embed=1" title="Backend startup" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/startup.svg" alt="Backend startup" /></noscript>
+
 
 ### F2. Analyst Brief charts (Recharts, V1.5)
 

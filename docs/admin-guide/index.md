@@ -8,6 +8,10 @@ description: Install, run, and keep BRIEFR healthy in production — self-hostin
 For operators running BRIEFR on their own hardware. Production requires
 PostgreSQL; SQLite exists only as a zero-config dev/test fallback.
 
+<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
+
+
 | Chapter | What it covers |
 | --- | --- |
 | [Self-host BRIEFR](./self-host.md) | One guide for installing and running BRIEFR on your server. |

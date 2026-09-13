@@ -6,6 +6,9 @@ description: The auth model, secret handling, network exposure, a hardening chec
 
 # Security Guide
 
+<iframe class="archify-frame" src="/diagrams/auth-layers.html?theme=dark&present=1&embed=1" title="BRIEFR auth layers" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/auth-layers.svg" alt="BRIEFR auth layers" /></noscript>
+
 BRIEFR is built for security teams, so its own posture is documented, not
 implied. Everything below describes shipped behavior; where a claim comes
 from a design decision, the ADR is linked.

@@ -7,10 +7,13 @@ description: A gap unit — BRIEFR runs on one box by design. Learn what distrib
 
 import {CoverageBadge} from '@site/src/components/learn/CoverageBadge';
 import {SystemDesignGap} from '@site/src/components/learn/SystemDesignGap';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Unit 7: Distributed systems basics
 
 <CoverageBadge coverage="gap" />
+
+<ArchifyDiagram id="background-jobs" title="Background jobs" />
 
 BRIEFR is a deliberate single-box deployment. The distributed-systems problems that occupy a large portion of system-design literature — consensus, split-brain, clock skew, exactly-once delivery — do not arise when there is only one node. This unit maps the topic for completeness and explains the trade-off BRIEFR makes by staying on one machine.
 

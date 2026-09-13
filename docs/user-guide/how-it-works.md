@@ -11,19 +11,22 @@ sidebar_position: 2
 
 ## Architecture
 
-![Production architecture](assets/production-architecture.svg)
+<iframe class="archify-frame" src="/diagrams/production-architecture.html?theme=dark&present=1&embed=1" title="BRIEFR production architecture" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/production-architecture.svg" alt="BRIEFR production architecture" /></noscript>
 
 **Flow:** Browser → optional edge/nginx → FastAPI → PostgreSQL 16. Schedulers pull external intel into the DB; request handlers read cached/precomputed state.
 
 **Auth:** Optional edge access can sit in front of built-in app login.
 
-![Auth layers](assets/auth-layers.svg)
+<iframe class="archify-frame" src="/diagrams/auth-layers.html?theme=dark&present=1&embed=1" title="BRIEFR auth layers" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/auth-layers.svg" alt="BRIEFR auth layers" /></noscript>
 
 ---
 
 ## Ingest and jobs
 
-![Ingest pipeline](assets/ingest-pipeline.svg)
+<iframe class="archify-frame" src="/diagrams/ingest-pipeline.html?theme=dark&present=1&embed=1" title="BRIEFR ingest pipeline" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/ingest-pipeline.svg" alt="BRIEFR ingest pipeline" /></noscript>
 
 NVD, cvelistV5, CISA KEV, Vulnrichment, EPSS, OTX, MITRE ATT&CK/ATLAS, exploit sources, RSS × 5, and optional LLM/embedding jobs run on schedulers — not page load.
 
@@ -58,7 +61,8 @@ The drawer calls `POST /api/cves/{cve_id}/risk` with optional asset/profile cont
 
 ## Correlation
 
-![Correlation pipeline](assets/correlation-pipeline.svg)
+<iframe class="archify-frame" src="/diagrams/correlation-pipeline.html?theme=dark&present=1&embed=1" title="BRIEFR correlation pipeline" height="560" loading="lazy" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin"></iframe>
+<noscript><img src="/diagrams/correlation-pipeline.svg" alt="BRIEFR correlation pipeline" /></noscript>
 
 Four explainable lanes: **Campaigns**, **Infrastructure**, **Actor/sector**, **Temporal**. OTX pulse titles are normalized for display, and pulse clusters show why members were grouped. No black-box ML score; drawer open does not call OTX live. When OTX is temporarily down, cached `otx_cve_pulses` are served without wiping the mirror.
 

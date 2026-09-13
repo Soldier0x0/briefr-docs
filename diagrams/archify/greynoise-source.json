@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "GreyNoise on demand",
+    "subtitle": "IP classification only when the analyst asks",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      480
+    ],
+    "views": [
+      {
+        "id": "greynoise-source-path",
+        "label": "Path",
+        "focus": [
+          "ui",
+          "api",
+          "gn",
+          "pg"
+        ],
+        "note": "No scheduler job fills GreyNoise into the FEED."
+      }
+    ]
+  },
+  "stages": [
+    {
+      "label": "UI"
+    },
+    {
+      "label": "API"
+    },
+    {
+      "label": "Provider"
+    },
+    {
+      "label": "Cache"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Drawer / IOC",
+      "sublabel": "opt-in",
+      "stage": 0,
+      "row": 1,
+      "tag": "click"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sublabel": "greynoise",
+      "stage": 1,
+      "row": 1,
+      "tag": "quota"
+    },
+    {
+      "id": "gn",
+      "type": "external",
+      "label": "GreyNoise",
+      "sublabel": "IP class",
+      "stage": 2,
+      "row": 1,
+      "tag": "paid"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "cache",
+      "stage": 3,
+      "row": 1,
+      "tag": "TTL"
+    }
+  ],
+  "flows": [
+    {
+      "id": "u-a",
+      "from": "ui",
+      "to": "api",
+      "label": "on demand",
+      "classification": "request",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "a-g",
+      "from": "api",
+      "to": "gn",
+      "label": "lookup",
+      "classification": "upstream",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "g-p",
+      "from": "gn",
+      "to": "pg",
+      "label": "cache result",
+      "classification": "local",
+      "variant": "dashed",
+      "route": "straight"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Data movement",
+      "items": [
+        "This work is scheduled or on-demand — not a FEED page render"
+      ]
+    }
+  ]
+}

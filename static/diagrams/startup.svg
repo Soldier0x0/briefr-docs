@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 1080 560" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="signal-flow" data-quality-profile="showcase">
+        <title id="archify-diagram-title">Backend startup</title>
+        <desc id="archify-diagram-description">Schema, seed, scheduler, ingest if empty</desc>
+        <!-- Definitions -->
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-default" />
+          </marker>
+          <marker id="arrowhead-emphasis" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-emphasis" />
+          </marker>
+          <marker id="arrowhead-security" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-security" />
+          </marker>
+          <marker id="arrowhead-dashed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="m-dashed" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" class="c-grid" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+
+        <!-- Background Grid -->
+        <rect width="100%" height="100%" fill="url(#grid)" />
+
+        <!-- Time Segments -->
+
+
+        <!-- Lifelines -->
+        <path d="M 157 142 L 157 495" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 419.6666666666667 142 L 419.6666666666667 495" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 682.3333333333334 142 L 682.3333333333334 495" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 945 142 L 945 495" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+
+        <!-- Activations -->
+
+
+        <!-- Messages -->
+        <g data-edge-from="op" data-edge-to="api" data-edge-label="start API" data-edge-key="0" data-edge-id="startup-0">
+          <path data-composition-edge-from="op" data-composition-edge-to="api" data-composition-edge-id="startup-0" data-composition-points="164,170;412.6666666666667,170" d="M 164 170 L 412.6666666666667 170" class="a-emphasis" data-animate="edge" style="--step:0" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <g data-detail="context">
+          <rect x="258.9333333333334" y="150" width="58.800000000000004" height="16" rx="3" class="c-mask"/>
+          <text x="288.33333333333337" y="160" class="t-backend" font-size="9" text-anchor="middle">start API</text>
+        </g>
+        </g>
+
+        <g data-edge-from="api" data-edge-to="pg" data-edge-label="migrate + seed" data-edge-key="1" data-edge-id="startup-1">
+          <path data-composition-edge-from="api" data-composition-edge-to="pg" data-composition-edge-id="startup-1" data-composition-points="426.6666666666667,206;675.3333333333334,206" d="M 426.6666666666667 206 L 675.3333333333334 206" class="a-emphasis" data-animate="edge" style="--step:1" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <g data-detail="context">
+          <rect x="508.6" y="186" width="84.8" height="16" rx="3" class="c-mask"/>
+          <text x="551" y="196" class="t-backend" font-size="9" text-anchor="middle">migrate + seed</text>
+        </g>
+        </g>
+
+        <g data-edge-from="api" data-edge-to="sched" data-edge-label="register jobs" data-edge-key="2" data-edge-id="startup-2">
+          <path data-composition-edge-from="api" data-composition-edge-to="sched" data-composition-edge-id="startup-2" data-composition-points="426.6666666666667,242;938,242" d="M 426.6666666666667 242 L 938 242" class="a-emphasis" data-animate="edge" style="--step:2" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <g data-detail="context">
+          <rect x="642.5333333333334" y="222" width="79.60000000000001" height="16" rx="3" class="c-mask"/>
+          <text x="682.3333333333334" y="232" class="t-backend" font-size="9" text-anchor="middle">register jobs</text>
+        </g>
+        </g>
+
+        <g data-edge-from="sched" data-edge-to="pg" data-edge-label="ingest if empty" data-edge-key="3" data-edge-id="startup-3">
+          <path data-composition-edge-from="sched" data-composition-edge-to="pg" data-composition-edge-id="startup-3" data-composition-points="938,278;689.3333333333334,278" d="M 938 278 L 689.3333333333334 278" class="a-dashed" data-animate="edge" style="--step:3" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+        <g data-detail="context">
+          <rect x="768.6666666666667" y="258" width="90" height="16" rx="3" class="c-mask"/>
+          <text x="813.6666666666667" y="268" class="t-messagebus" font-size="9" text-anchor="middle">ingest if empty</text>
+        </g>
+        </g>
+
+        <!-- Segment Labels -->
+
+
+        <!-- Participants -->
+        <g id="node-op" data-node-id="op" data-node-label="Operator" tabindex="0" role="button" aria-label="Focus Operator, systemd/uvicorn, Sequence participant" aria-pressed="false" data-node-kind="external" data-node-sublabel="systemd/uvicorn" data-node-context="Sequence participant">
+          <title>Operator · systemd/uvicorn · Sequence participant</title>
+          <rect x="62" y="72" width="190" height="54" rx="6" class="c-mask"/>
+          <rect x="62" y="72" width="190" height="54" rx="6" class="c-external" data-animate="node" style="--step:0" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(68 78) scale(0.6875)">
+            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
+            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="157" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Operator</text>
+          <text data-detail="context" x="157" y="111" class="t-muted" font-size="7" text-anchor="middle">systemd/uvicorn</text>
+        </g>
+
+        <g id="node-api" data-node-id="api" data-node-label="Uvicorn" tabindex="0" role="button" aria-label="Focus Uvicorn, lifespan, Sequence participant" aria-pressed="false" data-node-kind="backend" data-node-sublabel="lifespan" data-node-context="Sequence participant">
+          <title>Uvicorn · lifespan · Sequence participant</title>
+          <rect x="324.6666666666667" y="72" width="190" height="54" rx="6" class="c-mask"/>
+          <rect x="324.6666666666667" y="72" width="190" height="54" rx="6" class="c-backend" data-animate="node" style="--step:1" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(330.6666666666667 78) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="419.6666666666667" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Uvicorn</text>
+          <text data-detail="context" x="419.6666666666667" y="111" class="t-muted" font-size="7" text-anchor="middle">lifespan</text>
+        </g>
+
+        <g id="node-pg" data-node-id="pg" data-node-label="PostgreSQL" tabindex="0" role="button" aria-label="Focus PostgreSQL, Alembic, Sequence participant" aria-pressed="false" data-node-kind="database" data-node-sublabel="Alembic" data-node-context="Sequence participant">
+          <title>PostgreSQL · Alembic · Sequence participant</title>
+          <rect x="587.3333333333334" y="72" width="190" height="54" rx="6" class="c-mask"/>
+          <rect x="587.3333333333334" y="72" width="190" height="54" rx="6" class="c-database" data-animate="node" style="--step:2" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(593.3333333333334 78) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="682.3333333333334" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">PostgreSQL</text>
+          <text data-detail="context" x="682.3333333333334" y="111" class="t-muted" font-size="7" text-anchor="middle">Alembic</text>
+        </g>
+
+        <g id="node-sched" data-node-id="sched" data-node-label="Scheduler" tabindex="0" role="button" aria-label="Focus Scheduler, APScheduler, Sequence participant" aria-pressed="false" data-node-kind="backend" data-node-sublabel="APScheduler" data-node-context="Sequence participant">
+          <title>Scheduler · APScheduler · Sequence participant</title>
+          <rect x="850" y="72" width="190" height="54" rx="6" class="c-mask"/>
+          <rect x="850" y="72" width="190" height="54" rx="6" class="c-backend" data-animate="node" style="--step:3" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(856 78) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="945" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Scheduler</text>
+          <text data-detail="context" x="945" y="111" class="t-muted" font-size="7" text-anchor="middle">APScheduler</text>
+        </g>
+
+        <!-- Legend -->
+        <g data-legend="">
+          <text x="40" y="486" class="t-primary" font-size="12" font-weight="650">Legend</text>
+          <g data-legend-semantic-kind="emphasis" data-legend-x="40" data-legend-baseline="506" data-legend-width="78">
+            <path d="M 40 503 L 74 503" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+            <text x="83" y="506" class="t-muted" font-size="10" font-weight="500">request</text>
+          </g>
+          <g data-legend-semantic-kind="dashed" data-legend-x="140" data-legend-baseline="506" data-legend-width="98">
+            <path d="M 140 503 L 174 503" class="a-dashed" stroke-width="1.4" marker-end="url(#arrowhead-dashed)"/>
+            <text x="183" y="506" class="t-muted" font-size="10" font-weight="500">async trace</text>
+          </g>
+        </g>
+      </svg>

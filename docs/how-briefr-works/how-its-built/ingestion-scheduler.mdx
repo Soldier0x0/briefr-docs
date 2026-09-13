@@ -8,6 +8,7 @@ description: Outbound feed jobs and the APScheduler owner model in BRIEFR.
 import InTheCode from '@site/src/components/learn/InTheCode';
 import AtEnterpriseScale from '@site/src/components/learn/AtEnterpriseScale';
 import TryItYourself from '@site/src/components/learn/TryItYourself';
+import ArchifyDiagram from '@site/src/components/ArchifyDiagram';
 
 # Ingestion and scheduler
 
@@ -17,6 +18,8 @@ The ingestion scheduler is how BRIEFR keeps its local CVE and threat corpus fres
 blocking the analyst UI. It runs inside the backend process as an APScheduler
 `AsyncIOScheduler`, registers 26 recurring jobs plus up to 3 optional registration-gated
 jobs, and drives every outbound feed pull that BRIEFR performs automatically.
+
+<ArchifyDiagram id="ingest-pipeline" title="BRIEFR ingest pipeline" />
 
 Each job targets one source group: NVD incremental syncs, KEV catalog updates, EPSS score
 snapshots, MITRE ATT&CK and ATLAS weekly refreshes, cvelistV5 deltas, CISA Vulnrichment

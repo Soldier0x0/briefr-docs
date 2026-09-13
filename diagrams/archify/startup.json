@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Backend startup",
+    "subtitle": "Schema, seed, scheduler, ingest if empty",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1080,
+      560
+    ],
+    "column_fit": "spread",
+    "views": [
+      {
+        "id": "startup-trace",
+        "label": "Trace",
+        "focus": [
+          "op",
+          "api",
+          "pg",
+          "sched"
+        ],
+        "note": "Empty corpus triggers a one-shot ingest after jobs register."
+      }
+    ]
+  },
+  "participants": [
+    {
+      "id": "op",
+      "type": "external",
+      "label": "Operator",
+      "sublabel": "systemd/uvicorn"
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Uvicorn",
+      "sublabel": "lifespan"
+    },
+    {
+      "id": "pg",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "Alembic"
+    },
+    {
+      "id": "sched",
+      "type": "backend",
+      "label": "Scheduler",
+      "sublabel": "APScheduler"
+    }
+  ],
+  "messages": [
+    {
+      "id": "startup-0",
+      "from": "op",
+      "to": "api",
+      "y": 170,
+      "label": "start API",
+      "variant": "emphasis"
+    },
+    {
+      "id": "startup-1",
+      "from": "api",
+      "to": "pg",
+      "y": 206,
+      "label": "migrate + seed",
+      "variant": "emphasis"
+    },
+    {
+      "id": "startup-2",
+      "from": "api",
+      "to": "sched",
+      "y": 242,
+      "label": "register jobs",
+      "variant": "emphasis"
+    },
+    {
+      "id": "startup-3",
+      "from": "sched",
+      "to": "pg",
+      "y": 278,
+      "label": "ingest if empty",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Request path",
+      "items": [
+        "The UI reads PostgreSQL via FastAPI"
+      ]
+    }
+  ]
+}

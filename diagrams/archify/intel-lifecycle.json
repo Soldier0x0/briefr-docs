@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "BRIEFR intel lifecycle",
+    "subtitle": "Collect through prioritize — local data, scheduled work",
+    "animation": "trace",
+    "visual_preset": "signal-flow",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 480],
+    "views": [
+      {
+        "id": "spine",
+        "label": "Full spine",
+        "focus": ["collect", "normalize", "enrich", "correlate", "prioritize"],
+        "note": "Intel moves left to right; the analyst UI reads the rightmost store."
+      }
+    ]
+  },
+  "stages": [
+    { "label": "Collect" },
+    { "label": "Normalize" },
+    { "label": "Enrich" },
+    { "label": "Correlate" },
+    { "label": "Prioritize" }
+  ],
+  "nodes": [
+    { "id": "collect", "type": "external", "label": "Open feeds", "sublabel": "NVD KEV EPSS OTX", "stage": 0, "row": 1, "tag": "scheduler" },
+    { "id": "normalize", "type": "backend", "label": "Normalize", "sublabel": "stable CVE rows", "stage": 1, "row": 1, "tag": "cves" },
+    { "id": "enrich", "type": "backend", "label": "Enrich", "sublabel": "OTX ATT&CK", "stage": 2, "row": 1, "tag": "context" },
+    { "id": "correlate", "type": "backend", "label": "Correlate", "sublabel": "four lanes", "stage": 3, "row": 1, "tag": "nightly" },
+    { "id": "prioritize", "type": "frontend", "label": "OP + brief", "sublabel": "P1–P4", "stage": 4, "row": 1, "tag": "analyst" }
+  ],
+  "flows": [
+    { "id": "c-n", "from": "collect", "to": "normalize", "label": "raw payloads", "classification": "ingest", "variant": "emphasis", "route": "straight" },
+    { "id": "n-e", "from": "normalize", "to": "enrich", "label": "CVE records", "classification": "local", "variant": "emphasis", "route": "straight" },
+    { "id": "e-c", "from": "enrich", "to": "correlate", "label": "context", "classification": "local", "variant": "emphasis", "route": "straight" },
+    { "id": "c-p", "from": "correlate", "to": "prioritize", "label": "explainable links", "classification": "read path", "variant": "emphasis", "route": "straight" }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Spine",
+      "items": [
+        "Hunt and Detect sit beside this spine; they read the same local rows",
+        "None of these steps run inside a FEED page request"
+      ]
+    }
+  ]
+}
